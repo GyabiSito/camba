@@ -19,13 +19,27 @@ esac
   mkdir api docs
   printf 'docs\n' > docs/readme.md
   git add docs && git commit -qm docs
-  test "$(bash "$here/changes.sh" "$base" HEAD)" = $'api=false\nweb=false\ninfra=false'
+  test "$(bash "$here/changes.sh" "$base" HEAD)" = $'api=false\nweb=false\nstore=false\nadmin=false\ninfra=false'
   base=$(git rev-parse HEAD)
   printf 'api\n' > api/marker
   git add api && git commit -qm api
-  test "$(bash "$here/changes.sh" "$base" HEAD)" = $'api=true\nweb=false\ninfra=false'
-  test "$(bash "$here/changes.sh" 0000000000000000000000000000000000000000 HEAD)" = $'api=true\nweb=true\ninfra=true'
+  test "$(bash "$here/changes.sh" "$base" HEAD)" = $'api=true\nweb=false\nstore=false\nadmin=false\ninfra=false'
+  test "$(bash "$here/changes.sh" 0000000000000000000000000000000000000000 HEAD)" = $'api=true\nweb=true\nstore=true\nadmin=true\ninfra=true'
   ! bash "$here/changes.sh" "$base" missing-head >/dev/null 2>&1
+  base=$(git rev-parse HEAD)
+  mkdir -p web/projects/store web/projects/admin api/docs
+  printf 'store\n' > web/projects/store/marker
+  printf 'docs\n' > api/docs/guide.md
+  git add api/docs web && git commit -qm store
+  test "$(bash "$here/changes.sh" "$base" HEAD)" = $'api=false\nweb=true\nstore=true\nadmin=false\ninfra=false'
+  base=$(git rev-parse HEAD)
+  printf 'admin\n' > web/projects/admin/marker
+  git add web && git commit -qm admin
+  test "$(bash "$here/changes.sh" "$base" HEAD)" = $'api=false\nweb=true\nstore=false\nadmin=true\ninfra=false'
+  base=$(git rev-parse HEAD)
+  printf '{}\n' > web/package.json
+  git add web && git commit -qm shared
+  test "$(bash "$here/changes.sh" "$base" HEAD)" = $'api=false\nweb=true\nstore=true\nadmin=true\ninfra=false'
 )
 
 for changes in success failure cancelled skipped; do

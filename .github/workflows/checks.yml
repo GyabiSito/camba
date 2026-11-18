@@ -15,6 +15,8 @@ jobs:
     outputs:
       api: ${{ steps.scope.outputs.api }}
       web: ${{ steps.scope.outputs.web }}
+      store: ${{ steps.scope.outputs.store }}
+      admin: ${{ steps.scope.outputs.admin }}
       infra: ${{ steps.scope.outputs.infra }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -88,8 +90,12 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - run: npm ci --ignore-scripts
-      - name: Check the Angular workspace tooling
-        run: npm exec -- ng version
+      - name: Build storefront SSR
+        if: needs.changes.outputs.store == 'true'
+        run: npm exec -- ng build store
+      - name: Build administration CSR
+        if: needs.changes.outputs.admin == 'true'
+        run: npm exec -- ng build admin
 
   infra:
     needs: changes
@@ -100,7 +106,23 @@ jobs:
         with:
           persist-credentials: false
       - run: docker compose -f infra/compose.dev.yml config --quiet
+      - name: Validate full development and production Compose
+        env:
+          CAMBA_DEV_APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+          CAMBA_APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+          CAMBA_APP_URL: https://store.example.test
+          CAMBA_SANCTUM_DOMAINS: 'store.example.test,admin.example.test'
+          CAMBA_DB_PASSWORD: ci-only
+          CAMBA_DB_ROOT_PASSWORD: ci-root-only
+          CAMBA_API_IMAGE: camba-api:ci
+          CAMBA_STORE_IMAGE: camba-store:ci
+          CAMBA_ADMIN_IMAGE: camba-admin:ci
+          CAMBA_EDGE_NETWORK: camba-ci-edge
+        run: |
+          docker compose -f infra/compose.dev.yml -f infra/compose.dev.apps.yml config --quiet
+          docker compose -f infra/compose.prod.yml -f infra/compose.edge.yml config --quiet
       - run: bash infra/ci/checks.test.sh
+      - run: bash infra/release/apply.test.sh
 
   required:
     name: Required checks
@@ -120,3 +142,76 @@ jobs:
           INFRA_NEEDED: ${{ needs.changes.outputs.infra }}
           INFRA_RESULT: ${{ needs.infra.result }}
         run: bash infra/ci/required.sh
+
+  publish:
+    needs: [changes, required]
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CAMBA_RELEASE_ENABLED == 'true' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      api: ${{ steps.images.outputs.api }}
+      store: ${{ steps.images.outputs.store }}
+      admin: ${{ steps.images.outputs.admin }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - id: images
+        name: Verify and publish only changed images
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          API_NEEDED: ${{ needs.changes.outputs.api }}
+          STORE_NEEDED: ${{ needs.changes.outputs.store }}
+          ADMIN_NEEDED: ${{ needs.changes.outputs.admin }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          for component in api store admin; do
+            flag="${component^^}_NEEDED"
+            [ "${!flag}" = true ] || continue
+            repository="ghcr.io/${GITHUB_REPOSITORY,,}-$component"
+            tag="$repository:$GITHUB_SHA"
+            bash infra/ci/build-image.sh "$component" "$tag"
+            docker push "$tag"
+            ref=$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$tag" | grep -F "$repository@sha256:")
+            [[ $ref =~ ^ghcr\.io/[a-z0-9_.-]+/[a-z0-9_.-]+@sha256:[0-9a-f]{64}$ ]]
+            printf '%s=%s\n' "$component" "$ref" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: publish
+    runs-on: ubuntu-24.04
+    permissions: {}
+    environment: camba-production
+    steps:
+      - name: Apply immutable digests through the protected release account
+        env:
+          DEPLOY_TARGET: ${{ secrets.CAMBA_DEPLOY_TARGET }}
+          DEPLOY_KEY: ${{ secrets.CAMBA_DEPLOY_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.CAMBA_DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_PORT: ${{ vars.CAMBA_DEPLOY_PORT || '22' }}
+          API_IMAGE: ${{ needs.publish.outputs.api }}
+          STORE_IMAGE: ${{ needs.publish.outputs.store }}
+          ADMIN_IMAGE: ${{ needs.publish.outputs.admin }}
+        run: |
+          set -euo pipefail
+          [[ $DEPLOY_TARGET =~ ^[a-zA-Z_][a-zA-Z0-9_-]*@[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]
+          [[ $DEPLOY_PORT =~ ^[0-9]{1,5}$ && -n $DEPLOY_KEY && -n $DEPLOY_KNOWN_HOSTS ]]
+          args=()
+          for component in api store admin; do
+            name="${component^^}_IMAGE"
+            ref="${!name}"
+            [[ -n $ref ]] || continue
+            [[ $ref =~ ^ghcr\.io/[a-z0-9_.-]+/[a-z0-9_.-]+@sha256:[0-9a-f]{64}$ ]]
+            args+=("$component=$ref")
+          done
+          (( ${#args[@]} > 0 ))
+          umask 077
+          private=$(mktemp -d)
+          trap 'rm -f -- "$private/key" "$private/known_hosts"; rmdir -- "$private"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$private/key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$private/known_hosts"
+          ssh -p "$DEPLOY_PORT" -i "$private/key" -o IdentitiesOnly=yes -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$private/known_hosts" \
+            "$DEPLOY_TARGET" /usr/local/bin/camba-ci-release "$GITHUB_RUN_NUMBER" "${args[@]}"

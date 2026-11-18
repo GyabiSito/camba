@@ -1,0 +1,17 @@
+services:
+  api:
+    networks:
+      edge:
+        aliases: [camba-v2-api]
+  store:
+    networks:
+      edge:
+        aliases: [camba-v2-store]
+  admin:
+    networks:
+      edge:
+        aliases: [camba-v2-admin]
+networks:
+  edge:
+    external: true
+    name: ${CAMBA_EDGE_NETWORK:?Set the existing Camba edge network}

@@ -17,6 +17,11 @@ compose_file=${CAMBA_COMPOSE_FILE:?Set CAMBA_COMPOSE_FILE to the installed Compo
 project=${CAMBA_COMPOSE_PROJECT:-camba-v2}
 [[ $state_dir = /* && $env_file = /* && $compose_file = /* ]] || fail 'release and configuration paths must be absolute'
 [[ -d $state_dir && -f $env_file && -r $compose_file ]] || fail 'release state, runtime configuration, or Compose file unavailable'
+compose_files=(-f "$compose_file")
+if [[ -n ${CAMBA_EDGE_COMPOSE_FILE:-} ]]; then
+  [[ $CAMBA_EDGE_COMPOSE_FILE = /* && -r $CAMBA_EDGE_COMPOSE_FILE ]] || fail 'edge Compose file unavailable'
+  compose_files+=(-f "$CAMBA_EDGE_COMPOSE_FILE")
+fi
 cd -- "$state_dir"
 state_dir=$(pwd -P)
 exec {lock_fd}>"$state_dir/.release.lock"
@@ -95,7 +100,7 @@ compose() (
   shift
   # Only the validated manifest controls image selection. Do not source runtime secrets.
   unset CAMBA_API_IMAGE CAMBA_STORE_IMAGE CAMBA_ADMIN_IMAGE
-  docker compose --project-name "$project" --env-file "$env_file" --env-file "$manifest" -f "$compose_file" "$@"
+  docker compose --project-name "$project" --env-file "$env_file" --env-file "$manifest" "${compose_files[@]}" "$@"
 )
 
 compose "$next" config --quiet

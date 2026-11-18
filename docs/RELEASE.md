@@ -9,6 +9,7 @@ The release executor is for automated deployment on Linux. Do not invoke it manu
 - `CAMBA_RELEASE_DIR`: an absolute protected, persistent directory on the release filesystem. It contains the lock, `current.env` and `previous.env`, never provider secrets.
 - `CAMBA_RUNTIME_ENV_FILE`: an absolute path to the separate protected Compose runtime settings. Configure provider secrets and backup prerequisites as in [backend operations](OPERATIONS_BACKEND.md).
 - `CAMBA_COMPOSE_FILE`: an absolute path to the installed release Compose file that contains all three application groups. `CAMBA_COMPOSE_PROJECT` defaults to `camba-v2`; never supply the legacy project name.
+- `CAMBA_EDGE_COMPOSE_FILE`: optional absolute path to the installed `infra/compose.edge.yml` overlay. Set `CAMBA_EDGE_NETWORK` in the protected Compose configuration to the existing edge network and `CAMBA_STORE_ALLOWED_HOSTS` to the exact publicly served storefront hosts. Do not use wildcards.
 
 The release account needs Docker Compose with `up --wait`, Bash, and `flock`. Start MySQL and Redis and confirm their health separately for the first installation. They are not updated or restarted by this executor.
 
@@ -21,3 +22,11 @@ The release account needs Docker Compose with `up --wait`, Bash, and `flock`. St
 5. Atomically replaces the current version manifest after successful service checks. The previous manifest preserves the rollback reference. A failed first release has no previous image; inspect isolated services before retrying.
 
 The check in `infra/release/apply.test.sh` uses a fake Docker CLI in a temporary directory. It demonstrates exact service selection, a stale release, migration behavior, validation of immutable references and failure rollback. It does not demonstrate a real edge deployment, backup/restore, or a healthy all-service Compose release.
+
+## GitHub and edge prerequisites
+
+`.github/workflows/checks.yml` validates the selected components and always resolves the required aggregate. On a successful main push, repository variable `CAMBA_RELEASE_ENABLED=true` opts into GHCR publication and wire-up; leave it unset until UI and deployment acceptance are complete. The publish job validates each affected local image before pushing its SHA tag, then hands the resulting digest to the deploy job. No image is rebuilt on the server.
+
+Protect the `camba-production` GitHub environment. Supply secrets `CAMBA_DEPLOY_TARGET` (restricted SSH account at a DNS hostname), `CAMBA_DEPLOY_KEY` (dedicated private key), `CAMBA_DEPLOY_KNOWN_HOSTS` (verified exact host key); optional environment variable `CAMBA_DEPLOY_PORT` defaults to 22. Give the server pull-only GHCR access to the three images. Place this repository's executor and Compose files in an operator-owned release directory, and provide `/usr/local/bin/camba-ci-release` as the restricted entry point that sets the above paths and forwards the validated arguments to the executor. Pin the authorized deploy key to that command and forbid agent forwarding, PTY and arbitrary port forwarding. Changes to the executor or edge configuration require the site's controlled bootstrap/configuration procedure; app deploys alone do not overwrite those files.
+
+The edge should route same-origin `/api/`, `/sanctum/`, `/email/verify/` and `/storage/` to `camba-v2-api:8080` on both frontends. On the storefront route other requests to `camba-v2-store:4000`; on the admin host route them to `camba-v2-admin:8080`. Overwrite trusted proxy headers, constrain the accepted public hosts, preserve query strings (especially the literal `data.id` webhook field), and agree on a source-IP trust policy before relying on per-IP limits. Do not rebind global ports or change existing application vhosts from development.
