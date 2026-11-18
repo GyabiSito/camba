@@ -1,0 +1,160 @@
+<section class="shop-workspace">
+  <header class="page-header">
+    <p><a routerLink="/carrito">Volver al carrito</a></p>
+    <h1>Confirmá tu compra</h1>
+    <p class="muted">Revisá cómo recibir tu pedido y el total antes de pagar.</p>
+  </header>
+  @if (loading()) {
+    <div role="status" class="shop-skeleton" aria-label="Cotizando la compra">
+      <i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i>
+    </div>
+  } @else if (quote(); as currentQuote) {
+    @if (currentQuote.shipping_options.length) {
+      <form (submit)="$event.preventDefault(); placeOrder()" class="shop-columns">
+        <div class="stack">
+          @if (buyer() === null) {
+            <p class="notice">
+              Podés comprar como invitado. Si preferís usar tu cuenta, iniciá sesión antes de
+              confirmar.
+              <a routerLink="/cuenta" [queryParams]="{ volver: 'checkout' }"
+                >Ingresar a mi cuenta</a
+              >
+            </p>
+          }
+          <section class="shop-panel">
+            <fieldset [formGroup]="contact" [disabled]="busy() || uncertain()" class="pair">
+              <legend>Datos de contacto</legend>
+              <label class="field span-row"
+                >Nombre completo
+                <input autocomplete="name" formControlName="name" required maxlength="120"
+              /></label>
+              <label class="field"
+                >Correo electrónico
+                <input
+                  autocomplete="email"
+                  type="email"
+                  formControlName="email"
+                  required
+                  maxlength="254"
+              /></label>
+              <label class="field"
+                >Teléfono (opcional)
+                <input autocomplete="tel" type="tel" formControlName="phone" maxlength="30"
+              /></label>
+            </fieldset>
+          </section>
+          <section class="shop-panel">
+            <fieldset [disabled]="busy() || uncertain()" class="stack">
+              <legend>¿Cómo querés recibir tu pedido?</legend>
+              @for (option of currentQuote.shipping_options; track option.method) {
+                <label class="choice">
+                  <input
+                    name="shipping"
+                    type="radio"
+                    [checked]="method() === option.method"
+                    (change)="method.set(option.method)"
+                    required
+                  />
+                  <span
+                    >{{ option.method === 'pickup' ? 'Retiro' : 'Entrega a domicilio' }}
+                    <small>
+                      {{ option.shipping_cents ? money(option.shipping_cents) : 'Sin costo' }}
+                      @if (option.pickup_address) {
+                        · {{ option.pickup_address }}
+                      }
+                    </small>
+                  </span>
+                </label>
+              }
+            </fieldset>
+          </section>
+          @if (method() === 'delivery') {
+            <section class="shop-panel">
+              <fieldset [disabled]="busy() || uncertain()" class="stack">
+                <legend>Dirección de entrega</legend>
+                @if (addresses().length) {
+                  <label class="field"
+                    >Usar una dirección guardada
+                    <select #saved (change)="applyAddress(saved.value)">
+                      <option value="">Ingresar una dirección</option>
+                      @for (item of addresses(); track item.id) {
+                        <option [value]="item.id">
+                          {{ item.street }} {{ item.number }}, {{ item.locality }}
+                        </option>
+                      }
+                    </select>
+                  </label>
+                }
+                <camba-address-fields [group]="address" />
+              </fieldset>
+            </section>
+          }
+        </div>
+        <aside class="shop-panel" aria-labelledby="quote-title">
+          <h2 id="quote-title">Resumen de la compra</h2>
+          <ul class="line-list">
+            @for (item of currentQuote.items; track item.product_id) {
+              <li>
+                <div class="line-head">
+                  <span>{{ item.quantity }} × {{ item.name }}</span
+                  ><span class="money">{{ money(item.line_total_cents) }}</span>
+                </div>
+              </li>
+            }
+          </ul>
+          <dl class="totals">
+            <div>
+              <dt>Subtotal</dt>
+              <dd>{{ money(currentQuote.subtotal_cents) }}</dd>
+            </div>
+            @if (selected(); as option) {
+              <div>
+                <dt>{{ option.method === 'pickup' ? 'Retiro' : 'Entrega' }}</dt>
+                <dd>{{ option.shipping_cents ? money(option.shipping_cents) : 'Sin costo' }}</dd>
+              </div>
+              <div class="total">
+                <dt>Total</dt>
+                <dd>{{ money(option.total_cents) }}</dd>
+              </div>
+            }
+          </dl>
+          @if (orderError()) {
+            <p class="notice problem" role="alert">{{ orderError() }}</p>
+          }
+          @if (uncertain()) {
+            <p><a routerLink="/pedidos">Ver compras</a></p>
+          }
+          <p class="muted small">Después de confirmar vas a poder pagar con Mercado Pago.</p>
+          <div class="actions">
+            <button class="button" type="submit" [disabled]="busy()">
+              {{
+                busy()
+                  ? 'Confirmando…'
+                  : uncertain()
+                    ? 'Reintentar el mismo pedido'
+                    : 'Confirmar pedido'
+              }}
+            </button>
+          </div>
+        </aside>
+      </form>
+    } @else {
+      <div class="shop-panel">
+        <h2>No hay opciones de entrega disponibles</h2>
+        <p>Por ahora no podemos recibir pedidos. No se hizo ningún cobro.</p>
+      </div>
+    }
+  } @else if (empty()) {
+    <div class="shop-panel">
+      <h2>Tu carrito está vacío</h2>
+      <div class="actions"><a routerLink="/tienda" class="button">Ir a la tienda</a></div>
+    </div>
+  } @else {
+    <div class="shop-panel">
+      <p class="notice problem" role="alert">{{ quoteError() || orderError() }}</p>
+      <div class="actions">
+        <button class="button" type="button" (click)="getQuote()">Cotizar de nuevo</button>
+      </div>
+    </div>
+  }
+</section>

@@ -1,0 +1,55 @@
+<div class="shop-home">
+  <section class="hero" [class.hero--plain]="!featured()" aria-labelledby="home-title">
+    <div class="hero-copy">
+      <h1 id="home-title">Ropa,<br />accesorios<br />y más.</h1>
+      <p>Explorá lo que hay en Camba y consultá el precio y la disponibilidad de cada producto.</p>
+      <a class="button hero-action" routerLink="/tienda">
+        Ver tienda
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+        >
+          <path d="M4 12h15m-6-6 6 6-6 6" />
+        </svg>
+      </a>
+    </div>
+    @if (featured(); as product) {
+      <figure class="hero-photo">
+        <store-product-photo
+          [photo]="product.images[0]"
+          [name]="product.name"
+          [priority]="true"
+          variant="hero"
+        />
+        <figcaption>
+          <span>{{ product.category.name }}</span>
+          <a [routerLink]="['/producto', product.slug]">{{ product.name }}</a>
+        </figcaption>
+      </figure>
+    }
+  </section>
+
+  @if (result().kind === 'unavailable') {
+    <section class="home-note surface" aria-labelledby="home-note-title">
+      <h2 id="home-note-title">No pudimos cargar los productos</h2>
+      <p>Volvé a intentar en unos instantes.</p>
+      <a class="button button--quiet" href="/">Volver a intentar</a>
+    </section>
+  } @else if (!featured()) {
+    <section class="home-note surface" aria-labelledby="home-note-title">
+      <h2 id="home-note-title">Todavía no hay productos publicados</h2>
+      <p>Cuando estén disponibles, los vas a encontrar en la tienda.</p>
+    </section>
+  } @else if (selection().length) {
+    <section class="selection" aria-labelledby="selection-title">
+      <div class="section-heading">
+        <h2 id="selection-title">Más en la tienda</h2>
+        <a routerLink="/tienda">Ver el catálogo</a>
+      </div>
+      <store-product-grid [products]="selection()" />
+    </section>
+  }
+</div>

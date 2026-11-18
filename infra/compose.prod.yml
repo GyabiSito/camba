@@ -58,6 +58,7 @@ services:
     networks: [backend]
     environment:
       CAMBA_SSR_API_ORIGIN: http://api:8080
+      CAMBA_PUBLIC_STORE_ORIGIN: ${CAMBA_APP_URL:?Set the public HTTPS origin}
       NG_ALLOWED_HOSTS: ${CAMBA_STORE_ALLOWED_HOSTS:-127.0.0.1,localhost}
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:4000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]

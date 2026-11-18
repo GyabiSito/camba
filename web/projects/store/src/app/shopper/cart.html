@@ -1,0 +1,129 @@
+<section class="shop-workspace">
+  <header class="page-header"><h1>Tu carrito</h1></header>
+  @if (loading()) {
+    <div role="status" class="shop-skeleton" aria-label="Cargando carrito">
+      <i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i>
+    </div>
+  } @else {
+    <div class="shop-columns">
+      <div class="stack">
+        @if (error()) {
+          <p class="notice problem" role="alert">{{ error() }}</p>
+        }
+        @if (updated()) {
+          <p class="notice" role="status" aria-label="Carrito actualizado">Carrito actualizado.</p>
+        }
+        @if (items().length) {
+          <ul class="line-list" aria-label="Productos">
+            @for (item of items(); track item.product_id) {
+              <li class="stack">
+                <div class="line-head">
+                  @if (item.product; as product) {
+                    <h2>
+                      <a [routerLink]="['/producto', product.slug]">{{ product.name }}</a>
+                    </h2>
+                    <strong class="money">{{ money(product.price_cents * item.quantity) }}</strong>
+                  } @else {
+                    <h2>Producto no disponible</h2>
+                  }
+                </div>
+                @if (!item.available || item.quantity > maxQuantity(item)) {
+                  <p class="muted">
+                    {{
+                      maxQuantity(item)
+                        ? 'Reducí la cantidad para continuar. Disponible: ' +
+                          maxQuantity(item) +
+                          '.'
+                        : 'Quitá este producto para continuar.'
+                    }}
+                  </p>
+                }
+                <form (ngSubmit)="save(item, false)" ngNativeValidate class="actions">
+                  @if (maxQuantity(item); as max) {
+                    <label class="field quantity"
+                      >Cantidad
+                      <input
+                        type="number"
+                        inputmode="numeric"
+                        min="1"
+                        [max]="max"
+                        step="1"
+                        required
+                        [attr.aria-label]="'Cantidad de ' + item.product?.name"
+                        [name]="'quantity-' + item.product_id"
+                        [ngModel]="quantities()[item.product_id]"
+                        (ngModelChange)="setQuantity(item.product_id, $event)"
+                        [disabled]="action() !== null"
+                      />
+                    </label>
+                    <button
+                      type="submit"
+                      class="button button--quiet"
+                      [disabled]="
+                        action() !== null || quantities()[item.product_id] === item.quantity
+                      "
+                    >
+                      Actualizar
+                    </button>
+                  }
+                  <button
+                    type="button"
+                    class="button button--quiet"
+                    [disabled]="action() !== null"
+                    [attr.aria-label]="'Quitar ' + (item.product?.name ?? 'producto no disponible')"
+                    (click)="save(item, true)"
+                  >
+                    Quitar
+                  </button>
+                  @if (action() === item.product_id) {
+                    <span role="status">Actualizando…</span>
+                  }
+                </form>
+              </li>
+            }
+          </ul>
+        } @else if (error()) {
+          <div class="actions">
+            <button type="button" class="button" (click)="refresh()">Reintentar</button>
+          </div>
+        } @else {
+          <section class="shop-panel">
+            <h2>Tu carrito está vacío</h2>
+            <p class="muted">Encontrá algo que te guste en la tienda.</p>
+            <div class="actions"><a class="button" routerLink="/tienda">Ir a la tienda</a></div>
+          </section>
+        }
+      </div>
+      <aside class="shop-panel" aria-labelledby="cart-summary-title">
+        @if (items().length) {
+          <h2 id="cart-summary-title">Resumen del carrito</h2>
+          <dl class="totals">
+            <div>
+              <dt>Subtotal estimado</dt>
+              <dd>{{ money(total()) }}</dd>
+            </div>
+          </dl>
+          <p class="muted small">Vas a ver el costo de entrega antes de confirmar.</p>
+          @if (!hasUnavailable() && !unsaved() && action() === null) {
+            <div class="actions">
+              <a class="button" routerLink="/checkout">Continuar la compra</a>
+            </div>
+          } @else {
+            <p class="muted small">
+              {{
+                action() !== null
+                  ? 'Esperá a que se guarde el cambio.'
+                  : unsaved()
+                    ? 'Guardá los cambios de cantidad antes de continuar.'
+                    : 'Ajustá el carrito antes de continuar.'
+              }}
+            </p>
+          }
+        } @else {
+          <h2 id="cart-summary-title">¿Ya hiciste un pedido?</h2>
+        }
+        <div class="actions"><a routerLink="/pedidos">Ver compras</a></div>
+      </aside>
+    </div>
+  }
+</section>

@@ -1,0 +1,286 @@
+@if (loading()) {
+  <section class="shop-workspace narrow">
+    <header class="page-header"><h1>Tu cuenta</h1></header>
+    <div role="status" class="shop-skeleton" aria-label="Cargando tu cuenta">
+      <i aria-hidden="true"></i><i aria-hidden="true"></i>
+    </div>
+  </section>
+} @else if (buyer(); as current) {
+  <section class="shop-workspace">
+    <header class="page-header">
+      <h1>Tu cuenta</h1>
+      <p class="muted">{{ current.email }}</p>
+      @if (returnToCheckout) {
+        <p><a routerLink="/checkout">Volver a la compra</a></p>
+      }
+    </header>
+    <div class="shop-columns">
+      <div class="stack">
+        @if (!current.email_verified) {
+          <section class="notice" aria-labelledby="verify-title">
+            <h2 id="verify-title">Verificá tu correo</h2>
+            <p>Abrí el enlace que recibiste y después comprobá la verificación acá.</p>
+            @if (verificationError()) {
+              <p class="problem" role="alert">{{ verificationError() }}</p>
+            }
+            @if (verificationMessage()) {
+              <p role="status">{{ verificationMessage() }}</p>
+            }
+            <div class="actions">
+              <button
+                type="button"
+                class="button button--quiet"
+                [disabled]="verificationBusy()"
+                (click)="verify(true)"
+              >
+                Pedir otro enlace
+              </button>
+              <button
+                type="button"
+                class="button button--quiet"
+                [disabled]="verificationBusy()"
+                (click)="verify(false)"
+              >
+                Comprobar verificación
+              </button>
+            </div>
+          </section>
+        } @else if (verificationMessage()) {
+          <p role="status" class="notice">{{ verificationMessage() }}</p>
+        }
+        <section class="shop-panel" aria-labelledby="profile-title">
+          <h2 id="profile-title">Datos personales</h2>
+          @if (error()) {
+            <p role="alert" class="notice problem">{{ error() }}</p>
+          }
+          @if (profileMessage()) {
+            <p role="status">{{ profileMessage() }}</p>
+          }
+          <form [formGroup]="profile" (ngSubmit)="saveProfile()" ngNativeValidate>
+            <fieldset class="stack" [disabled]="profileBusy()">
+              <label class="field"
+                >Nombre completo
+                <input formControlName="name" autocomplete="name" required maxlength="120"
+              /></label>
+              <div class="actions">
+                <button type="submit" class="button">
+                  {{ profileBusy() ? 'Un momento…' : 'Guardar nombre' }}
+                </button>
+              </div>
+            </fieldset>
+          </form>
+        </section>
+        <div>
+          <details
+            #addressDetails
+            (toggle)="addressDetails.open && addresses() === null && loadAddresses()"
+          >
+            <summary>Direcciones guardadas</summary>
+            <div class="stack">
+              @if (addressError()) {
+                <p role="alert" class="notice problem">{{ addressError() }}</p>
+              }
+              @if (addressMessage()) {
+                <p role="status">{{ addressMessage() }}</p>
+              }
+              @if (addressesLoading()) {
+                <div role="status" class="shop-skeleton" aria-label="Cargando direcciones">
+                  <i aria-hidden="true"></i><i aria-hidden="true"></i>
+                </div>
+              } @else if (addresses(); as saved) {
+                <ul class="line-list">
+                  @for (item of saved; track item.id) {
+                    <li class="stack">
+                      <div class="line-head">
+                        <strong>{{ item.street }} {{ item.number }}</strong>
+                        <span class="muted small">{{ item.locality }}, {{ item.department }}</span>
+                      </div>
+                      <p class="muted small">
+                        {{ item.recipient }}
+                        @if (item.details) {
+                          · {{ item.details }}
+                        }
+                      </p>
+                      @if (removingAddress() === item.id) {
+                        <p>¿Eliminar esta dirección?</p>
+                        <div class="actions">
+                          <button
+                            type="button"
+                            class="button"
+                            [disabled]="addressBusy()"
+                            (click)="removeAddress(item.id)"
+                          >
+                            Eliminar dirección
+                          </button>
+                          <button
+                            type="button"
+                            class="button button--quiet"
+                            [disabled]="addressBusy()"
+                            (click)="removingAddress.set(null)"
+                          >
+                            Conservar
+                          </button>
+                        </div>
+                      } @else {
+                        <div class="actions">
+                          <button
+                            type="button"
+                            class="button button--quiet"
+                            [disabled]="addressBusy()"
+                            [attr.aria-label]="'Editar ' + item.street + ' ' + item.number"
+                            (click)="editAddress(item)"
+                          >
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            class="button button--quiet"
+                            [disabled]="addressBusy()"
+                            [attr.aria-label]="'Eliminar ' + item.street + ' ' + item.number"
+                            (click)="removingAddress.set(item.id)"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      }
+                    </li>
+                  } @empty {
+                    <li class="muted">Aún no guardaste direcciones.</li>
+                  }
+                </ul>
+                @if (editingAddress() !== null) {
+                  <form class="shop-panel" (submit)="$event.preventDefault(); saveAddress()">
+                    <fieldset class="stack" [disabled]="addressBusy()">
+                      <legend>
+                        {{ editingAddress() === 'new' ? 'Nueva dirección' : 'Editar dirección' }}
+                      </legend>
+                      <camba-address-fields [group]="address" />
+                      <label class="field"
+                        >Teléfono (opcional)
+                        <input
+                          type="tel"
+                          autocomplete="shipping tel"
+                          maxlength="30"
+                          [formControl]="phone"
+                      /></label>
+                      <div class="actions">
+                        <button type="submit" class="button">
+                          {{ addressBusy() ? 'Guardando…' : 'Guardar dirección' }}
+                        </button>
+                        <button
+                          type="button"
+                          class="button button--quiet"
+                          (click)="editingAddress.set(null)"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </fieldset>
+                  </form>
+                } @else {
+                  <div class="actions">
+                    <button
+                      type="button"
+                      class="button button--quiet"
+                      [disabled]="addressBusy()"
+                      (click)="editAddress(null)"
+                    >
+                      Agregar dirección
+                    </button>
+                  </div>
+                }
+              } @else {
+                <div class="actions">
+                  <button type="button" class="button button--quiet" (click)="loadAddresses()">
+                    Cargar direcciones
+                  </button>
+                </div>
+              }
+            </div>
+          </details>
+          @if (current.email_verified && current.role === 'buyer') {
+            <details
+              #reminders
+              (toggle)="reminders.open && !preferencesLoaded() && updatePreferences(false)"
+            >
+              <summary>Recordatorios por correo</summary>
+              <div class="stack">
+                @if (preferencesError()) {
+                  <p role="alert" class="notice problem">{{ preferencesError() }}</p>
+                }
+                @if (preferencesMessage()) {
+                  <p role="status">{{ preferencesMessage() }}</p>
+                }
+                @if (preferencesLoaded()) {
+                  <form [formGroup]="preferences" (ngSubmit)="updatePreferences(true)">
+                    <fieldset class="stack" [disabled]="preferencesBusy()">
+                      <legend>Qué querés recibir</legend>
+                      <label class="choice"
+                        ><input type="checkbox" formControlName="payment_reminders" /> Pagos
+                        pendientes</label
+                      >
+                      <label class="choice"
+                        ><input type="checkbox" formControlName="cart_reminders" /> Productos que
+                        quedaron en el carrito</label
+                      >
+                      <div class="actions">
+                        <button class="button" type="submit">
+                          {{ preferencesBusy() ? 'Guardando…' : 'Guardar preferencias' }}
+                        </button>
+                      </div>
+                    </fieldset>
+                  </form>
+                } @else if (preferencesBusy()) {
+                  <div role="status" class="shop-skeleton" aria-label="Cargando preferencias">
+                    <i aria-hidden="true"></i><i aria-hidden="true"></i>
+                  </div>
+                } @else {
+                  <div class="actions">
+                    <button
+                      class="button button--quiet"
+                      type="button"
+                      (click)="updatePreferences(false)"
+                    >
+                      Cargar preferencias
+                    </button>
+                  </div>
+                }
+              </div>
+            </details>
+          }
+        </div>
+      </div>
+      <aside class="shop-panel" aria-labelledby="purchase-title">
+        <h2 id="purchase-title">Tus compras</h2>
+        <p class="muted">Revisá el pago y la entrega de tus pedidos.</p>
+        <div class="actions"><a class="button" routerLink="/pedidos">Ver compras</a></div>
+        <div class="actions">
+          <button
+            type="button"
+            class="button button--quiet"
+            [disabled]="
+              profileBusy() ||
+              addressBusy() ||
+              addressesLoading() ||
+              preferencesBusy() ||
+              verificationBusy()
+            "
+            (click)="logout()"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </aside>
+    </div>
+  </section>
+} @else if (error()) {
+  <section class="shop-workspace narrow stack">
+    <header class="page-header"><h1>Tu cuenta</h1></header>
+    <p role="alert" class="notice problem">{{ error() }}</p>
+    <div class="actions">
+      <button type="button" class="button" (click)="loadBuyer()">Reintentar</button>
+    </div>
+  </section>
+} @else {
+  <camba-shopper-auth (signedIn)="loadBuyer(true)" />
+}

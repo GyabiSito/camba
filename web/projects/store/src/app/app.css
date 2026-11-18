@@ -1,0 +1,34 @@
+:host { display: flex; flex-direction: column; min-block-size: 100vh; }
+.store-header, .store-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .8rem 2rem;
+  padding-inline: max(1rem, calc((100vw - 85rem) / 2));
+  border-color: var(--line);
+  border-style: solid;
+  border-width: 0 0 1px;
+}
+.store-header { min-block-size: 4.8rem; }
+.header-search { display: flex; gap: .35rem; min-inline-size: 0; inline-size: min(25vw, 20rem); margin-inline-start: auto; }
+.header-search input { inline-size: 100%; min-inline-size: 0; }
+.header-search .button { flex: 0 0 2.75rem; padding: 0; }
+.wordmark { color: var(--ink); font-size: 2rem; font-weight: 850; letter-spacing: -.04em; text-decoration: none; }
+nav { display: flex; flex-wrap: wrap; align-items: center; gap: .45rem clamp(.75rem, 2.8vw, 2.5rem); }
+nav a { min-block-size: 2.75rem; display: inline-flex; align-items: center; gap: .45rem; color: var(--ink); text-decoration: none; }
+nav a:hover, nav a.active { text-decoration: underline; text-decoration-thickness: .13em; }
+.count { display: inline-grid; place-items: center; min-inline-size: 1.4rem; min-block-size: 1.4rem; border-radius: 1rem; background: var(--accent); color: var(--forest); padding-inline: .2rem; font-size: .78rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.store-body { flex: 1; min-inline-size: 0; inline-size: min(100%, 87rem); margin-inline: auto; padding: 0 clamp(.85rem, 3vw, 2.4rem) 3rem; }
+.store-footer { padding-block: 2rem; border-width: 1px 0 0; background: var(--accent); }
+.store-footer .wordmark { font-size: 1.6rem; }
+@media (max-width: 52rem) {
+  .store-header { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .2rem .9rem; padding-block: .5rem; }
+  .store-header nav { grid-column: 1 / -1; }
+  .header-search { inline-size: min(100%, 20rem); }
+}
+@media (max-width: 32rem) {
+  .store-footer { align-items: flex-start; flex-direction: column; gap: 0; padding-block-start: .55rem; }
+  .store-footer { padding-block-end: 1rem; }
+  .header-search { inline-size: 100%; }
+  nav { font-size: .9rem; gap: .15rem .85rem; }
+}
