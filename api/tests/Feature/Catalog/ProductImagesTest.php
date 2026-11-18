@@ -79,7 +79,8 @@ class ProductImagesTest extends TestCase
             if ($index === 0) {
                 $this->assertSame([60, 120], [$f[0], $f[1]]);
                 $this->assertSame([60, 120], [$t[0], $t[1]]);
-            }if ($index === 1) {
+            }
+            if ($index === 1) {
                 $this->assertSame([1600, 800], [$f[0], $f[1]]);
                 $this->assertSame([400, 200], [$t[0], $t[1]]);
             }
@@ -162,7 +163,8 @@ class ProductImagesTest extends TestCase
         $files = [];
         foreach ($disk->allFiles() as $path) {
             $files[$path] = hash('sha256', $disk->get($path));
-        }ksort($files);
+        }
+        ksort($files);
 
         return hash('sha256', json_encode([DB::table('product_images')->orderBy('id')->get(), DB::table('products')->orderBy('id')->get(), $files]));
     }
@@ -173,10 +175,12 @@ class ProductImagesTest extends TestCase
         imagefill($i, 0, 0, imagecolorallocate($i, 10, 90, 160));
         ob_start();
         match ($type) {
-            'jpeg' => imagejpeg($i),'webp' => imagewebp($i),default => imagepng($i)
+            'jpeg' => imagejpeg($i),
+            'webp' => imagewebp($i),
+            default => imagepng($i),
         };
         $bytes = ob_get_clean();
 
-        return UploadedFile::fake()->createWithContent($name,$bytes);
+        return UploadedFile::fake()->createWithContent($name, $bytes);
     }
 }
