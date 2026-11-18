@@ -12,7 +12,7 @@ All paths below are relative to `/api/v1`. Requests and responses use JSON. Coll
 
 For example, `GET /products?q=glass&category=home&brand=senda&sort=price_asc&per_page=12&page=2` searches product names and SKUs. The category and brand filters use slugs and combine with the search. Sort choices are `newest` (default, highest created ID first), `name`, `price_asc`, and `price_desc`. The default page size is 24; callers can request 1–100. Invalid parameters return 422.
 
-Products include `id`, `sku`, `slug`, `name`, `description`, `price_cents`, `currency` (`UYU`), `stock`, `in_stock`, `category`, `brand` (nullable), and ordered `images`. Classifications expose `id`, `slug`, and `name`; image entries expose `id`, `url`, and `alt`.
+Products include `id`, `sku`, `slug`, `name`, `description`, `price_cents`, `currency` (`UYU`), `stock`, `in_stock`, `category`, `brand` (nullable), and ordered `images`. Classifications expose `id`, `slug`, and `name`; image entries expose `id`, `url`, `thumbnail_url`, and `alt`. The first image is the cover.
 
 ## Administration
 
@@ -32,4 +32,10 @@ Admin product responses include `status`; admin classification responses include
 
 Classifications are flat. Deactivation returns 409 while any published product uses the classification. Reassign or explicitly archive those products first. Drafts and archives keep their original references. No product or classification removal is exposed.
 
-Image rows represent already-ingested assets. This API does not accept paths or image metadata on product writes. The upload, content validation, optimization, and bulk tools are separate work; fixture rows used in tests do not demonstrate those capabilities or live image serving.
+### Gallery
+
+POST `/admin/products/{id}/images` accepts multipart `photos[]` (up to 12 per request). Each file must decode as JPEG, PNG, or WebP, fit within 4096 × 4096 pixels, and weigh at most 10 MiB. The response is the updated product (201). Invalid files are reported by zero-based index (`photos.0`, for example); nothing is added if the request fails. JPEG orientation is normalized; only WebP derivatives are stored (1600 and 400 px on the long edge, without enlargement).
+
+PUT `/admin/products/{id}/images/order` accepts `{"ids":[2,1]}` with every current image ID once. The first ID becomes the cover. A stale list or ID from another product returns 422 and preserves the existing order.
+
+Local serving needs `php artisan storage:link` and the process's `APP_URL` set to the gateway origin. Set reverse proxy and PHP body limits consistently for the supported upload batch. The fixture gallery tests simulate the media disk; they do not prove gateway delivery.

@@ -313,6 +313,62 @@ paths:
         '404': { description: Product not found }
         '409': { description: Product already archived }
         '419': { description: Missing or invalid CSRF token }
+  /api/v1/admin/products/{product}/images:
+    parameters:
+      - { name: product, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: uploadProductImages
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: ['photos[]']
+              properties:
+                'photos[]':
+                  type: array
+                  description: JPEG, PNG, or WebP only, at most 10 MiB and 4096 × 4096 pixels per file.
+                  minItems: 1
+                  maxItems: 12
+                  items: { type: string, format: binary }
+            encoding:
+              'photos[]': { contentType: 'image/*', explode: true }
+      responses:
+        '201': { description: Admin product with images in display order; first image is the cover }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '404': { description: Product not found }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid file or gallery input }
+        '503': { description: Image processing or storage is unavailable }
+  /api/v1/admin/products/{product}/images/order:
+    parameters:
+      - { name: product, in: path, required: true, schema: { type: integer } }
+    put:
+      operationId: orderProductImages
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items: { type: integer, minimum: 1 }
+      responses:
+        '200': { description: Admin product with first image as the cover }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '404': { description: Product not found }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Stale gallery list or invalid image IDs }
   /api/v1/admin/categories:
     $ref: '#/components/pathItems/AdminClassifications'
   /api/v1/admin/brands:

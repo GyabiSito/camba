@@ -25,6 +25,7 @@ class ProductResource extends JsonResource
             'images' => $this->images->map(fn ($image) => [
                 'id' => $image->id,
                 'url' => Storage::disk('public')->url($image->path),
+                'thumbnail_url' => Storage::disk('public')->url(str_starts_with($image->path, 'products/optimized/') ? preg_replace('/\.webp$/', '-thumb.webp', $image->path) : $image->path),
                 'alt' => $image->alt ?? $this->name,
             ]),
             'status' => $this->when($request->routeIs('admin.catalog.*'), $this->status->value),
