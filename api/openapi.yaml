@@ -741,10 +741,25 @@ paths:
         '401': { description: No authenticated session }
         '403': { description: Verified administrator required }
         '404': { description: Product not found }
-        '409': { description: This key already completed with different file bytes or a different file order }
+        '409': { description: The key was closed or already completed with different ordered file bytes }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: 'Invalid file, gallery input, or Idempotency-Key' }
         '503': { description: Image processing or storage is unavailable }
+  /api/v1/admin/products/{product}/images/uploads/close:
+    post:
+      operationId: closeProductImageUpload
+      security: [{ sessionCookie: [] }]
+      description: Close an uncertain upload. Keeps any committed photos and prevents a late upload with that key from appending.
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Current product and gallery; repeated closes are safe }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '404': { description: Product not found }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Missing or invalid Idempotency-Key }
   /api/v1/admin/products/{product}/images/order:
     parameters:
       - { name: product, in: path, required: true, schema: { type: integer } }

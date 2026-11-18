@@ -104,6 +104,13 @@ class ProductImagesTest extends TestCase
         $created = $this->post($url, ['photos' => [$this->photo()]], $headers)->assertCreated();
         $this->post($url, ['photos' => [$this->photo()]], $headers)
             ->assertCreated()->assertExactJson($created->json());
+
+        $late = ['Idempotency-Key' => (string) Str::uuid()];
+        $this->post("$url/close")->assertUnprocessable()->assertJsonValidationErrors('idempotency_key');
+        $this->post("$url/close", [], $headers)->assertOk()->assertJsonCount(1, 'data.images');
+        $this->post("$url/close", [], $late)->assertOk()->assertJsonCount(1, 'data.images');
+        $this->post($url, ['photos' => [$this->photo()]], $late)->assertConflict();
+        $this->assertCount(2, Storage::disk('public')->allFiles());
         $this->assertDatabaseCount('product_images', 1);
     }
 

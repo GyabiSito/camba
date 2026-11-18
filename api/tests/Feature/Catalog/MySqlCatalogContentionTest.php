@@ -143,6 +143,14 @@ class MySqlCatalogContentionTest extends TestCase
         foreach ($paths as $path) {
             $this->assertSame('image/webp', getimagesizefromstring($disk->get($path))['mime']);
         }
+
+        $late = ['Idempotency-Key' => (string) Str::uuid()];
+        $close = ['POST', $append[1].'/close', [], $late];
+        $append[3] = $late;
+        $results = $this->race('products', $product->id, $close, $append);
+        $this->assertSame([200, 409], array_column($results, 'status'));
+        $this->assertSame($images->pluck('id')->all(), $product->images()->pluck('id')->all());
+        $this->assertEqualsCanonicalizing($paths, $disk->allFiles());
     }
 
     public function test_simultaneous_cart_adds_persist_both_units_but_cannot_exceed_stock(): void

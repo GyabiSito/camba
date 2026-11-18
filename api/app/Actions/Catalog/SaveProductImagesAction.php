@@ -12,6 +12,20 @@ use Illuminate\Validation\ValidationException;
 
 class SaveProductImagesAction
 {
+    private const CLOSED = 'closed';
+
+    public function close(int $id, string $key): Product
+    {
+        return DB::transaction(function () use ($id, $key): Product {
+            $product = Product::query()->lockForUpdate()->findOrFail($id);
+            DB::table('product_image_uploads')->upsert([
+                'product_id' => $id, 'upload_key' => strtolower($key), 'payload_hash' => self::CLOSED,
+            ], ['product_id', 'upload_key'], ['upload_key']);
+
+            return $product->load(['category', 'brand', 'images']);
+        });
+    }
+
     /** @param list<UploadedFile> $photos */
     public function execute(int $id, array $photos): Product
     {
@@ -88,6 +102,7 @@ class SaveProductImagesAction
     {
         $hash = DB::table('product_image_uploads')->where('product_id', $receipt['product_id'])
             ->where('upload_key', $receipt['upload_key'])->value('payload_hash');
+        abort_if($hash === self::CLOSED, 409, 'La carga ya se cerró.');
         abort_if($hash !== null && $hash !== $receipt['payload_hash'], 409, 'Esta clave de subida ya se usó con otras fotos o en otro orden.');
 
         return $hash !== null;

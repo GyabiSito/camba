@@ -20,6 +20,10 @@ class UploadProductImagesRequest extends FormRequest
 
     public function rules(): array
     {
+        if ($this->routeIs('admin.catalog.products.images.close')) {
+            return ['idempotency_key' => ['required', 'uuid']];
+        }
+
         return [
             'idempotency_key' => $this->routeIs('admin.catalog.products.images.uploads')
                 ? ['required', 'uuid']

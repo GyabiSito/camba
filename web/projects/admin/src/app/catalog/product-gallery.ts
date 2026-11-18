@@ -2,7 +2,7 @@ import { Component, DestroyRef, computed, inject, input, linkedSignal, output, s
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ApiClient } from '@camba/shared';
 import { Observable, finalize } from 'rxjs';
-import { Data, LocalPhoto, Photo, Product, acceptedPhotos, fieldErrors, hasPendingPhotoUpload, localPhotos, photoUploadFailure, photoUploadState, products, releasePhotos, summaryError, uploadError, uploadPhotos } from './catalog-api';
+import { Data, LocalPhoto, Photo, Product, acceptedPhotos, closePhotoUpload, fieldErrors, hasPendingPhotoUpload, localPhotos, photoUploadFailure, photoUploadState, products, releasePhotos, summaryError, uploadError, uploadPhotos } from './catalog-api';
 
 @Component({
   selector: 'app-product-gallery',
@@ -56,23 +56,29 @@ export class ProductGallery {
     this.pending.update((list) => list.filter((item) => item.key !== photo.key));
   }
 
-  protected async upload() {
+  protected async upload(close = false) {
     const list = this.pending();
-    if (!list.length || list.some((photo) => photo.error) || this.needsReview() || this.alternateOrder() || this.busy() || this.disabled()) return;
+    if (this.busy() || this.disabled() || (!close && (!list.length || list.some((photo) => photo.error) || this.needsReview() || this.alternateOrder()))) return;
     const product = this.product();
-    this.start('upload');
+    this.start(close ? 'refresh' : 'upload');
     try {
-      const updated = await uploadPhotos(this.api, this.destroy, product, list, this.uploadState());
+      const updated = close
+        ? await closePhotoUpload(this.api, this.destroy, product.id, this.uploadState())
+        : await uploadPhotos(this.api, this.destroy, product, list, this.uploadState());
       if (this.destroy.destroyed) return;
       this.changed.emit(updated);
       releasePhotos(list);
       this.pending.set([]);
       this.recovering.set(hasPendingPhotoUpload(product.id));
-      this.message.set('Fotos agregadas a la galería.');
+      this.message.set(close ? 'Se cerró la carga. Las fotos guardadas se conservan.' : 'Fotos agregadas a la galería.');
     } catch (error) {
       if (this.destroy.destroyed) return;
       const recovering = !!this.uploadState().attempt || hasPendingPhotoUpload(product.id);
       this.recovering.set(recovering);
+      if (close) {
+        this.error.set('No pudimos confirmar el cierre. Volvé a cerrar la misma carga.');
+        return;
+      }
       const stateError = photoUploadFailure(error, recovering);
       const fields = fieldErrors(error);
       if (stateError) {

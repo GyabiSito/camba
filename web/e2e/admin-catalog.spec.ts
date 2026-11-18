@@ -158,6 +158,7 @@ for (const committed of [true, false]) {
 
   test(`reintenta una carga agrupada que pierde confirmación ${outcome}`, async ({ page }, testInfo) => {
     test.setTimeout(75_000);
+    if (!committed) await page.addInitScript(() => Object.defineProperty(navigator, 'locks', { value: undefined }));
     await signIn(page);
     await page.goto('/productos/carga-por-fotos');
     const name = committed ? 'Lote guardado sin confirmación' : 'Lote pendiente sin confirmación';
@@ -288,6 +289,35 @@ for (const committed of [true, false]) {
     await expect(gallery.getByRole('button', { name: 'Reintentar carga' })).toHaveCount(0);
   });
 }
+
+test('cierra una carga sin originales y permite subir otras fotos sin Web Locks', async ({ page }, info) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'locks', { value: undefined });
+    Object.defineProperties(crypto, { subtle: { value: undefined }, randomUUID: { value: undefined } });
+  });
+  await page.setViewportSize({ width: 320, height: 800 });
+  await signIn(page);
+  await page.getByRole('link', { name: 'Nuevo producto' }).click();
+  await page.getByLabel('Nombre', { exact: true }).fill('Carga cerrada sin originales');
+  await page.getByRole('button', { name: 'Crear borrador' }).click();
+  const gallery = page.getByRole('region', { name: 'Galería' });
+  await expect(gallery).toBeVisible();
+  const { uploads } = await uncertainUpload(page, false);
+  await gallery.getByLabel('Agregar fotos').setInputFiles([photo('image-pocket')]);
+  await gallery.getByRole('button', { name: 'Subir fotos' }).click();
+  await expect(gallery.getByRole('alert')).toContainText('confirmar');
+  await page.reload();
+  const close = gallery.getByRole('button', { name: 'Cerrar carga pendiente' });
+  await close.focus();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+  await page.screenshot({ path: info.outputPath('close-gallery-320.png') });
+  await close.press('Enter');
+  await expect(gallery.getByRole('status').filter({ hasText: 'Se cerró la carga' })).toBeVisible();
+  await gallery.getByLabel('Agregar fotos').setInputFiles([photo('detail-photo')]);
+  await gallery.getByRole('button', { name: 'Subir fotos' }).click();
+  await expect(gallery.getByRole('status').filter({ hasText: 'Fotos agregadas' })).toBeVisible();
+  expect(new Set(uploads).size).toBe(2);
+});
 
 test('conserva las fotos y la portada cuando otra pestaña cambia la galería', async ({ page, context }) => {
   await signIn(page);

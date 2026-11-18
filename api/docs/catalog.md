@@ -43,6 +43,8 @@ Send an optional UUID `Idempotency-Key` header once per intended batch. If the r
 
 For recovery-capable clients, use POST `/admin/products/{id}/images/uploads` with the same multipart body and a **required** key. An older API rejects this route without writing, so the admin never falls back to the older endpoint during a rollout or rollback. The first route remains compatible with existing callers.
 
+POST `/admin/products/{id}/images/uploads/close` accepts the same required key and no files. It returns the current gallery (200). Already committed photos remain intact; otherwise it records a close that rejects a late upload on that key (409). Retry an uncertain close with the same key.
+
 PUT `/admin/products/{id}/images/order` accepts `{"ids":[2,1]}` with every current image ID once. The first ID becomes the cover. A stale list or ID from another product returns 422 and preserves the existing order.
 
 Local serving needs `php artisan storage:link` and the process's `APP_URL` set to the gateway origin. Set reverse proxy and PHP body limits consistently for the supported upload batch. The fixture gallery tests simulate the media disk; they do not prove gateway delivery.

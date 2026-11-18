@@ -13,7 +13,7 @@
     @if (interruptedDrafts.length) {
       <section class="work-section" aria-labelledby="interrupted-drafts">
         <h2 id="interrupted-drafts">Cargas pendientes</h2>
-        <p class="muted">Abrí el borrador para reintentar con las fotos originales, sin crear otro producto.</p>
+        <p class="muted">Abrí el borrador para reintentar con las fotos originales o cerrar la carga, sin crear otro producto.</p>
         <ul>
           @for (draft of interruptedDrafts; track draft.id) {
             <li><a [routerLink]="['/productos', draft.id]">Abrir borrador {{ draft.sku }}</a></li>
@@ -108,6 +108,7 @@
             }
             @if (group.error) { <p class="callout alert" [id]="'group-error-' + group.key" role="alert">{{ group.error }}</p> }
             @if (group.retryUpload) {
+                <p class="muted">Si no tenés las fotos originales, cerrá la carga en la galería del borrador.</p>
               <button class="button" type="button" [attr.aria-describedby]="group.error ? 'group-error-' + group.key : null" (click)="retry(group)">Reintentar carga</button>
             }
           }

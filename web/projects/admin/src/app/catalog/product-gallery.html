@@ -41,7 +41,7 @@
   }
 
   @if (recovering() && !pending().length && !error()) {
-    <p class="callout" id="gallery-upload-recovery" role="status">Hay una carga sin confirmar. Elegí las mismas fotos en el mismo orden para reintentar sin duplicarlas.</p>
+    <p class="callout" id="gallery-upload-recovery" role="status">Hay una carga sin confirmar. Elegí las mismas fotos en el mismo orden para reintentar, o cerrá la carga si ya no las tenés.</p>
   }
   <label class="field">
     <span>{{ recovering() ? 'Volver a elegir las fotos' : 'Agregar fotos' }}</span>
@@ -78,6 +78,9 @@
     } @else if (pending().length > 0) {
       <button class="button" type="button" [disabled]="!!busy() || disabled() || !!alternateOrder() || pending().some(hasError)"
         [attr.aria-describedby]="error() ? 'gallery-error' : null" (click)="upload()">{{ recovering() ? 'Reintentar carga' : 'Subir fotos' }}</button>
+    }
+    @if (recovering()) {
+      <button class="button button--quiet" type="button" [disabled]="!!busy() || disabled()" (click)="upload(true)">Cerrar carga pendiente</button>
     }
   </div>
 </section>

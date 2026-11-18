@@ -22,6 +22,11 @@ class ProductImagesController
         return ProductResource::make($updated)->response()->setStatusCode(201);
     }
 
+    public function close(UploadProductImagesRequest $request, int $product, SaveProductImagesAction $save): ProductResource
+    {
+        return ProductResource::make($save->close($product, $request->validated('idempotency_key')));
+    }
+
     public function order(OrderProductImagesRequest $request, int $product): ProductResource
     {
         $ids = array_map('intval', $request->validated('ids'));

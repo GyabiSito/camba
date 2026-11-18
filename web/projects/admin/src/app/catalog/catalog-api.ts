@@ -80,18 +80,18 @@ export type LocalPhoto = { key: number; file: File; url: string; error: string }
 let nextPhotoKey = 0;
 
 type PhotoUploadAttempt = { key: string; fingerprint: string; draftSku?: string; replayed?: boolean };
-export type PhotoUploadState = { attempt?: PhotoUploadAttempt };
+export type PhotoUploadState = { attempt?: PhotoUploadAttempt; files?: File[] };
 class PhotoUploadInputError extends Error {}
 
 const photoUploadPrefix = 'camba:photo-upload:v1:';
-const uploadRecoveryUnavailable = 'No se puede iniciar una carga segura. Usá un navegador actualizado, con almacenamiento habilitado y conexión segura.';
+const uploadRecoveryUnavailable = 'No se puede iniciar una carga segura. Usá un navegador con almacenamiento habilitado.';
 const photoUploadKey = (id: number) => photoUploadPrefix + id;
 
 function readPhotoUpload(slot: string): PhotoUploadAttempt | null {
   const value = localStorage.getItem(slot);
   if (value === null) return null;
   const attempt: PhotoUploadAttempt = JSON.parse(value);
-  if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(attempt?.key) || !/^(?:[A-Za-z0-9+/]{43}=){1,12}$/.test(attempt?.fingerprint)) {
+  if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(attempt?.key) || (attempt?.fingerprint !== '' && !/^(?:[A-Za-z0-9+/]{43}=){1,12}$/.test(attempt?.fingerprint))) {
     throw new Error('Invalid photo upload recovery record');
   }
   return attempt;
@@ -130,10 +130,59 @@ export function pendingPhotoDrafts() {
   }
 }
 
+function uploadLock<T>(slot: string, work: () => T): Promise<T> {
+  if (navigator.locks) return navigator.locks.request(slot, work);
+  // ponytail: one IndexedDB store serializes short reservations across tabs; no image data is stored.
+  return new Promise((resolve, reject) => {
+    const open = indexedDB.open('camba-upload-lock', 1);
+    open.onupgradeneeded = () => open.result.createObjectStore('lock');
+    open.onerror = () => reject(open.error);
+    open.onsuccess = () => {
+      const db = open.result;
+      try {
+        const tx = db.transaction('lock', 'readwrite');
+        tx.onabort = () => reject(tx.error);
+        tx.objectStore('lock').get(slot).onsuccess = () => {
+          try { resolve(work()); } catch (error) { reject(error); }
+        };
+      } catch (error) { reject(error); }
+      finally { db.close(); }
+    };
+  });
+}
+
+function uploadUuid() {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 15) | 64;
+  bytes[8] = (bytes[8] & 63) | 128;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return hex.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');
+}
+
+function releaseUpload(slot: string, key: string, confirmed: boolean) {
+  return uploadLock(slot, () => {
+    const stored = readPhotoUpload(slot);
+    if (stored?.key !== key) return true;
+    if (!confirmed && stored.replayed) return false;
+    localStorage.removeItem(slot);
+    return true;
+  }).catch(() => false);
+}
+
+export async function closePhotoUpload(api: ApiClient, destroy: DestroyRef, id: number, state: PhotoUploadState) {
+  const slot = photoUploadKey(id);
+  const key = (state.attempt ?? readPhotoUpload(slot))?.key;
+  const path = `${products}/${id}`;
+  const request = key ? api.post<Data<Product>>(`${path}/images/uploads/close`, undefined, { 'Idempotency-Key': key }) : api.get<Data<Product>>(path);
+  const { data } = await firstValueFrom(request.pipe(takeUntilDestroyed(destroy)));
+  if (data?.id !== id || !Array.isArray(data.images)) throw new Error('Photo upload close was not confirmed');
+  if (key) await releaseUpload(slot, key, true);
+  state.attempt = state.files = undefined;
+  return data;
+}
+
 export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product: Product, photos: LocalPhoto[], state: PhotoUploadState, fromBatch = false) {
-  if (!globalThis.crypto?.subtle || !crypto.randomUUID || !navigator.locks) {
-    throw new PhotoUploadInputError(uploadRecoveryUnavailable);
-  }
   // The earlier response may clear storage while this retry is hashing. Keep the attempt we saw.
   const startedWith = state.attempt ?? photoUploadState(product.id).attempt;
   let fingerprint = '';
@@ -141,8 +190,10 @@ export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product:
   try {
     // Digest files one at a time, keeping their selection order without storing photo contents.
     for (const { file } of photos) {
-      const hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
-      fingerprint += btoa(String.fromCharCode(...new Uint8Array(hash)));
+      if (crypto.subtle) {
+        const hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+        fingerprint += btoa(String.fromCharCode(...new Uint8Array(hash)));
+      }
       body.append('photos[]', file, file.name);
     }
   } catch {
@@ -154,7 +205,7 @@ export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product:
   let fresh = false;
   try {
     // Lock only the local reservation; the server arbitrates overlapping requests with the same key.
-    await navigator.locks.request(slot, () => {
+    await uploadLock(slot, () => {
       if (destroy.destroyed) return;
       const stored = readPhotoUpload(slot);
       if (startedWith && stored && startedWith.key !== stored.key) {
@@ -164,12 +215,16 @@ export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product:
       if (existing && existing.fingerprint !== fingerprint) {
         throw new PhotoUploadInputError('Hay una carga sin confirmar. Volvé a elegir las mismas fotos en el mismo orden y reintentá.');
       }
-      const attempt = existing ?? { key: crypto.randomUUID(), fingerprint, ...(fromBatch && { draftSku: product.sku }) };
+      if (existing && !fingerprint && (state.files?.length !== photos.length || photos.some(({ file }, i) => file !== state.files?.[i]))) {
+        throw new PhotoUploadInputError('No se pueden comprobar los archivos anteriores. Cerrá la carga pendiente antes de elegir otros.');
+      }
+      const attempt = existing ?? { key: uploadUuid(), fingerprint, ...(fromBatch && { draftSku: product.sku }) };
       if (!stored || !stored.replayed) {
         localStorage.setItem(slot, JSON.stringify(existing ? { ...attempt, replayed: true } : attempt));
       }
       fresh = !existing;
       state.attempt = attempt;
+      state.files = fingerprint ? undefined : photos.map(({ file }) => file);
     });
   } catch (error) {
     if (error instanceof PhotoUploadInputError) throw error;
@@ -180,14 +235,8 @@ export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product:
 
   const finish = async (confirmed: boolean) => {
     // Keep the result authoritative even if browser storage becomes unavailable after the request.
-    const released = await navigator.locks.request(slot, () => {
-      const stored = readPhotoUpload(slot);
-      if (stored?.key !== attempt.key) return true;
-      if (!confirmed && stored.replayed) return false;
-      localStorage.removeItem(slot);
-      return true;
-    }).catch(() => false);
-    if (confirmed || released) state.attempt = undefined;
+    const released = await releaseUpload(slot, attempt.key, confirmed);
+    if (confirmed || released) state.attempt = state.files = undefined;
   };
   try {
     const result = await firstValueFrom(api.post<Data<Product>>(`${products}/${product.id}/images/uploads`, body, {

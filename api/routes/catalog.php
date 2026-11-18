@@ -28,6 +28,7 @@ Route::prefix('v1/admin')->name('admin.catalog.')->middleware(['auth:sanctum', '
     Route::post('products/{product}/archive', [ProductController::class, 'archive'])->whereNumber('product')->name('products.archive');
     Route::post('products/{product}/images', [ProductImagesController::class, 'store'])->whereNumber('product')->name('products.images.store');
     Route::post('products/{product}/images/uploads', [ProductImagesController::class, 'store'])->whereNumber('product')->name('products.images.uploads');
+    Route::post('products/{product}/images/uploads/close', [ProductImagesController::class, 'close'])->whereNumber('product')->name('products.images.close');
     Route::put('products/{product}/images/order', [ProductImagesController::class, 'order'])->whereNumber('product')->name('products.images.order');
 
     foreach (['categories' => Category::class, 'brands' => Brand::class] as $path => $model) {
