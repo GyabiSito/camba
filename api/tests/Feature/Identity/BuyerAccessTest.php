@@ -14,6 +14,12 @@ use Tests\TestCase;
 
 class BuyerAccessTest extends TestCase
 {
+    public function test_api_guards_return_json_without_an_accept_header(): void
+    {
+        $this->get('/api/v1/auth/me')->assertUnauthorized()->assertJsonPath('message', 'Unauthenticated.');
+        $this->get('/api/v1/admin/session')->assertUnauthorized()->assertJsonPath('message', 'Unauthenticated.');
+    }
+
     use RefreshDatabase;
 
     protected function beforeRefreshingDatabase(): void
