@@ -15,7 +15,7 @@ async function addToCart(page: Page, slug: string) {
   const added = page.waitForResponse(
     (response) =>
       response.url().includes('/api/v1/cart/items/') &&
-      ['POST', 'PUT'].includes(response.request().method()),
+      response.request().method() === 'POST',
     { timeout: 20_000 },
   );
   await page.getByRole('button', { name: /agregar al carrito/i }).click();
