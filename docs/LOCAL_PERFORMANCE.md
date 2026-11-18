@@ -27,3 +27,5 @@ Median total transfer fell from **406,637 B to 161,260 B** (60% less); CLS was 0
 ## Reproduce
 
 Use the three [isolated lab servers](DEVELOPMENT.md#reproduce-the-mobile-storefront-audit). From `web/` run `node e2e/fixtures/check-store-encoding.mjs` and the Lighthouse command five times, appending `--save-assets` and choosing a distinct JSON report path for each invocation. The local comparison, raw JSON, initial HTML, traces and DevTools network logs are in `web/performance-results/section9-051939b/{before,encoding}/` (excluded from Git). Do not replay the old candidate's closed reviews to compare builds.
+
+For field follow-up, use the public storefront's mobile 75th-percentile INP once Chrome UX Report has sufficient data. If it does not, arrange first-party telemetry collecting only the timing, route class and coarse device class; do not transmit form values, order IDs, raw URL parameters or session data. Lab TBT and the browser flows above do not stand in for field INP.

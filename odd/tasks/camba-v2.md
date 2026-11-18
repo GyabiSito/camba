@@ -15,13 +15,20 @@ Delivery: `auto-chain`, stacked-to-main local work units; no remote delivery. Fo
 - S8 — “Continuá hasta completar Camba v2 entera.” Adopt upstream `ef21594`, preserve both worktrees and local notes, apply supported hook/review recovery, and keep all UC01–UC30/T01–T06 evidence in PROGRESS.md.
 
 - S9 — “La captura del hero de Impeccable ya no es una condición para implementar el resto del frontend.” “Configurá pruebas y capturas de la aplicación con Playwright y Chromium.” “Conectá tienda y admin con las APIs existentes.” “Completá productos, galerías, carga masiva, pedidos, configuración, autenticación, carrito, checkout y todos los estados y recorridos del encargo.” “Mantené la dirección visual elegida y terminá el diseño.”
+- S10 — “diagnosticá y corregí el LCP móvil y completá todos los pendientes locales de la matriz. No postergues esas tareas por falta de staging.” Preserve closed review scopes; verify the 4c1480e §9 local matrix and supported hook recovery without external services.
 
 ## Tasks
 
+- A1 — S10, Five-run baseline and measured mobile LCP fix; inline `3e1bc12`, independent Docker/HTTP proof. Median 3.50 → 2.11 s; real staging/field pending. Risk: item 5 (store runtime dependency).
+- A2 — S10, UC02–UC04 delivered links and session expiry; delegated parallel writer `eddbb40`, opt-in fixture; 4/4 Chromium with real Mailpit and 62 s idle. External SMTP pending.
+- A3 — S10, UC06/UC08/UC18 cart tabs, catalog pagination and delivery; delegated parallel writer, `89e8224`/`b831b5b`; SQLite Chromium overlapping adds and independently repeated regression, real two-page API and delivery readback. Risk: item 4.
+- A4 — S10, UC10–UC15 classification/lifecycle/gallery/uncertainty; delegated parallel writer `25338e2`, bounded UI, committed-500 RED/GREEN and independent Chromium recheck; 23/382 MySQL catalog suite. Risk: item 4; manual gallery reconciliation is not server write idempotency.
+- A5 — S10, UC23/T06 inbox crash/replay and local restore; delegated parallel writer `8189773`; isolated MySQL, public/private media, fresh Redis and Mailpit drill exited 0. External payment/SMTP and production restore pending.
+- A6 — S10, T02, hook log/repair and acceptance ledger; inline `daaf7c7`/`c0fe7ec`; rendered controls in Chromium and Firefox, visible keyboard focus, alerts, contrast and real inventory at 200% text/320 px. Host workspace/session rebinding and spoken announcements need a supported host/speech surface.
 - W1 — S9, Admin catalog, classifications, galleries and imports; delegated parallel writer on admin `catalog/**`; `5655822`, Windows fixture `4bf2775` and XLSX proof `ae7a569`. Local Chromium CRUD, visible uploads and CSV/XLSX jobs pass.
 - W2 — S9, Admin orders, fulfilment, notices and settings; delegated parallel writer on admin `operations/**`; `885d4c2` and `5655822`. Independent API gate/privacy and Chromium pass; native API approval acknowledged; real payment sandbox pending. Risk: items 2 and 3.
-- W3 — S9, Store browse, search, detail/gallery, public SSR, 404 and 503; delegated parallel writer on store `catalog/**`; `75fccdf`. Screens inspected and real SSR/Chromium pass; mobile LCP remains above budget.
-- W4 — S9, Store auth/account, cart/checkout/purchases/payment return; delegated parallel writer on store `shopper/**`; `75fccdf`. Local buyer/guest flows and retry/fake callback proof pass; positive provider/email links remain pending. Risk: items 2 and 4.
+- W3 — S9, Store browse, search, detail/gallery, public SSR, 404 and 503; delegated parallel writer on store `catalog/**`; `75fccdf`. Screens inspected and real SSR/Chromium pass; A1 covers the later mobile LCP fix.
+- W4 — S9, Store auth/account, cart/checkout/purchases/payment return; delegated parallel writer on store `shopper/**`; `75fccdf`. Local buyer/guest flows and retry/fake callback proof pass; A2 covers delivered Mailpit links, with live payment provider pending. Risk: items 2 and 4.
 - W5 — S9, Shared shell/HTTP/design, Playwright, fixtures and CI; inline orchestrator-owned seams; `322f65d`, `5655822`, `75fccdf`, `4bf2775`. Integrated 17/17; builds, screenshots, actionlint, Compose render and local simulated release pass. Hosted CI/production and complete accessibility review pending. Risk: item 5.
 
 - T1 / S1, S7 — delegated read-only reference map (four distinct local checkouts); verified in `0308b42`; native assessment `passive`.
@@ -178,3 +185,28 @@ Final isolated browser run passed 17/17 after fixing PHP's HTTP storage path and
 1
 
 Provider admitted all three perspectives for `885d4c2` and returned final `approved`; exact acknowledgement consumed authority in `review-c76ecd4198a246da`. Two informational observations were addressed separately in `aeb13aa` (provider vs local reconciliation timestamps, and explicit empty payment evidence). No source runtime changes, account review reopening, or deployment. PHPUnit SQLite 100/1,297; scoped Pint and OpenAPI syntax passed. Browser regression 17/17 after `ae7a569`, including the real fixture queue applying CSV and XLSX in the same scenario.
+
+### L9 — Section 9 local acceptance
+
+Continuá feat/camba-v2 desde su HEAD actual, posterior a 051939b.
+
+Incorporá las instrucciones de origin/main, commit 4c1480e,
+conservando el código, PROGRESS.md y los registros locales.
+
+Aplicá la sección 9 de docs/AUTONOMOUS_EXECUTION.md:
+diagnosticá y corregí el LCP móvil y completá todos los pendientes
+locales de la matriz. No postergues esas tareas por falta de staging.
+
+Conservá el alcance de las revisiones cerradas.
+Identificá el hook que falla mediante su log y reparalo por
+mecanismos soportados.
+
+Seguí automáticamente hasta agotar el trabajo ejecutable.
+Dejá pendientes únicamente las validaciones que realmente
+requieran servicios, datos o capacidades no disponibles.
+
+Local HEAD resolved to `051939b`; adopted only upstream instruction changes as `d03db84`, with no overwrite of PROGRESS or the completed review worktrees. Baseline and encoding each saved five Lighthouse JSON/trace/network sets. The same eager hero was the LCP element; negotiation cut total transfer 406,637 → 161,260 B, median LCP 3,499.7 → 2,109.0 ms. HTTP and independent image smoke pass. A2 and A5 ran and passed on separate synthetic services; details are in PROGRESS and linked runbooks.
+
+A3 fixed a real lost update: two browser intents read quantity 1 and wrote absolute 2, so one unit disappeared. The sibling POST writes a locked increment and two real writes persist 3; PUT remains absolute. A4 handles every 5xx as potentially committed after a reproduced failure; retrieval and explicit review precede another write. A6 fixed anchor resolution with the SPA base and adopted text-relative container breakpoints after an observed 450 px overflow. Full API: 105/1,406 MySQL (plus intended SQLite cases), isolated SQLite run 105 enumerated / 1,321 assertions / 4 InnoDB-only skips; Pint/OpenAPI and the local CI/release rehearsals passed. Unchanged closed reviews; `3e1bc12` is the new bounded runtime candidate for a separate native review (not yet approved).
+
+Final Chromium run: 27 passed and three opt-in skips covered on the earlier Mailpit/idle-session run. Firefox final loaded-inventory reflow and shell accessibility both passed. `eaaec7a` corrects first-listing image priority, proved in SSR without making other listing images eager. Both optimized application builds passed. PROGRESS records the native readiness and the tool/capability limits (Engram host, spoken announcements, static Impeccable plate gate) separately from real provider/staging validation.

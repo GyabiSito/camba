@@ -2,7 +2,7 @@
 
 <!-- impeccable:product-schema 1 -->
 
-Camba is primarily a clothing shop with a complementary assortment of accessories, jewelry, necklaces, perfumes and items the owner calls "tarjetas cuantticas". This record combines the owner's answers on 2026-11-18 with the existing [implementation brief](docs/IMPLEMENTATION_BRIEF.md). Capabilities below describe the intended product, not shipped functionality.
+Camba is primarily a clothing shop with a complementary assortment of accessories, jewelry, necklaces, perfumes and items the owner calls "tarjetas cuantticas". This record combines the owner's answers on 2026-11-18 with the [implementation brief](docs/IMPLEMENTATION_BRIEF.md). It describes product intent; [PROGRESS.md](docs/PROGRESS.md) tracks implemented capabilities, verified behavior and outstanding production checks.
 
 ## Platform
 
@@ -10,7 +10,7 @@ web
 
 ## Stack
 
-The existing brief specifies a Laravel 13 API and an Angular 22 workspace with store and admin applications in one monorepo, using MySQL and Redis. The store requires SSR/hydration; the admin uses CSR. These are requested technical choices, not installed or compatibility-verified versions; no application scaffold exists yet.
+The monorepo includes a Laravel 13 API and an Angular 22 workspace: an SSR storefront with hydration and a CSR admin. MySQL and Redis are part of the Docker development and production-style environments; the isolated browser runner uses a disposable SQLite database. Production provider and deployment acceptance are separate from those local environments.
 
 ## Users
 
