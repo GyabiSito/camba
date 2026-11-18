@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Identity;
 
+use App\Actions\Cart\MergeGuestCart;
 use App\Actions\Identity\RegisterBuyerAction;
 use App\Http\Requests\Identity\LoginRequest;
 use App\Http\Requests\Identity\RegisterBuyerRequest;
@@ -25,9 +26,19 @@ class AuthController
         ]);
     }
 
-    public function login(LoginRequest $request): Response
+    public function login(LoginRequest $request, MergeGuestCart $mergeCart): Response
     {
-        if (! Auth::guard('web')->attempt($request->validated())) {
+        $guard = Auth::guard('web');
+        $guestSessionId = $guard->guest() ? $request->session()->getId() : null;
+
+        // Laravel checks credentials before the callback and rotates the session afterwards.
+        if (! $guard->attemptWhen($request->validated(), function (User $user) use ($mergeCart, $guestSessionId): bool {
+            if ($guestSessionId !== null && $user->role === 'buyer') {
+                $mergeCart->execute($guestSessionId, $user->id);
+            }
+
+            return true;
+        })) {
             throw ValidationException::withMessages(['email' => 'El correo o la contraseña no son correctos.']);
         }
 

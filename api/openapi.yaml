@@ -214,6 +214,43 @@ paths:
         '401': { description: No authenticated session }
         '404': { description: Address not found for the current account }
         '419': { description: Missing or invalid CSRF token }
+  /api/v1/cart:
+    get:
+      operationId: getCart
+      description: Returns only the current guest session or signed-in buyer cart. Inventory is not reserved.
+      externalDocs: { url: docs/cart.md }
+      responses:
+        '200': { $ref: '#/components/responses/CartEnvelope' }
+        '400': { description: First-party session required }
+  /api/v1/cart/items/{product}:
+    parameters:
+      - { name: product, in: path, required: true, schema: { type: integer } }
+    put:
+      operationId: setCartQuantity
+      description: Sets the exact quantity rather than incrementing it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity: { type: integer, minimum: 1, maximum: 2147483647 }
+      responses:
+        '200': { $ref: '#/components/responses/CartEnvelope' }
+        '400': { description: First-party session required }
+        '404': { description: Product does not exist or is not published }
+        '409': { description: Guest cart already associated with an account; use the active session }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid quantity or insufficient stock }
+    delete:
+      operationId: removeCartItem
+      responses:
+        '204': { description: Item removed or already absent from the current cart }
+        '400': { description: First-party session required }
+        '409': { description: Guest cart already associated with an account; use the active session }
+        '419': { description: Missing or invalid CSRF token }
   /api/v1/products:
     get:
       operationId: browseProducts
@@ -465,6 +502,38 @@ components:
   securitySchemes:
     sessionCookie: { type: apiKey, in: cookie, name: camba_session }
   responses:
+    CartEnvelope:
+      description: The current cart, with live price and availability
+      headers:
+        Cache-Control: { schema: { type: string, const: 'private, no-store' } }
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                type: object
+                required: [currency, items]
+                properties:
+                  currency: { const: UYU }
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [product_id, quantity, available, product]
+                      properties:
+                        product_id: { type: integer, minimum: 1 }
+                        quantity: { type: integer, minimum: 1 }
+                        available: { type: boolean }
+                        product:
+                          type: [object, 'null']
+                          required: [name, slug, price_cents, stock]
+                          properties:
+                            name: { type: string }
+                            slug: { type: string }
+                            price_cents: { type: integer, minimum: 1 }
+                            stock: { type: integer, minimum: 0 }
     UserEnvelope:
       description: Buyer or authenticated user, with no credentials in the response
       content:

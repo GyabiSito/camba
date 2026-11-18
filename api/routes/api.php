@@ -22,3 +22,4 @@ Route::get('v1/admin/session', [AuthController::class, 'me'])->middleware(['auth
 
 require __DIR__.'/account.php';
 require __DIR__.'/catalog.php';
+require __DIR__.'/cart.php';
