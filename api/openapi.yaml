@@ -309,7 +309,7 @@ paths:
         '200': { description: Existing same-owner order for a valid same-payload replay }
         '201': { description: Order snapshot and inventory reservation created; payment is still pending }
         '400': { description: First-party session required }
-        '409': { description: Quote changed, idempotency conflict, or stale session }
+        '409': { description: 'Quote changed, idempotency conflict, or stale session' }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Invalid input or unavailable products/shipping }
   /api/v1/orders/{reference}:
@@ -322,7 +322,7 @@ paths:
       responses:
         '200': { description: This session's private order snapshot }
         '400': { description: First-party session required }
-        '404': { description: Missing, foreign, or expired order }
+        '404': { description: 'Missing, foreign, or expired order' }
   /api/v1/store-info:
     get:
       operationId: getStoreInfo
@@ -457,7 +457,7 @@ paths:
       description: Newest-first page of committed price and stock edits with previous/current values and actor.
       security: [{ sessionCookie: [] }]
       responses:
-        '200': { description: Paginated adjustment history, not shared-cacheable }
+        '200': { description: 'Paginated adjustment history, not shared-cacheable' }
         '401': { description: No authenticated session }
         '403': { description: Verified administrator required }
         '404': { description: Product not found }
