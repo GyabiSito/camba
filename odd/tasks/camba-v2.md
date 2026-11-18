@@ -73,7 +73,7 @@ Delivery: `auto-chain`, stacked-to-main local work units; no remote delivery. Fo
 - A10 — S11, Bounded native cart and gallery review and a11y; inline orchestration and independent second-engine verification; no spoken reader available. Cart native review `review-bf2438cb97b4c1c4` approved and acknowledged after `R3-001` correction `e1511c0` (integrated `031371e`). Gallery review `review-5eb04e69d9b23eb0` partial: one correction `6fc1fc0` retained separately, all original criteria met, but targeted validation found `TV-001` and escalated; no approval or integration.
 - A11 — S12, Camba-local configuration inventory and CI checks; inline inventory, delegated long image builds. Local API/admin builds, Compose static validation, and actual change selection passed; production services and remote delivery lack authorized configuration.
 - A12 — S11/S12, Fail closed during API/admin version skew; inline `06e41c0`; independent runtime/contract/build confirmation, SQLite RED 404 → GREEN 9/110, final InnoDB 2/28 and Chromium 6/6; no legacy fallback. Risk: items 3 and 5 (consumer contract and rolling release compatibility).
-- A13 — S13–S16, Recover an acknowledged gallery close when browser cleanup fails; new candidate on a separate worktree from the current feature branch. Inline coupled state transitions, independent verifier for cross-tab/late-write ordering, both browsers and disposable InnoDB. Pending. Risk: item 4; no review authority is inherited.
+- A13 — S13–S16, Recover an acknowledged gallery close when browser cleanup fails; separate candidate `4c21245` (from `6fc1fc0`) + `7dae3a5`, inline coupled state transitions; independent Firefox and InnoDB/CI evidence. Chromium RED exact TV-001 → GREEN 2 new and 7 inherited; Firefox 3/3; real InnoDB 111/1,513; packaged API/admin passed. Native resolution pending distinct consent, no review authority inherited. Risk: item 4 (cross-tab and late-write ordering).
 
 ## Log
 
@@ -306,3 +306,5 @@ con la escalación anterior; no la ocultes ni transfieras aprobaciones.
 Continuá después con los demás pendientes ejecutables del proyecto.
 
 Observed source HEAD `d71657b`; the earlier native target remains detached at `6fc1fc0` with its escalation evidence. The Engram mirror previously remained pending supported host registration.
+
+Fresh candidate base `f286b7e`; tracked correction `4c21245` has cherry-pick provenance and unchanged API runtime from `6fc1fc0`. `7dae3a5` separates server acknowledgement from local cleanup and keeps an operation-specific marker. Exact RED stored in candidate worktree; Chromium 2/2 new and 7/7 inherited, Firefox 3/3 independently, InnoDB 111/1,513 with zero skips, SQLite 9/119, and local CI image checks passed. Both views use the same state handling. On restored storage no new write is sent, late old uploads are refused, and a newer key is preserved. The old lineage remains escalated and untouched; no integration or publication without the next applicable step.
