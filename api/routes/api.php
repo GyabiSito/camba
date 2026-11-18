@@ -21,3 +21,4 @@ Route::prefix('v1/auth')->group(function (): void {
 Route::get('v1/admin/session', [AuthController::class, 'me'])->middleware(['auth:sanctum', 'can:camba-admin']);
 
 require __DIR__.'/account.php';
+require __DIR__.'/catalog.php';

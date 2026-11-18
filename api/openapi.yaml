@@ -214,6 +214,113 @@ paths:
         '401': { description: No authenticated session }
         '404': { description: Address not found for the current account }
         '419': { description: Missing or invalid CSRF token }
+  /api/v1/products:
+    get:
+      operationId: browseProducts
+      description: Lists published products including sold-out items. See the local catalog guide for response fields.
+      externalDocs: { url: docs/catalog.md }
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: category, in: query, schema: { type: string } }
+        - { name: brand, in: query, schema: { type: string } }
+        - { name: sort, in: query, schema: { type: string, enum: [newest, name, price_asc, price_desc] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 24 } }
+      responses:
+        '200': { description: Page of products with data and pagination information }
+        '422': { description: Invalid filter or sort }
+  /api/v1/products/{slug}:
+    parameters:
+      - { name: slug, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getPublishedProduct
+      externalDocs: { url: docs/catalog.md }
+      responses:
+        '200': { description: Published product }
+        '404': { description: Product does not exist or is not published }
+  /api/v1/categories:
+    get:
+      operationId: listActiveCategories
+      responses:
+        '200': { description: Active flat categories }
+  /api/v1/brands:
+    get:
+      operationId: listActiveBrands
+      responses:
+        '200': { description: Active brands }
+  /api/v1/admin/products:
+    get:
+      operationId: listAdminProducts
+      security: [{ sessionCookie: [] }]
+      externalDocs: { url: docs/catalog.md }
+      responses:
+        '200': { description: Product page with lifecycle state }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+    post:
+      operationId: createProductDraft
+      security: [{ sessionCookie: [] }]
+      externalDocs: { url: docs/catalog.md }
+      requestBody: { $ref: '#/components/requestBodies/ProductWrite' }
+      responses:
+        '201': { description: Draft with stable SKU and slug }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid product fields }
+  /api/v1/admin/products/{product}:
+    parameters:
+      - { name: product, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getAdminProduct
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Product detail with lifecycle state }
+        '403': { description: Verified administrator required }
+        '404': { description: Product not found }
+    patch:
+      operationId: updateProduct
+      security: [{ sessionCookie: [] }]
+      requestBody: { $ref: '#/components/requestBodies/ProductWrite' }
+      responses:
+        '200': { description: Product updated without changing SKU or slug }
+        '403': { description: Verified administrator required }
+        '404': { description: Product not found }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid fields or published product prerequisites not met }
+  /api/v1/admin/products/{product}/publish:
+    parameters:
+      - { name: product, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: publishProduct
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Product published }
+        '403': { description: Verified administrator required }
+        '404': { description: Product not found }
+        '409': { description: Product already published }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Missing publication prerequisite }
+  /api/v1/admin/products/{product}/archive:
+    parameters:
+      - { name: product, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: archiveProduct
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Product archived and removed from public browse }
+        '403': { description: Verified administrator required }
+        '404': { description: Product not found }
+        '409': { description: Product already archived }
+        '419': { description: Missing or invalid CSRF token }
+  /api/v1/admin/categories:
+    $ref: '#/components/pathItems/AdminClassifications'
+  /api/v1/admin/brands:
+    $ref: '#/components/pathItems/AdminClassifications'
+  /api/v1/admin/categories/{id}:
+    $ref: '#/components/pathItems/AdminClassification'
+  /api/v1/admin/brands/{id}:
+    $ref: '#/components/pathItems/AdminClassification'
   /email/verify/{id}/{hash}:
     get:
       operationId: verifyEmail
@@ -242,6 +349,63 @@ components:
         details: { type: [string, 'null'], maxLength: 255 }
         phone: { type: [string, 'null'], maxLength: 30 }
         postal_code: { type: [string, 'null'], maxLength: 12 }
+  pathItems:
+    AdminClassifications:
+      get:
+        security: [{ sessionCookie: [] }]
+        responses:
+          '200': { description: Active and inactive classifications }
+          '403': { description: Verified administrator required }
+      post:
+        security: [{ sessionCookie: [] }]
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name]
+                properties:
+                  name: { type: string }
+                  active: { type: boolean, default: true }
+        responses:
+          '201': { description: Classification created }
+          '403': { description: Verified administrator required }
+          '419': { description: Missing or invalid CSRF token }
+          '422': { description: Invalid fields or duplicate name }
+    AdminClassification:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      patch:
+        security: [{ sessionCookie: [] }]
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name: { type: string }
+                  active: { type: boolean }
+        responses:
+          '200': { description: Classification updated with slug unchanged }
+          '403': { description: Verified administrator required }
+          '404': { description: Classification not found }
+          '409': { description: Can not deactivate a classification used by published products }
+          '419': { description: Missing or invalid CSRF token }
+          '422': { description: Invalid fields or duplicate name }
+  requestBodies:
+    ProductWrite:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name: { type: [string, 'null'] }
+              description: { type: [string, 'null'] }
+              price_cents: { type: [integer, 'null'], minimum: 1, maximum: 2147483647 }
+              stock: { type: integer, minimum: 0, maximum: 2147483647 }
+              category_id: { type: [integer, 'null'] }
+              brand_id: { type: [integer, 'null'] }
   securitySchemes:
     sessionCookie: { type: apiKey, in: cookie, name: camba_session }
   responses:
