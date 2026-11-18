@@ -4,11 +4,11 @@
 
 Leer también `docs/AUTONOMOUS_EXECUTION.md` antes de empezar o retomar. El usuario exige completar todos los casos de uso y el diseño, sin preguntas rutinarias. Una fase, commit, revisión o candidato pequeño terminado no cierra el encargo: corregir, integrar y seguir automáticamente con la siguiente tarea ejecutable. Mantener la matriz UC01–UC30 y T01–T06 con evidencia real.
 
-El registro local muestra una corrección en otra rama y fallos de revisión/hooks; recuperar ese trabajo mediante el procedimiento del documento, conservar cambios locales y resolver la integración de herramientas. No confundir un estado terminal de la revisión de un candidato con el final del proyecto ni fabricar aprobaciones o resultados.
+El código y los registros locales actuales son la fuente de continuidad. Los snapshots anteriores del documento son históricos: no ordenan recuperar de nuevo trabajo ya integrado. Conservar cambios locales, respetar el alcance de las revisiones cerradas y resolver los fallos de herramientas mediante mecanismos soportados. Aplicar la sección 9 antes de cerrar por dependencias de staging; no confundir el final de una revisión con el final del proyecto ni fabricar aprobaciones o resultados.
 
 ## Objetivo y alcance autorizado
 
-Implementar la reconstrucción completa descrita en `docs/IMPLEMENTATION_BRIEF.md`. El usuario quiere trabajar en **Codex local** para utilizar sus plugins de diseño. Este repositorio contiene instrucciones de arranque, no una aplicación ya construida.
+Implementar la reconstrucción completa descrita en `docs/IMPLEMENTATION_BRIEF.md`. El usuario quiere trabajar en **Codex local** para utilizar sus plugins de diseño. El repositorio se inició con instrucciones de arranque; al retomar, comprobar la implementación local existente y continuarla.
 
 El objetivo principal es que la dueña pueda cargar productos y operar pedidos sin ayuda. Diseño, rendimiento, accesibilidad y facilidad de administración son requisitos de la implementación.
 
@@ -18,7 +18,7 @@ Antes de editar, leer el encargo, las referencias y el progreso. Si ya existe c�
 
 El usuario exige continuar el sistema completo. **La disponibilidad de Computer Use, Brave, Engram o el estado hero de una comp no es una condición para implementar el resto del frontend.** Aplicar la sección 8 de `docs/AUTONOMOUS_EXECUTION.md`: probar alternativas soportadas, preferir tests/capturas del proyecto con Playwright/Chromium y continuar la implementación aun si la comprobación visual sigue pendiente. Esta regla cambia el orden de trabajo del proyecto; no convierte una captura inexistente en evidencia ni aprueba una revisión automáticamente.
 
-Conservar el avance local más nuevo: el registro aportado sitúa `feat/camba-v2` en `c429f10` y la revisión de cuentas `f1d1b8a` aprobada/cerrada. Verificar el estado actual antes de actuar. No reiniciar la implementación, repetir una revisión cerrada por defecto ni recuperar otra vez `a6b2af6` si ya está integrado.
+Conservar el avance local más nuevo de `feat/camba-v2`, consultando Git, PROGRESS.md y el log de tareas. La sección 9 recoge un checkpoint posterior al primer problema de navegador y los pendientes locales detectados. No reiniciar la implementación, repetir revisiones cerradas por defecto ni recuperar correcciones ya integradas.
 
 ## Exclusiones firmes
 

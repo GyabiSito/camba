@@ -159,7 +159,7 @@ Conservar Impeccable, las comps y placas elegidas como referencia visual. No bor
 5. Registrar en el flujo de diseño únicamente evidencias que ese flujo admita y que realmente se hayan producido. Si exige otra vía no disponible, mantener pendiente esa validación específica; la captura de Playwright conserva su valor como prueba independiente, sin atribuirle una aprobación inexistente de Impeccable.
 6. Si no puede ejecutarse ningún navegador autorizado, registrar la causa y seguir implementando UI, componentes, rutas, formularios y estados completos con comprobaciones estáticas/unitarias/builds. Estos controles permiten avanzar, pero no se etiquetan como pruebas visuales, de accesibilidad o E2E aprobadas. Reintentar el navegador cuando cambien las condiciones o al verificar la siguiente entrega.
 
-Documentación oficial: https://playwright.dev/docs/intro , https://playwright.dev/docs/browsers y https://playwright.dev/docs/running-tests . Ajustar comandos/versiones al workspace real. No hay evidencia todavía de que esta alternativa haya sido ejecutada en el equipo del usuario.
+Documentación oficial: https://playwright.dev/docs/intro , https://playwright.dev/docs/browsers y https://playwright.dev/docs/running-tests . Ajustar comandos/versiones al workspace real. Esta alternativa se propuso antes de recibir evidencia de ejecución; el checkpoint de la sección 9 informa el avance posterior. Priorizar siempre el estado local actual.
 
 ### Trabajo concreto a continuar
 
@@ -181,3 +181,55 @@ Primero reutilizar y corregir los contratos existentes; cambiar backend solo don
 Actualizar localmente PROGRESS.md y el log de tareas para distinguir «implementación pendiente» de «implementado, pendiente de verificar en navegador». Sustituir la frase que bloquea fases posteriores por esta regla. No sobrescribir esos archivos con sus versiones iniciales de origin/main.
 
 Compartir avances y continuar automáticamente al siguiente caso de uso. Si el navegador aún falta, eso no justifica una respuesta final mientras haya código/diseño/integración/pruebas independientes por completar. Una vez agotado todo el trabajo ejecutable, describir solo las verificaciones que realmente continúan bloqueadas. No declarar completo/visualmente aprobado/productivo lo que todavía no se verificó.
+
+## 9. Completar la aceptación local antes de esperar a staging
+
+### Checkpoint posterior reportado
+
+El registro aportado por el usuario sitúa `feat/camba-v2` en `051939b`: revisión de operaciones de `885d4c2` aprobada y acusada, seguimiento documental/prueba `aeb13aa` e importación real CSV/XLSX por Chromium y worker en `ae7a569`. Reporta 17/17 recorridos Chromium, 100 pruebas PHP / 1.297 aserciones en SQLite, Pint y sintaxis OpenAPI. Son resultados de la sesión local, no verificaciones repetidas desde GitHub.
+
+Conservar la revisión de cuentas cerrada de `f1d1b8a` y la de operaciones de `885d4c2`, con sus alcances exactos. No extender esas aprobaciones a commits posteriores ni reabrirlas por defecto. Inspeccionar primero el HEAD y los registros reales; `051939b` es una referencia histórica de continuidad, nunca un destino para resetear una rama más avanzada.
+
+La matriz adjunta conserva pendientes que pueden probarse localmente. La dependencia de Mercado Pago, SMTP externo o datos comerciales no bloquea esos recorridos. Sustituir localmente el próximo paso que deja toda mejora de LCP para staging por el siguiente trabajo concreto.
+
+### Primero: diagnosticar y corregir el LCP móvil
+
+El informe existente usa SSR compilado, Lighthouse 13.6.0 y una imagen sintética de 2.980 bytes; reporta LCP 3,4 s frente a la meta de 2,5 s. Identificar el elemento LCP real antes de atribuirlo al hero.
+
+- Reproducir el comando de DEVELOPMENT.md. Guardar URL, commit, versión, perfil móvil/CPU/red y condiciones de caché/servidor; comparar cinco ejecuciones antes/después con la misma configuración y todas sus mediciones, además de la mediana. No escoger solo la mejor ni reducir las restricciones para aprobar.
+- Conservar informe JSON y traza/red. Desglosar TTFB, demora de inicio del recurso, descarga y demora de render. Si el elemento es texto, los tiempos de recurso pueden ser cero.
+- Corregir la causa dominante observada: esperas de API/SSR, descubrimiento tardío, CSS/fuentes, hidratación o contenido oculto por JavaScript. Comprobar el HTML inicial y la cascada antes de decidir. No aplicar indiscriminadamente precargas ni comprimir aún más una imagen minúscula sin evidencia.
+- Mantener contenido, accesibilidad y dirección visual. Verificar los recorridos afectados; registrar la diferencia y cualquier límite del entorno. La medición con catálogo/edge real sigue pendiente hasta disponer de ellos, aunque el laboratorio mejore.
+
+Guía primaria del diagnóstico: https://web.dev/articles/optimize-lcp . Preparar la medición de campo de INP para cuando exista tráfico real; su ausencia antes del lanzamiento no significa que falte una implementación que pueda probarse ahora.
+
+### Después: agotar los pendientes locales de la matriz
+
+Inspeccionar si ya se completaron desde el registro. Corregir fallos reales y añadir solo la evidencia necesaria, reutilizando la fixture y los servicios aislados existentes.
+
+| Casos | Siguiente evidencia local pendiente |
+| --- | --- |
+| UC02 y UC04 | Navegador → solicitud real → worker → correo recibido en Mailpit → enlace entregado → verificación o reset exitoso. Comprobar el acceso resultante; una prueba de token inválido no cubre el éxito. SMTP externo queda separado. |
+| UC03 | Caducidad natural de una sesión en la fixture y recuperación del acceso. Ajustar el tiempo solo en configuración aislada, conservando las reglas productivas. |
+| UC06 | Fusión de carrito invitado al iniciar sesión y acciones en pestañas simultáneas, con persistencia y límites de stock/precio del servidor. |
+| UC08 | Catálogo con suficientes productos para varias páginas; filtros y navegación adelante/atrás conservan URL, resultados y estado coherentes. |
+| UC10, UC11 y UC12 | Recorrido positivo de marca y contención relevante en MySQL aislado para clasificación y ciclo de publicación/archivo. Reutilizar pruebas existentes si demuestran las invariantes. |
+| UC14 y UC15 | Escrituras concurrentes de galería y recuperación de un resultado de subida incierto consultando el catálogo guardado antes de repetir. Comprobar que no haya duplicados ni pérdida de portada. |
+| UC18 | Entrega completa desde navegador con cotización real de la API aislada; mantener la validación comercial de dirección/tarifa como dependencia distinta. |
+| UC23 | Interrumpir y reanudar el procesamiento del inbox en el entorno aislado, preservando idempotencia. Los fakes prueban recuperación local, no certifican Mercado Pago. |
+| T02 | Contraste de estados, zoom, movimiento reducido, foco, errores y una comprobación con otro motor disponible. Revisar tienda y admin; Lighthouse 100 no equivale a revisión integral. |
+| T06 | Ensayo reproducible de restauración de base y archivos multimedia sintéticos en volúmenes nuevos, y recuperación segura de trabajos/notificaciones pendientes. No restaurar sobre el legado ni publicar efectos externos. |
+
+**Lector de pantalla:** utilizar NVDA en Windows u otro lector realmente disponible mediante las capacidades autorizadas de la sesión. Recorrer encabezados, formularios, validaciones, estados dinámicos, diálogos e importación/checkout con teclado. NVDA ofrece Speech Viewer para inspeccionar el texto anunciado: https://www.nvaccess.org/get-help/accessibility-testing-with-nvda-free-sample/ . Registrar lector, navegador, recorrido y observaciones reales. Si no hay capacidad de operar/observar el lector, dejar solo esa validación pendiente y seguir con los demás controles; el árbol accesible y las pruebas automáticas no la reemplazan.
+
+Actualizar la matriz local después de cada resultado. Separar «pendiente ejecutable localmente» de «requiere servicio/dato externo» dentro de cada fila. No añadir módulos nuevos, duplicar pruebas ya suficientes ni inventar tareas para prolongar la ejecución.
+
+### Herramientas, documentación y cierre concreto
+
+El mensaje genérico `Hook failed / code 1` no identifica por sí solo el hook ni demuestra que fallaron los commits o las pruebas. Localizar nombre, fase y log, informar la causa observada y reparar solo por mecanismos soportados. No atribuirlo a Engram sin comprobarlo, desactivar un control obligatorio o alterar un acuse para aparentar éxito.
+
+Actualizar README, PRODUCT, PROGRESS y el log local cuando tengan afirmaciones de estado obsoletas, por ejemplo «no hay aplicación implementada», conservando los registros históricos y sus fechas. No reemplazarlos por las versiones iniciales remotas. Incorporar estas instrucciones mediante conciliación de los cambios documentales; no descartar código local.
+
+Cuando no quede trabajo local ejecutable, entregar un estado verificable con: cobertura y comandos reales, mediciones LCP antes/después, defectos todavía abiertos, validaciones externas pendientes y pasos exactos para retomarlas. Mercado Pago necesita cuenta de prueba/TLS; SMTP necesita configuración autorizada; la migración necesita export/fotos aislados. Descubrir configuración autorizada ya disponible sin imprimir secretos ni tomar credenciales de otros proyectos. No declarar integración externa aprobada a partir de fakes.
+
+Las revisiones citadas certifican únicamente sus candidatos; conservar las reglas vigentes de publicación y despliegue y completar la preparación de CI/CD. No extender una aprobación de API al release. Mientras haya una corrección, recorrido o comprobación local ejecutable dentro del alcance, continuar automáticamente.
