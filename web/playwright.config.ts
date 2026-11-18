@@ -13,6 +13,8 @@ const api = origin(apiPort);
 const admin = origin(adminPort);
 const store = origin(storePort);
 if (new Set([api, admin, store]).size !== 3) throw new Error('Use three different E2E ports.');
+const browser = process.env['CAMBA_E2E_BROWSER'] ?? 'chromium';
+if (browser !== 'chromium' && browser !== 'firefox') throw new Error('Use chromium or firefox for browser tests.');
 
 const angular = (app: string, port: string) => ({
   command: `npm exec -- ng serve ${app} --host 127.0.0.1 --port ${port} --proxy-config proxy.conf.cjs`,
@@ -30,7 +32,7 @@ export default defineConfig({
   timeout: 45_000,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: {
-    browserName: 'chromium',
+    browserName: browser,
     headless: true,
     viewport: { width: 1586, height: 992 },
     deviceScaleFactor: 1,

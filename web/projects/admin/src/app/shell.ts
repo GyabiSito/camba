@@ -105,7 +105,7 @@ export class AdminLogin {
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
   styleUrl: './shell.css',
   template: `
-    <a class="skip" href="#contenido">Saltar al contenido</a>
+    <a class="skip" [href]="'.' + router.url.split('#', 1)[0] + '#contenido'">Saltar al contenido</a>
     <header class="masthead">
       <a class="wordmark" routerLink="/productos" aria-label="Camba, administración">Camba</a>
       <nav aria-label="Administración">
@@ -130,7 +130,7 @@ export class AdminLogin {
 })
 export class AdminShell {
   private readonly session = inject(AdminSession);
-  private readonly router = inject(Router);
+  protected readonly router = inject(Router);
   protected readonly user = this.session.user;
   protected readonly initials = computed(() => this.user()?.name.trim().split(/\s+/).slice(0, 2).map((v) => v[0]).join('').toUpperCase() || 'CA');
   protected readonly error = signal('');

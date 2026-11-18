@@ -16,7 +16,7 @@ type StoreInfo = { business_name: string; support_email?: string | null; support
 export class App {
   private readonly api = inject(ApiClient);
   private readonly document = inject(DOCUMENT);
-  private readonly router = inject(Router);
+  protected readonly router = inject(Router);
   private readonly scope = inject(DestroyRef);
   protected readonly info = signal<StoreInfo | null>(null);
   protected readonly count = signal(0);

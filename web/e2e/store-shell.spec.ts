@@ -17,7 +17,7 @@ test('store captures real catalog data and offers a visible keyboard skip link',
   );
   await expect(page.getByRole('link', { name: 'Remera lisa', exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Contacto', exact: true }).click();
-  await expect(page).toHaveURL(/#contacto$/);
+  await expect(page).toHaveURL((url) => url.pathname === '/tienda' && url.searchParams.get('q') === 'Remera lisa' && url.hash === '#contacto');
   await expect(page.getByRole('link', { name: 'Contacto por correo' })).toHaveAttribute(
     'href',
     'mailto:hola@camba.test',
