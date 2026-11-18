@@ -21,7 +21,9 @@ class UploadProductImagesRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'idempotency_key' => ['sometimes', 'required', 'uuid'],
+            'idempotency_key' => $this->routeIs('admin.catalog.products.images.uploads')
+                ? ['required', 'uuid']
+                : ['sometimes', 'required', 'uuid'],
             'photos' => ['required', 'array', 'min:1', 'max:12'],
             'photos.*' => ['required', 'image', 'mimetypes:image/jpeg,image/png,image/webp', 'max:10240', 'dimensions:max_width=4096,max_height=4096'],
         ];

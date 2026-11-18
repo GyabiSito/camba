@@ -712,22 +712,30 @@ paths:
           required: false
           description: UUID scoped to this product. Use a fresh key for an intentional new batch. Without a key, each successful request appends a batch.
           schema: { type: string, format: uuid }
-      requestBody:
-        required: true
-        content:
-          multipart/form-data:
-            schema:
-              type: object
-              required: ['photos[]']
-              properties:
-                'photos[]':
-                  type: array
-                  description: JPEG, PNG, or WebP only, at most 10 MiB and 4096 × 4096 pixels per file.
-                  minItems: 1
-                  maxItems: 12
-                  items: { type: string, format: binary }
-            encoding:
-              'photos[]': { contentType: 'image/*', explode: true }
+      requestBody: { $ref: '#/components/requestBodies/ProductPhotos' }
+      responses:
+        '201': { description: Admin product with the current gallery in display order on both initial upload and replay; first image is the cover }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '404': { description: Product not found }
+        '409': { description: This key already completed with different file bytes or a different file order }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: 'Invalid file, gallery input, or Idempotency-Key' }
+        '503': { description: Image processing or storage is unavailable }
+  /api/v1/admin/products/{product}/images/uploads:
+    parameters:
+      - { name: product, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: recoverableProductImageUpload
+      security: [{ sessionCookie: [] }]
+      description: Use this route for recoverable uploads. Older API releases reject it without writing; do not fall back to the unkeyed route.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: UUID scoped to the product; replay the exact ordered files with the same key after an uncertain response.
+          schema: { type: string, format: uuid }
+      requestBody: { $ref: '#/components/requestBodies/ProductPhotos' }
       responses:
         '201': { description: Admin product with the current gallery in display order on both initial upload and replay; first image is the cover }
         '401': { description: No authenticated session }
@@ -920,6 +928,22 @@ components:
           '419': { description: Missing or invalid CSRF token }
           '422': { description: Invalid fields or duplicate name }
   requestBodies:
+    ProductPhotos:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: ['photos[]']
+            properties:
+              'photos[]':
+                type: array
+                description: JPEG, PNG, or WebP only, at most 10 MiB and 4096 × 4096 pixels per file.
+                minItems: 1
+                maxItems: 12
+                items: { type: string, format: binary }
+          encoding:
+            'photos[]': { contentType: 'image/*', explode: true }
     ProductWrite:
       content:
         application/json:

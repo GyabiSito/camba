@@ -190,7 +190,7 @@ export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product:
     if (confirmed || released) state.attempt = undefined;
   };
   try {
-    const result = await firstValueFrom(api.post<Data<Product>>(`${products}/${product.id}/images`, body, {
+    const result = await firstValueFrom(api.post<Data<Product>>(`${products}/${product.id}/images/uploads`, body, {
       'Idempotency-Key': attempt.key,
     }).pipe(takeUntilDestroyed(destroy)));
     if (result?.data?.id !== product.id || !Array.isArray(result.data.images)) {
@@ -209,6 +209,9 @@ export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product:
 
 export function photoUploadFailure(error: unknown, recovering: boolean) {
   if (error instanceof PhotoUploadInputError) return error.message;
+  if (error instanceof HttpErrorResponse && error.status === 404) {
+    return 'La carga segura no está disponible para este producto. Actualizá la página y volvé a intentarlo.';
+  }
   if (!recovering) return '';
   return error instanceof HttpErrorResponse && error.status === 409
     ? 'Esta selección no coincide con la carga anterior. Volvé a elegir las fotos originales en el mismo orden.'

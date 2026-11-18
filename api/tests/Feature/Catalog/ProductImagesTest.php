@@ -90,6 +90,23 @@ class ProductImagesTest extends TestCase
         }
     }
 
+    public function test_recovery_endpoint_requires_a_key_and_only_appends_once(): void
+    {
+        Storage::fake('public');
+        $this->admin();
+        $p = $this->product();
+        $url = "/api/v1/admin/products/$p->id/images/uploads";
+        $this->post($url, ['photos' => [$this->photo()]])
+            ->assertUnprocessable()->assertJsonValidationErrors('idempotency_key');
+        $this->assertDatabaseCount('product_images', 0);
+
+        $headers = ['Idempotency-Key' => (string) Str::uuid()];
+        $created = $this->post($url, ['photos' => [$this->photo()]], $headers)->assertCreated();
+        $this->post($url, ['photos' => [$this->photo()]], $headers)
+            ->assertCreated()->assertExactJson($created->json());
+        $this->assertDatabaseCount('product_images', 1);
+    }
+
     public function test_upload_key_replays_only_the_same_ordered_bytes_for_this_product(): void
     {
         $disk = Storage::fake('public');

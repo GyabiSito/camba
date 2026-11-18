@@ -41,6 +41,8 @@ POST `/admin/products/{id}/images` accepts multipart `photos[]` (up to 12 per re
 
 Send an optional UUID `Idempotency-Key` header once per intended batch. If the response is uncertain (timeout, lost connection, or server error), resend the same key and the same files in the same multipart order, even if the original request may still be running. The initial upload and a successful replay both return 201 with the current product and gallery; a replay never appends again. Reusing the key with different bytes or order returns 409; filenames do not matter. A malformed key returns 422 (`idempotency_key`). Keys are scoped to the product and do not expire while it exists. Without a key, every successful POST appends, so retrying an uncertain upload may duplicate photos. Use a new key for an intentional new batch.
 
+For recovery-capable clients, use POST `/admin/products/{id}/images/uploads` with the same multipart body and a **required** key. An older API rejects this route without writing, so the admin never falls back to the older endpoint during a rollout or rollback. The first route remains compatible with existing callers.
+
 PUT `/admin/products/{id}/images/order` accepts `{"ids":[2,1]}` with every current image ID once. The first ID becomes the cover. A stale list or ID from another product returns 422 and preserves the existing order.
 
 Local serving needs `php artisan storage:link` and the process's `APP_URL` set to the gateway origin. Set reverse proxy and PHP body limits consistently for the supported upload batch. The fixture gallery tests simulate the media disk; they do not prove gateway delivery.

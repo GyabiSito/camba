@@ -82,7 +82,7 @@ test('el reintento de fotos continúa en el mismo borrador', async ({ page }) =>
   page.on('request', (request) => {
     if (request.method() === 'POST' && request.url().endsWith('/api/v1/admin/products')) creates++;
   });
-  await page.route('**/api/v1/admin/products/*/images', (route) => {
+  await page.route('**/api/v1/admin/products/*/images/uploads', (route) => {
     targets.add(route.request().url());
     uploads.push(route.request().headers()['idempotency-key']);
     return uploads.length === 1
@@ -111,26 +111,29 @@ async function uncertainUpload(page: Page, committed: boolean) {
   const uploads: string[] = [];
   const savedIds: number[] = [];
   page.on('request', (request) => {
-    if (request.method() === 'POST' && /\/api\/v1\/admin\/products\/\d+\/images$/.test(request.url())) {
+    if (request.method() === 'POST' && /\/api\/v1\/admin\/products\/\d+\/images\/uploads$/.test(request.url())) {
       uploads.push(request.headers()['idempotency-key']);
     }
   });
+  const failure = { message: 'Write was not confirmed' };
+  if (!committed) {
+    await page.route('**/api/v1/admin/products/*/images/uploads', (route) => route.fulfill({ status: 504, json: failure }), { times: 1 });
+    return { uploads, savedIds };
+  }
+
   // Chromium can drop a real response after Laravel commits without rebuilding a multipart request.
   const network = await page.context().newCDPSession(page);
   await network.send('Fetch.enable', { patterns: [{
-    urlPattern: '*/api/v1/admin/products/*/images',
-    requestStage: committed ? 'Response' : 'Request',
+    urlPattern: '*/api/v1/admin/products/*/images/uploads', requestStage: 'Response',
   }] });
   network.once('Fetch.requestPaused', async ({ requestId, responseStatusCode }) => {
-    if (committed) {
-      expect(responseStatusCode).toBe(201);
-      const result = await network.send('Fetch.getResponseBody', { requestId });
-      const body = result.base64Encoded ? Buffer.from(result.body, 'base64').toString('utf8') : result.body;
-      savedIds.push(...JSON.parse(body).data.images.map((image: { id: number }) => image.id));
-    }
+    expect(responseStatusCode).toBe(201);
+    const result = await network.send('Fetch.getResponseBody', { requestId });
+    const body = result.base64Encoded ? Buffer.from(result.body, 'base64').toString('utf8') : result.body;
+    savedIds.push(...JSON.parse(body).data.images.map((image: { id: number }) => image.id));
     await network.send('Fetch.fulfillRequest', {
-      requestId, responseCode: committed ? 500 : 504, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }],
-      body: Buffer.from('{"message":"Write was not confirmed"}').toString('base64'),
+      requestId, responseCode: 500, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }],
+      body: Buffer.from(JSON.stringify(failure)).toString('base64'),
     });
     await network.send('Fetch.disable');
   });
@@ -250,7 +253,7 @@ for (const committed of [true, false]) {
       await other.goto(page.url());
       const otherGallery = other.getByRole('region', { name: 'Galería' });
       await otherGallery.getByLabel('Volver a elegir las fotos').setInputFiles(files);
-      const otherRequest = other.waitForRequest((request) => request.method() === 'POST' && request.url().endsWith(`${draftPath}/images`));
+      const otherRequest = other.waitForRequest((request) => request.method() === 'POST' && request.url().endsWith(`${draftPath}/images/uploads`));
       await otherGallery.getByRole('button', { name: 'Reintentar carga' }).click();
       expect((await otherRequest).headers()['idempotency-key']).toBe(attempts.uploads[0]);
       await expect(otherGallery.getByRole('status')).toContainText('Fotos agregadas a la galería.');
@@ -267,7 +270,7 @@ for (const committed of [true, false]) {
       await expect(gallery.getByRole('status')).toContainText('mismo orden');
       await originals.setInputFiles(files);
     } else {
-      await page.route(`**${draftPath}/images`, (route) => route.fulfill({ status: 409, json: { message: 'Upload conflicts' } }), { times: 1 });
+      await page.route(`**${draftPath}/images/uploads`, (route) => route.fulfill({ status: 409, json: { message: 'Upload conflicts' } }), { times: 1 });
       await retry.click();
       await expect(gallery.getByRole('alert')).toContainText('no coincide');
       await expect(gallery.getByText('Fotos agregadas a la galería.')).toHaveCount(0);
@@ -295,7 +298,7 @@ test('conserva las fotos y la portada cuando otra pestaña cambia la galería', 
   const draftUrl = page.url();
   const draftPath = `/api/v1/admin/products/${draftUrl.split('/').at(-1)}`;
   await page.getByLabel('Agregar fotos').setInputFiles([photo('image-plain'), photo('detail-photo')]);
-  const seed = page.waitForResponse((response) => response.url().endsWith(`${draftPath}/images`));
+  const seed = page.waitForResponse((response) => response.url().endsWith(`${draftPath}/images/uploads`));
   await page.getByRole('button', { name: 'Subir fotos' }).click();
   const initial = await seed;
   expect(initial.status()).toBe(201);
@@ -306,8 +309,8 @@ test('conserva las fotos y la portada cuando otra pestaña cambia la galería', 
   await page.getByLabel('Agregar fotos').setInputFiles(photo('image-pocket'));
 
   const reorderQueued = stale.waitForRequest((request) => request.url().endsWith(`${draftPath}/images/order`));
-  const uploadDone = page.waitForResponse((response) => response.url().endsWith(`${draftPath}/images`));
-  await page.route('**/api/v1/admin/products/*/images', async (route) => {
+  const uploadDone = page.waitForResponse((response) => response.url().endsWith(`${draftPath}/images/uploads`));
+  await page.route('**/api/v1/admin/products/*/images/uploads', async (route) => {
     await reorderQueued;
     await route.continue();
   }, { times: 1 });

@@ -124,7 +124,7 @@ class MySqlCatalogContentionTest extends TestCase
         $product = $this->draft();
         $cover = $product->images()->sole();
         $key = (string) Str::uuid();
-        $append = ['POST', "/api/v1/admin/products/$product->id/images", ['photo' => true], ['Idempotency-Key' => $key]];
+        $append = ['POST', "/api/v1/admin/products/$product->id/images/uploads", ['photo' => true], ['Idempotency-Key' => $key]];
 
         // Both independent requests have staged files and are waiting on the same product lock.
         $results = $this->race('products', $product->id, $append, $append);
