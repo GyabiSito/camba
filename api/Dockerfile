@@ -6,9 +6,9 @@ FROM ${COMPOSER_IMAGE} AS composer
 
 FROM ${PHP_IMAGE} AS extensions
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libjpeg62-turbo-dev libpng-dev libwebp-dev unzip \
+    && apt-get install -y --no-install-recommends libjpeg62-turbo-dev libpng-dev libwebp-dev libzip-dev unzip \
     && docker-php-ext-configure gd --with-jpeg --with-webp \
-    && docker-php-ext-install -j"$(nproc)" exif gd opcache pcntl pdo_mysql \
+    && docker-php-ext-install -j"$(nproc)" exif gd opcache pcntl pdo_mysql zip \
     && pecl install redis-6.2.0 \
     && docker-php-ext-enable redis \
     && rm -rf /var/lib/apt/lists/*
@@ -26,7 +26,7 @@ RUN mkdir -p bootstrap/cache \
 
 FROM ${PHP_IMAGE} AS runtime
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl libjpeg62-turbo libpng16-16 libwebp7 nginx-light \
+    && apt-get install -y --no-install-recommends curl libjpeg62-turbo libpng16-16 libwebp7 libzip4 nginx-light \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=extensions /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
 COPY --from=extensions /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/

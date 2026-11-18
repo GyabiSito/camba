@@ -10,21 +10,36 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class SaveProductAction
 {
     public function create(array $input): Product
     {
+        return $this->createDraft($input);
+    }
+
+    public function createForImport(string $sku, array $input): Product
+    {
+        if (! preg_match('/\A[A-Z0-9][A-Z0-9._-]{0,63}\z/', $sku)) {
+            throw ValidationException::withMessages(['codigo' => 'The SKU is invalid.']);
+        }
+
+        return $this->createDraft($input, $sku);
+    }
+
+    private function createDraft(array $input, ?string $sku = null): Product
+    {
         $id = (string) Str::ulid();
         $slug = Str::slug($input['name'] ?? '');
 
         $product = new Product($input);
-        $product->sku = 'CAM-'.strtoupper($id);
+        $product->sku = $sku ?? 'CAM-'.strtoupper($id);
         $product->slug = (rtrim(substr($slug, 0, 120), '-') ?: 'product').'-'.strtolower($id);
         try {
             $product->save();
         } catch (UniqueConstraintViolationException) {
-            abort(409, 'Could not assign a unique SKU or slug. Retry creating the draft.');
+            throw new ConflictHttpException('Could not assign a unique SKU or slug. Retry creating the draft.');
         }
 
         return $product;

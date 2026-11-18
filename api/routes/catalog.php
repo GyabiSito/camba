@@ -17,6 +17,8 @@ Route::prefix('v1')->group(function (): void {
 });
 
 Route::prefix('v1/admin')->name('admin.catalog.')->middleware(['auth:sanctum', 'can:camba-admin'])->group(function (): void {
+    require __DIR__.'/imports.php';
+
     Route::get('products', [ProductController::class, 'index'])->name('products.index');
     Route::post('products', [ProductController::class, 'store'])->name('products.store');
     Route::get('products/{product}', [ProductController::class, 'show'])->whereNumber('product')->name('products.show');

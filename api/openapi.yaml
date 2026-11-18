@@ -595,6 +595,64 @@ paths:
         '404': { description: Product not found }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Stale gallery list or invalid image IDs }
+  /api/v1/admin/catalog-imports/template:
+    get:
+      operationId: downloadCatalogImportTemplate
+      security: [{ sessionCookie: [] }]
+      externalDocs: { url: docs/imports.md }
+      responses:
+        '200':
+          description: UTF-8 CSV template
+          content:
+            text/csv: { schema: { type: string } }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+  /api/v1/admin/catalog-imports:
+    post:
+      operationId: previewCatalogImport
+      security: [{ sessionCookie: [] }]
+      externalDocs: { url: docs/imports.md }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary, description: 'CSV or single-sheet XLSX up to 2 MiB' }
+      responses:
+        '200': { description: Existing ledger for identical file bytes }
+        '201': { description: New preview and per-row validation ledger }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid import file }
+  /api/v1/admin/catalog-imports/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      operationId: getCatalogImport
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Ledger preview or durable row status and results }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '404': { description: Import not found }
+  /api/v1/admin/catalog-imports/{id}/confirm:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    post:
+      operationId: confirmCatalogImport
+      security: [{ sessionCookie: [] }]
+      responses:
+        '202': { description: Valid pending rows queued or already processed }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '404': { description: Import not found }
+        '409': { description: No valid pending rows to confirm }
+        '419': { description: Missing or invalid CSRF token }
+        '503': { description: Queue unavailable; the durable confirmation may be retried }
   /api/v1/admin/categories:
     $ref: '#/components/pathItems/AdminClassifications'
   /api/v1/admin/brands:
