@@ -1,0 +1,6 @@
+<main class="reproduction" aria-label="Prueba visual del catálogo">
+  @for (plate of plates; track plate.id) {
+    <img [src]="'demo/' + plate.id + '.webp'" alt="" [style.left.%]="plate.x" [style.top.%]="plate.y"
+      [style.width.%]="plate.w" [style.height.%]="plate.h" />
+  }
+</main>

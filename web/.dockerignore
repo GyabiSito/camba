@@ -1,0 +1,12 @@
+**
+!angular.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!projects/
+!projects/**
+!nginx-admin.conf
+**/.env*
+**/node_modules
+**/dist
+**/.angular
