@@ -4,6 +4,10 @@
 
 Este documento convierte la auditoría y las decisiones posteriores del usuario en un trabajo ejecutable. Las decisiones posteriores mandan: catálogo simple con categorías y marca; sin promociones, cupones, tags ni jerarquía de departamentos. La implementación se realizará en Codex local para aprovechar sus plugins de diseño.
 
+## 0. Ejecución continua
+
+El mandato posterior del usuario es completar absolutamente todos los casos de uso y el diseño sin preguntas rutinarias. Aplicar `docs/AUTONOMOUS_EXECUTION.md`, incluida la recuperación de worktrees/revisiones/hooks y la matriz UC01–UC30/T01–T06. El cierre de cada fase indica continuar con la siguiente; no es una solicitud de autorización nueva.
+
 ## 1. Resultado que se debe entregar
 
 Una tienda funcional, visualmente nueva, rápida y simple de administrar. Debe permitir cargar productos individualmente y en masa, vender con Mercado Pago, gestionar pedidos y enviar notificaciones/recordatorios confiables. Monorepo Laravel 13 + Angular 22, Docker de desarrollo separado de producción y entrega productiva exclusivamente por CI/CD.
