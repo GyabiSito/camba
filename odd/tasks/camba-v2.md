@@ -18,8 +18,8 @@ Delivery: `auto-chain`, stacked-to-main local work units; no remote delivery. Fo
 
 ## Tasks
 
-- W1 — S9, Admin catalog, classifications, galleries and imports; delegated parallel writer on admin `catalog/**`; `5655822` and Windows fixture `4bf2775`. Local Chromium CRUD, visible uploads and CSV jobs pass; XLSX UI not exercised.
-- W2 — S9, Admin orders, fulfilment, notices and settings; delegated parallel writer on admin `operations/**`; `885d4c2` and `5655822`. Independent API gate/privacy and Chromium pass; native operational API candidate and sandbox verification pending. Risk: items 2 and 3.
+- W1 — S9, Admin catalog, classifications, galleries and imports; delegated parallel writer on admin `catalog/**`; `5655822`, Windows fixture `4bf2775` and XLSX proof `ae7a569`. Local Chromium CRUD, visible uploads and CSV/XLSX jobs pass.
+- W2 — S9, Admin orders, fulfilment, notices and settings; delegated parallel writer on admin `operations/**`; `885d4c2` and `5655822`. Independent API gate/privacy and Chromium pass; native API approval acknowledged; real payment sandbox pending. Risk: items 2 and 3.
 - W3 — S9, Store browse, search, detail/gallery, public SSR, 404 and 503; delegated parallel writer on store `catalog/**`; `75fccdf`. Screens inspected and real SSR/Chromium pass; mobile LCP remains above budget.
 - W4 — S9, Store auth/account, cart/checkout/purchases/payment return; delegated parallel writer on store `shopper/**`; `75fccdf`. Local buyer/guest flows and retry/fake callback proof pass; positive provider/email links remain pending. Risk: items 2 and 4.
 - W5 — S9, Shared shell/HTTP/design, Playwright, fixtures and CI; inline orchestrator-owned seams; `322f65d`, `5655822`, `75fccdf`, `4bf2775`. Integrated 17/17; builds, screenshots, actionlint, Compose render and local simulated release pass. Hosted CI/production and complete accessibility review pending. Risk: item 5.
@@ -172,3 +172,9 @@ No declares aprobada una validación que no se haya realizado.
 Applied the instruction-only update from `a9e414d` as `8de98df`; local progress history and prior worktrees were preserved. W1–W4 worked in disjoint places; W5 owns shared seams, browser fixture and checks. Native account approval was not reopened. The operations API addition `885d4c2` is a separate 145-line, high-risk scope with independent verification and a clean native preflight; no review verdict for it. Engram's host did not register a valid workspace session, so this task file is the durable record, with the mirror pending.
 
 Final isolated browser run passed 17/17 after fixing PHP's HTTP storage path and a 320 px layout overlap. Raw fixture thumbnail changed from HTTP 404 to a decoded WebP at 200. Dedicated login test users avoid colliding with the real five-per-minute account limiter. Separate compiled SSR wrapper verified 200/canonical and 503 on fixture shutdown. Lighthouse 13.6.0: 92/100/100, LCP 3.4 s (not at 2.5 s target), CLS 0, TBT 60 ms. See PROGRESS for builds, exact check types, real external dependencies and full acceptance limits. No push/deploy. Store and admin route seams and their browser scenarios form coherent app-level commits above the 400-line planning heuristic; publishing slices were not requested.
+
+### L8 — Operations API review consent
+
+1
+
+Provider admitted all three perspectives for `885d4c2` and returned final `approved`; exact acknowledgement consumed authority in `review-c76ecd4198a246da`. Two informational observations were addressed separately in `aeb13aa` (provider vs local reconciliation timestamps, and explicit empty payment evidence). No source runtime changes, account review reopening, or deployment. PHPUnit SQLite 100/1,297; scoped Pint and OpenAPI syntax passed. Browser regression 17/17 after `ae7a569`, including the real fixture queue applying CSV and XLSX in the same scenario.

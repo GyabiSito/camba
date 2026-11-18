@@ -13,7 +13,7 @@ No hay aplicación implementada, dependencias instaladas, contenedores de Camba 
 | Encargo e instrucciones | Preparado | AGENTS.md, IMPLEMENTATION_BRIEF.md, REFERENCES.md |
 | P0 — referencias locales, plugins y decisiones | Referencias revisadas; comp de admin elegida y placas aprobadas por Impeccable | PRODUCT.md; [evidencia local](REFERENCES.md#local-source-review--2026-11-18); falta captura del hero |
 | P1 — monorepo, Docker dev, CI base y acceso | API y pantallas integradas | Sesiones de comprador y administrador en Chromium; [arranque aislado](DEVELOPMENT.md) |
-| P2 — catálogo/admin/carga masiva | Interfaz y recorridos locales | Galerías, SKU, auditoría, lote por fotos y CSV ejecutado por worker; XLSX probado en API |
+| P2 — catálogo/admin/carga masiva | Interfaz y recorridos locales | Galerías, SKU, auditoría, lote por fotos e importaciones CSV/XLSX ejecutadas por el worker desde Chromium |
 | P3 — pedidos/pagos/webhook/conciliación | UI, backend y simulación verificados | Checkout idempotente en Chromium y contención MySQL; falta Checkout Pro con credenciales de prueba |
 | P4 — notificaciones/recordatorios | Preferencias y avisos conectados | Mailpit local y transporte sintético; SMTP real pendiente |
 | P5 — tienda y diseño | Aplicaciones conectadas y capturas revisadas | SSR público, compra/cuenta y admin a 1586 y 320 px; validación formal de Impeccable y accesibilidad integral pendientes |
@@ -25,7 +25,7 @@ No hay aplicación implementada, dependencias instaladas, contenedores de Camba 
 
 Retomar `feat/camba-v2` con [el log de tareas](../odd/tasks/camba-v2.md). Ejecutar `npm run test:e2e` desde `web/` con los [requisitos de la fixture aislada](DEVELOPMENT.md#browser-checks-and-captures). La [sección 8 actualizada](AUTONOMOUS_EXECUTION.md#8-continuar-el-frontend-cuando-falla-el-acceso-al-navegador) ya no condiciona la implementación al hero; el estado de Impeccable en `hero` no certifica ni bloquea los recorridos que pasan en Chromium.
 
-Retomar la verificación con las capturas de `web/test-results/`: evaluar con lector de pantalla, probar XLSX desde el selector y medir de nuevo LCP con el edge y catálogo de staging. Ejecutar los ejercicios de Mercado Pago, SMTP y migración cuando estén disponibles las dependencias de abajo. No se habilitó el release ni se modifica Camba anterior.
+Retomar la verificación con las capturas de `web/test-results/`: evaluar con lector de pantalla, comparar TTFB/compresión y medir de nuevo LCP con el edge y catálogo de staging. Ejecutar los ejercicios de Mercado Pago, SMTP y migración cuando estén disponibles las dependencias de abajo. No se habilitó el release ni se modifica Camba anterior.
 
 ## Acceptance matrix
 
@@ -48,7 +48,7 @@ Retomar la verificación con las capturas de `web/test-results/`: evaluar con le
 | UC13 | Local: sales price to exact cents, stock and persisted audit shown in Chromium | — |
 | UC14 | Partial: browser multi-upload, cover change, publish guard and media decoding; API rollback/EXIF checks | Concurrent browser gallery writes |
 | UC15 | Local: grouped photo input creates draft; simulated upload response failure then retry uses same draft; publication explicit | Reconcile uncertain operations from the saved catalog before retry |
-| UC16 | Partial: browser CSV template, real preview and invalid rows; API covers XLSX | XLSX upload from Chromium |
+| UC16 | Local: CSV template and invalid-row preview, XLSX upload/preview/confirmation and worker completion in Chromium | — |
 | UC17 | Local: confirm, durable worker completion, reload and same-file dedupe in Chromium; independent MySQL races | — |
 | UC18 | Partial: guest quote and pickup checkout in Chromium; delivery quote verified by API | In-person verification of real pickup address/rates; full browser delivery |
 | UC19 | Local: browser drops committed response and safely retries identical key/reference; real MySQL last-unit and retry races | — |
@@ -165,6 +165,12 @@ Por cada entrega agregar: commit, funcionalidad, comandos ejecutados, resultado,
 - **Revisión visual:** `web/test-results/` conserva PNG del catálogo/admin y home a 1586×992, detalle/320 px y otras vistas de compra/configuración. Se inspeccionaron capturas reales, se corrigieron desborde de precio y superposición entre enlace y selector, y se comprobó foco/teclado. Impeccable ejecutó detector manual: seis avisos de `src` en plantillas Angular con binding; el detector no certifica el estado de ejecución. `hooks on` dejó la configuración habilitada, pero no encontró una instalación de skill del proveedor para reparar el manifiesto de Codex; no se acreditó dispatch automático. El estado del hero sigue sin aprobación formal.
 - **Rendimiento:** [prueba reproducible](DEVELOPMENT.md#reproduce-the-mobile-storefront-audit), Lighthouse 13.6.0 en SSR compilado: **92 rendimiento / 100 accesibilidad / 100 SEO**, **LCP 3,4 s** (objetivo 2,5 s no alcanzado), **CLS 0**, **TBT 60 ms**. Hero sintético **2.980 bytes**. La primera medición sobre Vite no representa producción; inyectaba cliente dev y mapas. Sin INP de campo ni catálogo/edge de producción.
 - **Revisión nativa:** no se reabrió la revisión de cuenta. `885d4c2` fue evaluado `high_risk` y se obtuvo `fresh_target_ready` en el worktree separado `camba-v2-review-operations-885d4c2`; falta consentimiento propio y no hay aprobación. El host no confirmó una sesión Engram del proyecto; este registro local conserva los resultados.
+
+### 2026-11-18 — Acuse de operaciones y prueba XLSX
+
+- El usuario eligió revisar `885d4c2`. Las tres perspectivas se admitieron y `review-c76ecd4198a246da` devolvió `approved`; el acuse exacto devolvió `authority: burned`. Quedaron dos avisos no bloqueantes, sin transición de corrección. No se reabrió la revisión de cuentas ni se extendió la aprobación a otros commits.
+- Seguimiento independiente `aeb13aa`, sin modificar el comportamiento de la API: OpenAPI distingue la hora de actualización del proveedor de la hora de conciliación local. PHPUnit comprueba que `payment.attempt` existe con valor `null` y `payment.observations` es `[]` antes del primer pago. Pasaron **100 pruebas / 1.297 aserciones** en SQLite, Pint de lo modificado y OpenAPI 3.1 sin incidencias de sintaxis.
+- Chromium `ae7a569`: el escenario de importación carga una planilla XLSX sintética, presenta el SKU en la vista previa, exige confirmación explícita y muestra el resultado aplicado por el worker. También reejecuta la importación CSV y su deduplicación. Regresión integrada **17/17**, con el mismo Laravel/SQLite/worker aislado. No se usaron archivos comerciales ni servicios externos.
 
 ## Dependencias externas que deben resolverse para una entrega productiva
 
