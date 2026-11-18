@@ -1,5 +1,11 @@
 # Camba v2 — instrucciones para Codex local
 
+## Continuidad obligatoria hasta completar el sistema
+
+Leer también `docs/AUTONOMOUS_EXECUTION.md` antes de empezar o retomar. El usuario exige completar todos los casos de uso y el diseño, sin preguntas rutinarias. Una fase, commit, revisión o candidato pequeño terminado no cierra el encargo: corregir, integrar y seguir automáticamente con la siguiente tarea ejecutable. Mantener la matriz UC01–UC30 y T01–T06 con evidencia real.
+
+El registro local muestra una corrección en otra rama y fallos de revisión/hooks; recuperar ese trabajo mediante el procedimiento del documento, conservar cambios locales y resolver la integración de herramientas. No confundir un estado terminal de la revisión de un candidato con el final del proyecto ni fabricar aprobaciones o resultados.
+
 ## Objetivo y alcance autorizado
 
 Implementar la reconstrucción completa descrita en `docs/IMPLEMENTATION_BRIEF.md`. El usuario quiere trabajar en **Codex local** para utilizar sus plugins de diseño. Este repositorio contiene instrucciones de arranque, no una aplicación ya construida.
