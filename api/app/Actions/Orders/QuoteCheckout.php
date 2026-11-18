@@ -3,6 +3,7 @@
 namespace App\Actions\Orders;
 
 use App\Models\Product;
+use App\Models\StoreSettings;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Validation\ValidationException;
 
@@ -44,14 +45,12 @@ class QuoteCheckout
         }
 
         $shipping = [];
-        $pickup = config('checkout.pickup_address');
-        if (is_string($pickup) && trim($pickup) !== '' && mb_strlen(trim($pickup)) <= 255) {
-            $shipping[] = $this->option('pickup', 0, trim($pickup), $subtotal, $lines);
+        $settings = StoreSettings::loadValues();
+        if ($settings['pickup_address'] !== null) {
+            $shipping[] = $this->option('pickup', 0, $settings['pickup_address'], $subtotal, $lines);
         }
-        $delivery = config('checkout.delivery_cents');
-        if ((is_int($delivery) || is_string($delivery))
-            && ($cents = filter_var($delivery, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0, 'max_range' => 2147483647]])) !== false) {
-            $shipping[] = $this->option('delivery', $cents, null, $subtotal, $lines);
+        if ($settings['delivery_cents'] !== null) {
+            $shipping[] = $this->option('delivery', $settings['delivery_cents'], null, $subtotal, $lines);
         }
 
         return [[

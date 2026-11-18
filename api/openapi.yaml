@@ -323,6 +323,58 @@ paths:
         '200': { description: This session's private order snapshot }
         '400': { description: First-party session required }
         '404': { description: Missing, foreign, or expired order }
+  /api/v1/store-info:
+    get:
+      operationId: getStoreInfo
+      externalDocs: { url: docs/settings.md }
+      responses:
+        '200': { description: Public business contact and enabled shipping information; no private controls or secrets }
+  /api/v1/admin/settings:
+    get:
+      operationId: getStoreSettings
+      security: [{ sessionCookie: [] }]
+      externalDocs: { url: docs/settings.md }
+      responses:
+        '200': { description: Effective operational settings }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+    patch:
+      operationId: updateStoreSettings
+      security: [{ sessionCookie: [] }]
+      externalDocs: { url: docs/settings.md }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                business_name: { type: string, maxLength: 120 }
+                support_email: { type: [string, 'null'], format: email }
+                support_phone: { type: [string, 'null'], maxLength: 40 }
+                pickup_address: { type: [string, 'null'], maxLength: 255 }
+                delivery_cents: { type: [integer, 'null'], minimum: 0, maximum: 2147483647 }
+                remind_payment: { type: boolean }
+                payment_lead_minutes: { type: integer, minimum: 1, maximum: 25 }
+                remind_cart: { type: boolean }
+                cart_delay_hours: { type: integer, minimum: 1, maximum: 168 }
+                low_stock_threshold: { type: integer, minimum: 0, maximum: 1000 }
+                pending_fulfilment_hours: { type: integer, minimum: 1, maximum: 168 }
+      responses:
+        '200': { description: Effective settings after the committed update }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid or unsupported setting }
+  /api/v1/admin/settings/history:
+    get:
+      operationId: getStoreSettingsHistory
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Latest changes with before/after values and administrator ID }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
   /api/v1/products:
     get:
       operationId: browseProducts
