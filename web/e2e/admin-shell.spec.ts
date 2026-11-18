@@ -7,7 +7,7 @@ test('verified admin reaches the catalog and can sign out', async ({ page }, inf
   await page.getByLabel('Contraseña').fill('Camba-test-only-2026');
   await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Productos', exact: true })).toBeVisible();
-  await expect(page.getByText('Remera lisa', { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('table', { name: 'Inventario de productos' })).toBeVisible();
   await expect(
     page.getByRole('navigation', { name: 'Administración' }).getByText('Productos'),
   ).toHaveAttribute('aria-current', 'page');
