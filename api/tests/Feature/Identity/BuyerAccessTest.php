@@ -73,6 +73,9 @@ class BuyerAccessTest extends TestCase
         $this->actingAs($owner, 'web')->getJson('/api/v1/admin/session')->assertForbidden();
         $this->artisan('camba:grant-admin', ['email' => $unverified->email])->assertFailed();
         $this->assertSame('buyer', $unverified->fresh()->role);
+        $unverified->forceFill(['role' => 'admin'])->save();
+        $this->app['auth']->forgetGuards();
+        $this->actingAs($unverified, 'web')->getJson('/api/v1/admin/session')->assertForbidden();
         $this->artisan('camba:grant-admin', ['email' => ' OWNER@Example.Test '])->assertSuccessful();
         $this->assertSame('admin', $owner->fresh()->role);
         $this->app['auth']->forgetGuards();

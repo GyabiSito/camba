@@ -152,8 +152,15 @@ paths:
             schema:
               type: object
               required: [name]
+              not:
+                anyOf:
+                  - { required: [email] }
+                  - { required: [password] }
+                  - { required: [password_confirmation] }
+                  - { required: [role] }
+                  - { required: [user_id] }
               properties:
-                name: { type: string, minLength: 1, maxLength: 120 }
+                name: { type: string, minLength: 1, maxLength: 120, pattern: '\S' }
       responses:
         '200': { $ref: '#/components/responses/UserEnvelope' }
         '401': { description: No authenticated session }
@@ -164,7 +171,17 @@ paths:
       operationId: listAddresses
       security: [{ sessionCookie: [] }]
       responses:
-        '200': { description: Only the current account's saved addresses }
+        '200':
+          description: Only the current account's saved addresses
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Address' }
         '401': { description: No authenticated session }
     post:
       operationId: saveAddress
@@ -178,7 +195,7 @@ paths:
                 - { $ref: '#/components/schemas/AddressInput' }
                 - { required: [recipient, department, locality, street, number] }
       responses:
-        '201': { description: Address saved for the current account }
+        '201': { $ref: '#/components/responses/AddressEnvelope' }
         '401': { description: No authenticated session }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Invalid address fields or caller-supplied owner }
@@ -189,7 +206,7 @@ paths:
       operationId: getAddress
       security: [{ sessionCookie: [] }]
       responses:
-        '200': { description: Address belonging to the current account }
+        '200': { $ref: '#/components/responses/AddressEnvelope' }
         '401': { description: No authenticated session }
         '404': { description: Address not found for the current account }
     patch:
@@ -201,7 +218,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/AddressInput' }
       responses:
-        '200': { description: Address updated }
+        '200': { $ref: '#/components/responses/AddressEnvelope' }
         '401': { description: No authenticated session }
         '404': { description: Address not found for the current account }
         '419': { description: Missing or invalid CSRF token }
@@ -776,14 +793,21 @@ components:
       type: object
       not: { required: [user_id] }
       properties:
-        recipient: { type: string, maxLength: 120 }
-        department: { type: string, maxLength: 80 }
-        locality: { type: string, maxLength: 120 }
-        street: { type: string, maxLength: 160 }
-        number: { type: string, maxLength: 20 }
+        recipient: { type: string, minLength: 1, maxLength: 120, pattern: '\S' }
+        department: { type: string, minLength: 1, maxLength: 80, pattern: '\S' }
+        locality: { type: string, minLength: 1, maxLength: 120, pattern: '\S' }
+        street: { type: string, minLength: 1, maxLength: 160, pattern: '\S' }
+        number: { type: string, minLength: 1, maxLength: 20, pattern: '\S' }
         details: { type: [string, 'null'], maxLength: 255 }
         phone: { type: [string, 'null'], maxLength: 30 }
         postal_code: { type: [string, 'null'], maxLength: 12 }
+    Address:
+      allOf:
+        - { $ref: '#/components/schemas/AddressInput' }
+        - type: object
+          required: [id, recipient, department, locality, street, number, details, phone, postal_code]
+          properties:
+            id: { type: integer, minimum: 1 }
   pathItems:
     AdminClassifications:
       get:
@@ -844,6 +868,15 @@ components:
   securitySchemes:
     sessionCookie: { type: apiKey, in: cookie, name: camba_session }
   responses:
+    AddressEnvelope:
+      description: Saved address owned by the current account
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data: { $ref: '#/components/schemas/Address' }
     CartEnvelope:
       description: The current cart, with live price and availability
       headers:

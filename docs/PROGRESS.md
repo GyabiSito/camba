@@ -150,6 +150,12 @@ Por cada entrega agregar: commit, funcionalidad, comandos ejecutados, resultado,
 - **Release y textos:** ensayo concurrente del lock con dos releases dejó ambas versiones registradas sin perder la primera. Se localizaron mensajes/atributos y correos al español y se verificaron con pruebas de checkout, acceso y transporte array. Los entornos de verificación eran descartables; las instancias de cart/pagos usadas por los verificadores se retiraron y se mantuvo el Compose de desarrollo. La política no permitió borrar los directorios temporales; no se repitió esa operación ni se borró ningún worktree.
 - **Suite final:** 98 pruebas / 1.257 aserciones con MySQL aislado y dos suites que intencionalmente usan SQLite en memoria. El primer combinado detectó que la prueba de staging heredaba `camba_v2_test` y el guard la rechazaba; se corrigió la configuración de esa prueba, no el guard del comando. Pint, sintaxis OpenAPI, Compose y actionlint pasaron. Queda pendiente prueba UI/visual y validaciones externas, no declaradas aprobadas.
 
+### Cierre de la revisión de cuenta y permisos
+
+- El usuario eligió revisar el candidato `40218ec..f1d1b8a`. Los cuatro revisores se admitieron y Gentle AI devolvió `approved`; la operación de acuse exacta consumió la autoridad del linaje `review-db3a94b09493df63`. No hubo corrección obligatoria. La aprobación no cubre otros commits ni autoriza despliegue.
+- Como trabajo separado, OpenAPI ahora rechaza los campos protegidos de perfil y las direcciones en blanco como lo hace Laravel, y documenta las respuestas de direcciones. Una regresión comprueba que un administrador ya asignado, pero con correo sin verificar, recibe 403. La creación de direcciones sigue sin ser idempotente; tras un timeout, refrescar la lista antes de reenviar.
+- Verificación: 13 pruebas / 154 aserciones de cuenta y acceso en SQLite; suite completa 98 / 1.258 en MySQL aislado con los casos SQLite ya documentados. Pasaron Pint de la prueba modificada y sintaxis OpenAPI. No hubo un nuevo recorrido visual ni despliegue.
+
 ## Dependencias externas que deben resolverse para una entrega productiva
 
 - **Mercado Pago:** aplicación Checkout Pro Uruguay, `CAMBA_MP_ACCESS_TOKEN`, `CAMBA_MP_COLLECTOR_ID`, `CAMBA_MP_WEBHOOK_SECRET`, modo de prueba, comprador de prueba y endpoint público TLS. Verificar URL/preferencia/reintento, firma recibida y recuperación sin webhook antes de habilitar cobros.

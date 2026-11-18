@@ -33,6 +33,8 @@ Creation requires non-blank strings for `recipient` (120 characters), `departmen
 
 A partial update changes only the supplied fields; send `null` to clear an optional field. A returned address adds the numeric `id` and includes any unset optional fields as `null`. Ownership comes from the session and cannot be set or changed by the caller; `user_id` is rejected even when null and is never returned.
 
+Address creation is not idempotent. If a save times out after submission, refresh the address list before retrying; the first request may already have saved it.
+
 ## Failures
 
 - `401`: no authenticated session.

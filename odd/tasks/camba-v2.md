@@ -125,3 +125,9 @@ T3d `8fee1c4` records admin price/stock audit. T3e `539d8f8` includes CSV/XLSX l
 T2c was stopped in the browser by host policy (current Windows URL could not be verified). Comp-first plates passed 8/8 after correcting a measurement box mislabeled as a checkbox; semantic interface was not started past the hero gate. Angular SSR/CSR runtimes were separately built in `8ec6a83` and are not a substitute for completed UI. T7a `c626369` backend, T7b `7f4d1a1` / `93883dd` release engine and T7c `92101f7` full environment were locally checked. Production-style and dev HTTP evidence is in PROGRESS, not an actual release.
 
 T8a `9d7e52e` dry-run and T8b `0ef28f0` staging were independently exercised, including a real MySQL interrupted-gallery retry with synthetic data. The two legacy production-data and redirect decisions still depend on the owner-approved isolated export and browser cutover. Final integrated PHPUnit: 98 tests / 1,257 assertions. The acceptance matrix remains partial; checkpoint is for work not yet possible with this browser/session and external environments, not a declaration of completion.
+
+### L6 — Account review consent
+
+1
+
+The user granted the bound `f1d1b8a` review. Four native captures were admitted; provider approved without a correction transition and the exact acknowledgement burned authority in `review-db3a94b09493df63`. Scope is unchanged. Follow-up clarified the OpenAPI account request and response contract, added the already-admin/unverified-email regression, and documented that repeated address POSTs can duplicate a record. Scoped suite 13/154 (SQLite); integrated suite 98/1,258 (MySQL with explicitly isolated SQLite cases); Pint and OpenAPI syntax passed. No shipping or publish action.
