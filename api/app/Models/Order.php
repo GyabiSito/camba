@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
-    protected $hidden = ['owner_key', 'idempotency_key', 'request_hash'];
+    protected $hidden = ['owner_key', 'idempotency_key', 'request_hash', 'payment_reconcile_token'];
 
     protected $casts = [
         'status' => OrderStatus::class,
@@ -22,6 +22,11 @@ class Order extends Model
         'reservation_expires_at' => 'datetime',
         'guest_access_expires_at' => 'datetime',
         'stock_released_at' => 'datetime',
+        'stock_reacquired_at' => 'datetime',
+        'paid_at' => 'datetime',
+        'payment_reconcile_at' => 'datetime',
+        'payment_reconciled_at' => 'datetime',
+        'payment_issues' => 'array',
     ];
 
     public static function ownerKey(?int $userId, string $sessionId): string

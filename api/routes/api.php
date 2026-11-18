@@ -24,4 +24,5 @@ require __DIR__.'/account.php';
 require __DIR__.'/catalog.php';
 require __DIR__.'/cart.php';
 require __DIR__.'/orders.php';
+require __DIR__.'/payments.php';
 require __DIR__.'/settings.php';

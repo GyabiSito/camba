@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Str;
 
 Artisan::command('camba:grant-admin {email : Verified Camba account email}', function (string $email): int {
@@ -17,3 +18,5 @@ Artisan::command('camba:grant-admin {email : Verified Camba account email}', fun
 
     return 0;
 })->purpose('Grant administrator access to an existing verified account from a trusted shell');
+
+Schedule::command('camba:reconcile-payments')->everyMinute()->withoutOverlapping(10);
