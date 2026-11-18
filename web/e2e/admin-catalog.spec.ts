@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
 async function signIn(page: Page) {
@@ -97,7 +98,7 @@ test('el reintento de fotos continúa en el mismo borrador', async ({ page }) =>
   expect({ creates, uploads, targets: targets.size }).toEqual({ creates: 1, uploads: 2, targets: 1 });
 });
 
-test('descarga plantilla, muestra errores por fila y reabre el resultado de una importación real', async ({ page }) => {
+test('importa CSV y XLSX, muestra errores por fila y recupera el resultado', async ({ page }) => {
   await signIn(page);
   await page.goto('/productos/importar');
   const downloaded = page.waitForEvent('download');
@@ -132,6 +133,23 @@ test('descarga plantilla, muestra errores por fila y reabre el resultado de una 
   await expect(page.getByRole('heading', { name: 'Resultado de la importación' })).toBeVisible();
   await expect(page).toHaveURL(url);
   await expect(page.getByRole('status')).toHaveText('0 listas · 1 inválidas · 1 aplicadas · 0 no aplicadas');
+
+  const workbook = execFileSync('php', [resolve(__dirname, 'fixtures/catalog-workbook.php')]);
+  await page.getByLabel('Archivo CSV o XLSX').setInputFiles({
+    name: 'catalogo.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: workbook,
+  });
+  await page.getByRole('button', { name: 'Ver vista previa' }).click();
+  await expect(page.getByRole('heading', { name: 'Vista previa' })).toBeVisible();
+  await expect(page.getByText('BROWSER-XLSX-001', { exact: true })).toBeVisible();
+  await expect(confirm).toBeDisabled();
+  await page.getByRole('checkbox', { name: /Revisé las filas/ }).check();
+  await confirm.click();
+  await expect(page.getByRole('heading', { name: 'Resultado de la importación' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'BROWSER-XLSX-001' })).toBeVisible();
+  expect(page.url()).not.toBe(url);
+  await expect(page.getByRole('status')).toHaveText('0 listas · 0 inválidas · 1 aplicadas · 0 no aplicadas');
 });
 
 test('gestiona una categoría plana y protege las categorías en uso', async ({ page }) => {
