@@ -37,7 +37,9 @@ Price and stock edits record old/new values, actor ID, and timestamp in the same
 
 ### Gallery
 
-POST `/admin/products/{id}/images` accepts multipart `photos[]` (up to 12 per request). Each file must decode as JPEG, PNG, or WebP, fit within 4096 × 4096 pixels, and weigh at most 10 MiB. The response is the updated product (201). Invalid files are reported by zero-based index (`photos.0`, for example); nothing is added if the request fails. JPEG orientation is normalized; only WebP derivatives are stored (1600 and 400 px on the long edge, without enlargement).
+POST `/admin/products/{id}/images` accepts multipart `photos[]` (up to 12 per request). Each file must decode as JPEG, PNG, or WebP, fit within 4096 × 4096 pixels, and weigh at most 10 MiB. Invalid files are reported by zero-based index (`photos.0`, for example) and nothing is added on validation failure. JPEG orientation is normalized; only WebP derivatives are stored (1600 and 400 px on the long edge, without enlargement).
+
+Send an optional UUID `Idempotency-Key` header once per intended batch. If the response is uncertain (timeout, lost connection, or server error), resend the same key and the same files in the same multipart order, even if the original request may still be running. The initial upload and a successful replay both return 201 with the current product and gallery; a replay never appends again. Reusing the key with different bytes or order returns 409; filenames do not matter. A malformed key returns 422 (`idempotency_key`). Keys are scoped to the product and do not expire while it exists. Without a key, every successful POST appends, so retrying an uncertain upload may duplicate photos. Use a new key for an intentional new batch.
 
 PUT `/admin/products/{id}/images/order` accepts `{"ids":[2,1]}` with every current image ID once. The first ID becomes the cover. A stale list or ID from another product returns 422 and preserves the existing order.
 

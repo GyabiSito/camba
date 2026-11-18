@@ -23,11 +23,13 @@ if (config('database.default') !== 'mysql' || config('database.connections.mysql
 }
 
 config(['filesystems.disks.public.root' => getenv('CAMBA_CATALOG_TEST_MEDIA')]);
-[$method, $uri, $body] = array_pad(json_decode($argv[1], true, flags: JSON_THROW_ON_ERROR), 3, []);
+[$method, $uri, $body, $headers] = array_pad(json_decode($argv[1], true, flags: JSON_THROW_ON_ERROR), 4, []);
 $files = ($body['photo'] ?? false) ? ['photos' => [UploadedFile::fake()->image('phone.png', 60, 40)]] : [];
 $request = Request::create($uri, $method, [], [], $files, [
-    'HTTP_ACCEPT' => 'application/json', 'CONTENT_TYPE' => $files ? 'multipart/form-data' : 'application/json',
+    'HTTP_ACCEPT' => 'application/json', 'HTTP_ORIGIN' => 'http://localhost',
+    'CONTENT_TYPE' => $files ? 'multipart/form-data' : 'application/json',
 ], $files ? null : json_encode($body, JSON_THROW_ON_ERROR));
+$request->headers->add($headers);
 $app->instance('request', $request);
 Auth::guard('web')->setUser(User::findOrFail(getenv('CAMBA_CATALOG_TEST_ADMIN')));
 $connection = (int) DB::selectOne('SELECT CONNECTION_ID() AS id')->id;

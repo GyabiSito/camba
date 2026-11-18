@@ -15,7 +15,11 @@ class ProductImagesController
 {
     public function store(UploadProductImagesRequest $request, int $product, SaveProductImagesAction $save): JsonResponse
     {
-        return ProductResource::make($save->execute($product, $request->file('photos')))->response()->setStatusCode(201);
+        $key = $request->validated('idempotency_key');
+        $photos = $request->file('photos');
+        $updated = $key === null ? $save->execute($product, $photos) : $save->executeIdempotently($product, $photos, $key);
+
+        return ProductResource::make($updated)->response()->setStatusCode(201);
     }
 
     public function order(OrderProductImagesRequest $request, int $product): ProductResource

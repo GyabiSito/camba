@@ -705,6 +705,13 @@ paths:
     post:
       operationId: uploadProductImages
       security: [{ sessionCookie: [] }]
+      description: Append photos in multipart order. To recover an uncertain response, resend the same ordered files with the same key; the current gallery is returned without appending again.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: UUID scoped to this product. Use a fresh key for an intentional new batch. Without a key, each successful request appends a batch.
+          schema: { type: string, format: uuid }
       requestBody:
         required: true
         content:
@@ -722,12 +729,13 @@ paths:
             encoding:
               'photos[]': { contentType: 'image/*', explode: true }
       responses:
-        '201': { description: Admin product with images in display order; first image is the cover }
+        '201': { description: Admin product with the current gallery in display order on both initial upload and replay; first image is the cover }
         '401': { description: No authenticated session }
         '403': { description: Verified administrator required }
         '404': { description: Product not found }
+        '409': { description: This key already completed with different file bytes or a different file order }
         '419': { description: Missing or invalid CSRF token }
-        '422': { description: Invalid file or gallery input }
+        '422': { description: 'Invalid file, gallery input, or Idempotency-Key' }
         '503': { description: Image processing or storage is unavailable }
   /api/v1/admin/products/{product}/images/order:
     parameters:

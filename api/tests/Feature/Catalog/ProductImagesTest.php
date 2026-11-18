@@ -6,10 +6,13 @@ use App\Actions\Catalog\SaveProductAction;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\User;
+use Illuminate\Database\Events\TransactionCommitted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Mockery;
 use Tests\TestCase;
 
@@ -85,6 +88,72 @@ class ProductImagesTest extends TestCase
                 $this->assertSame([400, 200], [$t[0], $t[1]]);
             }
         }
+    }
+
+    public function test_upload_key_replays_only_the_same_ordered_bytes_for_this_product(): void
+    {
+        $disk = Storage::fake('public');
+        $this->admin();
+        $p = $this->product();
+        $url = "/api/v1/admin/products/$p->id/images";
+        $key = (string) Str::uuid();
+        $headers = ['Idempotency-Key' => $key];
+
+        $created = $this->post($url, ['photos' => [$this->photo(), $this->photo(width: 90)]], $headers)->assertCreated();
+        $this->assertCount(2, $created->json('data.images'));
+        $this->assertCount(4, $disk->allFiles());
+        $before = $this->snapshot($disk);
+        $this->post($url, ['photos' => [$this->photo('renamed.png'), $this->photo(width: 90)]], ['Idempotency-Key' => strtoupper($key)])
+            ->assertCreated()->assertExactJson($created->json());
+        $this->post($url, ['photos' => [$this->photo(width: 90), $this->photo()]], $headers)->assertConflict();
+        $this->post($url, ['photos' => [$this->photo(), $this->photo(width: 91)]], $headers)->assertConflict();
+        $this->assertSame($before, $this->snapshot($disk));
+        $this->assertDatabaseCount('product_image_uploads', 1);
+
+        $other = app(SaveProductAction::class)->create(['name' => 'Another garment']);
+        $this->post("/api/v1/admin/products/$other->id/images", ['photos' => [$this->photo()]], $headers)
+            ->assertCreated()->assertJsonCount(1, 'data.images');
+        $this->post($url, ['photos' => [$this->photo()]], ['Idempotency-Key' => (string) Str::uuid()])
+            ->assertCreated()->assertJsonCount(3, 'data.images');
+        foreach ([4, 5] as $count) {
+            $this->post($url, ['photos' => [$this->photo()], 'idempotency_key' => $key])
+                ->assertCreated()->assertJsonCount($count, 'data.images');
+        }
+        $this->assertDatabaseCount('product_image_uploads', 3);
+        $this->assertCount(12, $disk->allFiles());
+    }
+
+    public function test_invalid_upload_key_returns_validation_error_without_writing(): void
+    {
+        $disk = Storage::fake('public');
+        $this->admin();
+        $p = $this->product();
+        $before = $this->snapshot($disk);
+
+        foreach (['', 'not-a-uuid'] as $key) {
+            $this->post("/api/v1/admin/products/$p->id/images", ['photos' => [$this->photo()]], ['Idempotency-Key' => $key])
+                ->assertUnprocessable()->assertJsonValidationErrors('idempotency_key');
+        }
+        $this->assertSame($before, $this->snapshot($disk));
+        $this->assertDatabaseCount('product_image_uploads', 0);
+    }
+
+    public function test_failure_after_database_commit_does_not_delete_referenced_derivatives(): void
+    {
+        $disk = Storage::fake('public');
+        $this->admin();
+        $p = $this->product();
+        $url = "/api/v1/admin/products/$p->id/images";
+        $headers = ['Idempotency-Key' => (string) Str::uuid()];
+        Event::listen(TransactionCommitted::class, fn () => throw new \RuntimeException('Commit response lost'));
+
+        $this->post($url, ['photos' => [$this->photo()]], $headers)->assertInternalServerError();
+        $image = $p->images()->sole();
+        $disk->assertExists([$image->path, str_replace('.webp', '-thumb.webp', $image->path)]);
+        $this->post($url, ['photos' => [$this->photo()]], $headers)
+            ->assertCreated()->assertJsonCount(1, 'data.images')->assertJsonPath('data.images.0.id', $image->id);
+        $this->assertCount(2, $disk->allFiles());
+        $this->assertDatabaseCount('product_image_uploads', 1);
     }
 
     public function test_invalid_batch_and_boundaries_create_no_files_or_rows(): void

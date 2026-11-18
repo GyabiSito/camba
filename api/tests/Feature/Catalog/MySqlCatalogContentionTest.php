@@ -118,6 +118,32 @@ class MySqlCatalogContentionTest extends TestCase
         $this->assertEqualsCanonicalizing($expected, $disk->allFiles());
     }
 
+    public function test_simultaneous_upload_recovery_appends_one_batch_and_preserves_the_cover(): void
+    {
+        $product = $this->draft();
+        $cover = $product->images()->sole();
+        $key = (string) Str::uuid();
+        $append = ['POST', "/api/v1/admin/products/$product->id/images", ['photo' => true], ['Idempotency-Key' => $key]];
+
+        // Both independent requests have staged files and are waiting on the same product lock.
+        $results = $this->race('products', $product->id, $append, $append);
+        $this->assertSame([201, 201], array_column($results, 'status'));
+        $this->assertSame($results[0]['body'], $results[1]['body']);
+        $images = $product->images()->get();
+        $this->assertCount(2, $images);
+        $this->assertSame([$cover->id, $images[1]->id], array_column($results[0]['body']['data']['images'], 'id'));
+        $this->assertSame([0, 1], $images->pluck('position')->all());
+        $this->assertDatabaseCount('product_image_uploads', 1);
+        $this->assertDatabaseHas('product_image_uploads', ['product_id' => $product->id, 'upload_key' => $key]);
+
+        $disk = $this->disk();
+        $paths = [$images[1]->path, str_replace('.webp', '-thumb.webp', $images[1]->path)];
+        $this->assertEqualsCanonicalizing($paths, $disk->allFiles());
+        foreach ($paths as $path) {
+            $this->assertSame('image/webp', getimagesizefromstring($disk->get($path))['mime']);
+        }
+    }
+
     private function assertClassificationRace(string $table, Category|Brand $classification): void
     {
         $product = $classification->products()->firstOrFail();
