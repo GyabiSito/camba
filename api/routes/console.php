@@ -20,3 +20,4 @@ Artisan::command('camba:grant-admin {email : Verified Camba account email}', fun
 })->purpose('Grant administrator access to an existing verified account from a trusted shell');
 
 Schedule::command('camba:reconcile-payments')->everyMinute()->withoutOverlapping(10);
+Schedule::command('camba:notices')->everyMinute()->withoutOverlapping(10);

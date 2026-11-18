@@ -424,6 +424,42 @@ paths:
         '200': { description: Verified receipt accepted durably }
         '401': { description: Invalid signed payment identifier }
         '503': { description: Signing or receipt persistence unavailable }
+  /api/v1/account/reminder-preferences:
+    get:
+      operationId: getReminderPreferences
+      security: [{ sessionCookie: [] }]
+      externalDocs: { url: docs/notices.md }
+      responses:
+        '200': { description: Current verified buyer opt-ins }
+        '401': { description: No authenticated session }
+        '403': { description: Verified buyer required }
+    patch:
+      operationId: updateReminderPreferences
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payment_reminders: { type: boolean }
+                cart_reminders: { type: boolean }
+      responses:
+        '200': { description: Saved opt-ins for this verified buyer }
+        '401': { description: No authenticated session }
+        '403': { description: Verified buyer required }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid preference }
+  /api/v1/admin/notices:
+    get:
+      operationId: listAdminNotices
+      security: [{ sessionCookie: [] }]
+      externalDocs: { url: docs/notices.md }
+      responses:
+        '200': { description: Paginated operational notices with no buyer contact data }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
   /api/v1/store-info:
     get:
       operationId: getStoreInfo

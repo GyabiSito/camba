@@ -26,3 +26,4 @@ require __DIR__.'/cart.php';
 require __DIR__.'/orders.php';
 require __DIR__.'/payments.php';
 require __DIR__.'/settings.php';
+require __DIR__.'/notices.php';
