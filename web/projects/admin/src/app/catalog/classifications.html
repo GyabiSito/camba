@@ -1,0 +1,53 @@
+<section class="catalog-page catalog-page--work">
+  <a class="back" routerLink="/productos">Volver a productos</a>
+  <header class="page-heading"><h1>Categorías y marcas</h1></header>
+
+  @if (loading()) {
+    <div class="loading-block" aria-hidden="true"><span class="skeleton skeleton-line"></span><span class="skeleton skeleton-line"></span></div>
+    <p class="sr-only" role="status">Cargando categorías y marcas…</p>
+  } @else if (loadError()) {
+    <p class="callout alert" role="alert">{{ loadError() }}</p>
+    <button class="button button--quiet" type="button" (click)="load()">Reintentar</button>
+  } @else {
+    @if (error()) { <p class="callout alert" role="alert">{{ error() }}</p> }
+    @if (notice()) { <p class="callout" role="status">{{ notice() }}</p> }
+    @for (group of groups; track group.key) {
+      <section class="work-section" [attr.aria-labelledby]="group.key">
+        <header class="page-heading">
+          <div>
+            <h2 [id]="group.key">{{ group.label }}</h2>
+            <p class="muted">{{ group.key === 'categories' ? 'Cada producto publicado necesita una categoría activa.' : 'Asignar una marca no es obligatorio.' }}</p>
+          </div>
+          <button class="button button--quiet" type="button" (click)="select(group.key)" [disabled]="saving() || !!edit()">Nueva {{ group.singular }}</button>
+        </header>
+        @if (edit(); as current) {
+          @if (current.key === group.key) {
+            <form class="surface" style="padding:1rem" (submit)="save($event)">
+              <label class="field">{{ current.id ? 'Editar nombre' : 'Nombre de la ' + group.singular }}
+                <input [(ngModel)]="current.name" name="name" maxlength="120" required [disabled]="saving()" />
+              </label>
+              <div class="actions" style="margin-block-start:.75rem">
+                <button class="button" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar' }}</button>
+                <button class="button button--quiet" type="button" [disabled]="saving()" (click)="edit.set(null); error.set('')">Cancelar</button>
+              </div>
+            </form>
+          }
+        }
+        @for (item of items()[group.key]; track item.id) {
+          <div class="manage-row">
+            <div><p><strong>{{ item.name }}</strong></p><p class="muted">Identificador: <code>{{ item.slug }}</code></p></div>
+            <span class="status-pill" [attr.data-status]="item.active ? 'active' : 'inactive'">{{ item.active ? 'Activa' : 'Inactiva' }}</span>
+            <div class="actions">
+              <button class="button button--quiet" type="button" [disabled]="saving() || !!edit()"
+                [attr.aria-label]="'Editar ' + item.name" (click)="select(group.key, item)">Editar</button>
+              <button class="button button--quiet" type="button" [disabled]="saving() || !!edit()"
+                [attr.aria-label]="(item.active ? 'Desactivar ' : 'Activar ') + item.name" (click)="toggle(group.key, item)">{{ item.active ? 'Desactivar' : 'Activar' }}</button>
+            </div>
+          </div>
+        } @empty {
+          <p class="muted">Todavía no hay {{ group.label.toLowerCase() }}.</p>
+        }
+      </section>
+    }
+  }
+</section>

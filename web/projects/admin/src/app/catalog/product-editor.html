@@ -1,0 +1,95 @@
+<section class="catalog-page catalog-page--work">
+  <a class="back" routerLink="/productos">Volver a productos</a>
+  <header class="page-heading">
+    <div>
+      <h1>{{ product()?.name || (id ? 'Producto' : 'Nuevo producto') }}</h1>
+      @if (product(); as item) { <p class="muted">SKU: {{ item.sku }}</p> }
+    </div>
+    @if (product(); as item) {
+      <span class="status-pill" [attr.data-status]="item.status">{{ labels[item.status] }}</span>
+    }
+  </header>
+  @if (loading()) {
+    <div class="loading-block" aria-hidden="true"><span class="skeleton skeleton-line"></span><span class="skeleton skeleton-line"></span><span class="skeleton skeleton-line"></span></div>
+    <p class="sr-only" role="status">Cargando producto…</p>
+  } @else if (loadError()) {
+    <p class="callout" role="alert">{{ loadError() }}</p>
+    <button class="button button--quiet" type="button" (click)="load()">Reintentar</button>
+  } @else {
+    <form class="work-section" (submit)="save($event)">
+      @if (!product()) { <p class="muted">El producto se crea como borrador. Podés añadir fotos antes de publicarlo.</p> }
+      <fieldset [disabled]="saving() || galleryBusy()" class="plain-fieldset">
+        <legend class="sr-only">Datos del producto</legend>
+        <app-product-fields [values]="fields" [categories]="categories()" [brands]="brands()" [errors]="errors()" />
+      </fieldset>
+      @if (error()) {
+        <div class="callout alert" role="alert">
+          <span>{{ error() }}</span>
+          @for (problem of errors()['images'] ?? []; track $index) { <div>{{ problem }}</div> }
+          @if (createUncertain()) { <div><a routerLink="/productos">Buscar en productos</a></div> }
+        </div>
+      }
+      @if (message()) { <p role="status">{{ message() }}</p> }
+      <div class="actions" style="margin-block-start:1rem">
+        <button class="button" type="submit" [disabled]="saving() || galleryBusy() || createUncertain()">
+          {{ saving() ? 'Guardando…' : id ? 'Guardar cambios' : 'Crear borrador' }}
+        </button>
+        @if (product(); as item) {
+          @if (item.status !== 'published') {
+            <button class="button button--quiet" type="button" [disabled]="saving() || galleryBusy()" (click)="transition('publish')">Publicar</button>
+          }
+          @if (item.status !== 'archived') {
+            <button class="button button--quiet" type="button" [disabled]="saving() || galleryBusy()" (click)="archivePrompt.set(!archivePrompt())" [attr.aria-expanded]="archivePrompt()">Archivar</button>
+          }
+        }
+      </div>
+      @if (archivePrompt()) {
+        <div class="callout">
+          <p>El producto dejará de verse en la tienda. Podés volver a publicarlo.</p>
+          <div class="actions">
+            <button class="button" type="button" [disabled]="saving() || galleryBusy()" (click)="transition('archive')">Confirmar archivo</button>
+            <button class="button button--quiet" type="button" (click)="archivePrompt.set(false)">Cancelar</button>
+          </div>
+        </div>
+      }
+    </form>
+    @if (product(); as item) {
+      <app-product-gallery [product]="item" [disabled]="saving()" (changed)="updateGallery($event)" (busyChange)="galleryBusy.set($event)" />
+      <details class="work-section" (toggle)="openedHistory($event)">
+        <summary>Historial de precio y stock</summary>
+        @if (historyLoading()) {
+          <div class="skeleton skeleton-line" aria-hidden="true"></div><p class="sr-only" role="status">Cargando historial…</p>
+        } @else if (historyError()) {
+          <p class="callout alert" role="alert">{{ historyError() }} <button class="link-button" type="button" (click)="loadHistory(history()?.current_page || 1)">Reintentar</button></p>
+        } @else if (history(); as page) {
+          @if (page.data.length) {
+            <div class="wide-table" role="region" aria-label="Cambios de precio y stock" tabindex="0">
+              <table class="ledger">
+                <thead><tr><th scope="col">Fecha</th><th scope="col">Operador</th><th scope="col">Precio anterior / nuevo</th><th scope="col">Stock anterior / nuevo</th></tr></thead>
+                <tbody>
+                  @for (entry of page.data; track entry.id) {
+                    <tr>
+                      <td>{{ formatDate(entry.created_at) }}</td>
+                      <td>{{ entry.actor_id ? '#' + entry.actor_id : 'Sistema' }}</td>
+                      <td>{{ entry.old_price_cents == null ? 'Sin precio' : formatMoney(entry.old_price_cents) }} / {{ entry.price_cents == null ? 'Sin precio' : formatMoney(entry.price_cents) }}</td>
+                      <td>{{ entry.old_stock }} / {{ entry.stock }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            @if (page.last_page > 1) {
+              <nav class="pagination" aria-label="Páginas del historial">
+                <button class="button button--quiet" type="button" [disabled]="page.current_page <= 1" (click)="loadHistory(page.current_page - 1)">Anterior</button>
+                <span aria-current="page">{{ page.current_page }} de {{ page.last_page }}</span>
+                <button class="button button--quiet" type="button" [disabled]="page.current_page >= page.last_page" (click)="loadHistory(page.current_page + 1)">Siguiente</button>
+              </nav>
+            }
+          } @else {
+            <p class="muted">Todavía no se registraron cambios de precio o stock.</p>
+          }
+        }
+      </details>
+    }
+  }
+</section>

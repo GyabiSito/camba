@@ -1,0 +1,101 @@
+<header class="ops-heading">
+  <div>
+    <h1>Configuración</h1>
+    <p>Administrá el contacto de la tienda, cómo entregás y cuándo se generan avisos.</p>
+  </div>
+  <a class="button button--quiet" routerLink="/configuracion/historial">Historial de cambios</a>
+</header>
+
+@let result = settings();
+@if (result?.status === 'loading') {
+  <camba-operation-loading label="Cargando configuración" />
+} @else if (result?.status === 'error') {
+  <div class="callout ops-error" role="alert">
+    <p>{{ result.message }}</p>
+    <button class="button button--quiet" type="button" (click)="retry()">Reintentar</button>
+  </div>
+} @else if (result?.status === 'loaded') {
+  <form [formGroup]="form" (submit)="save($event)" class="settings-form">
+    <fieldset [disabled]="saving()">
+      @for (group of groups; track group.id) {
+        <section class="settings-section" [attr.aria-labelledby]="group.id">
+          <div>
+            <h2 [id]="group.id">{{ group.title }}</h2>
+            <p class="muted">{{ group.description }}</p>
+          </div>
+          <div class="settings-controls">
+            @for (field of group.fields; track field.name) {
+              @let error = fieldError(field.name);
+              @let help = error || field.hint;
+              @if (field.kind === 'checkbox') {
+                <label class="ops-check" [for]="field.name">
+                  <input
+                    type="checkbox"
+                    [id]="field.name"
+                    [formControlName]="field.name"
+                    (change)="clearError(field.name)"
+                    [attr.aria-invalid]="error ? true : null"
+                    [attr.aria-describedby]="help ? field.name + '-help' : null"
+                  />
+                  {{ field.label }}
+                </label>
+              } @else {
+                <label class="field" [for]="field.name">
+                  {{ field.label }}
+                  @if (field.kind === 'number') {
+                    <input
+                      type="number"
+                      [id]="field.name"
+                      [formControlName]="field.name"
+                      inputmode="numeric"
+                      step="1"
+                      [attr.min]="field.min"
+                      [attr.max]="field.max"
+                      (input)="clearError(field.name)"
+                      [attr.aria-invalid]="error ? true : null"
+                      [attr.aria-describedby]="help ? field.name + '-help' : null"
+                    />
+                  } @else {
+                    <input
+                      [id]="field.name"
+                      [formControlName]="field.name"
+                      [type]="field.kind === 'money' ? 'text' : field.kind"
+                      [attr.required]="field.required ? '' : null"
+                      [attr.inputmode]="field.kind === 'money' ? 'decimal' : null"
+                      [attr.maxlength]="field.max ?? null"
+                      (input)="clearError(field.name)"
+                      [attr.aria-invalid]="error ? true : null"
+                      [attr.aria-describedby]="help ? field.name + '-help' : null"
+                    />
+                  }
+                </label>
+              }
+              @if (help) {
+                <small
+                  [id]="field.name + '-help'"
+                  [class.ops-field-error]="error !== null"
+                  class="field-hint"
+                  >{{ help }}</small
+                >
+              }
+            }
+          </div>
+        </section>
+      }
+      <footer class="settings-footer">
+        @if (feedback(); as message) {
+          <p
+            class="callout"
+            [class.ops-error]="message.error"
+            [attr.role]="message.error ? 'alert' : 'status'"
+          >
+            {{ message.text }}
+          </p>
+        }
+        <button type="submit" class="button" [disabled]="saving()">
+          {{ saving() ? 'Guardando…' : 'Guardar cambios' }}
+        </button>
+      </footer>
+    </fieldset>
+  </form>
+}

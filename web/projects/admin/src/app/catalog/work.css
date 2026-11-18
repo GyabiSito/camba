@@ -1,0 +1,31 @@
+.manage-row { display: grid; grid-template-columns: minmax(7rem, 1fr) minmax(7rem, .65fr) auto; gap: .65rem 1rem; align-items: center; padding-block: .7rem; border-bottom: 1px solid var(--line); }
+.manage-row p { margin: 0; overflow-wrap: anywhere; }
+.manage-row .status-pill { justify-self: start; }
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 175px), 1fr)); gap: 1rem; margin: .75rem 0 1.15rem; padding: 0; list-style: none; }
+.photo-grid li { display: grid; min-width: 0; align-content: start; gap: .45rem; border: 1px solid var(--line); border-radius: 10px; padding: .65rem; overflow-wrap: anywhere; }
+.photo-grid figure { margin: 0; }
+.photo-grid img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; border-radius: 6px; background: var(--paper); }
+.photo-grid figcaption { margin-top: .4rem; color: var(--muted); }
+.photo-grid .button { font-size: .86rem; }
+.photo-grid .is-cover { border-color: var(--forest); color: var(--forest); }
+.batch-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 1fr)); gap: 1rem; margin-block: 1.2rem; }
+.batch-group { min-width: 0; padding: 1rem; border: 1px solid var(--line); border-radius: 12px; }
+.batch-group .photo-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 120px), 1fr)); }
+.batch-group legend { padding-inline: .35rem; font-weight: 650; }
+.choice { display: flex; gap: .6rem; min-height: 44px; align-items: center; }
+.choice input { margin: 0; inline-size: 1.125rem; block-size: 1.125rem; accent-color: var(--forest); flex: 0 0 auto; }
+.ledger td, .ledger th { padding: .8rem .55rem; overflow-wrap: anywhere; vertical-align: top; border-bottom: 1px solid var(--line); }
+.ledger ul, .ledger dl { margin-block: 0; }
+.ledger p { margin: 0; }
+.ledger dd { margin: 0 0 .45rem; }
+.ledger dt { font-weight: 650; }
+.ledger .detail-list { margin: .35rem 0 0; }
+.wide-table { max-width: 100%; overflow: auto; }
+.wide-table .ledger { min-width: 34rem; }
+.progress { display: grid; gap: .4rem; padding-block: .45rem; }
+.progress progress { width: min(100%, 26rem); accent-color: var(--forest); }
+
+@media (max-width: 590px) {
+  .manage-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .manage-row > .actions { grid-column: 1 / -1; }
+}

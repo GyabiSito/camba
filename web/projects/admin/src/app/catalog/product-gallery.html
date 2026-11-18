@@ -1,0 +1,73 @@
+<section class="work-section" aria-labelledby="gallery-heading">
+  <h2 id="gallery-heading">Galería</h2>
+  @if (gallery().length > 0) {
+    <p class="muted">La primera foto es la portada. Arrastrá las fotos o usá los botones para reordenarlas.</p>
+    <ol class="photo-grid">
+      @for (photo of gallery(); track photo.id; let i = $index; let last = $last) {
+        <li [class.is-cover]="i === 0" draggable="true" (dragstart)="drag($event, i)" (dragover)="$event.preventDefault()" (drop)="drop($event, i)" (dragend)="endDrag()">
+          <figure>
+            <a [href]="photo.url" target="_blank" rel="noopener" [attr.aria-label]="'Abrir foto ' + (i + 1) + ' en otra pestaña'">
+              <img [src]="photo.thumbnail_url" [alt]="photo.alt" width="180" height="180" loading="lazy" draggable="false" />
+            </a>
+            <figcaption>{{ i === 0 ? 'Portada' : 'Foto ' + (i + 1) }}</figcaption>
+          </figure>
+          @if (gallery().length > 1) {
+            <div class="actions">
+              @if (i !== 0) {
+                <button class="button button--quiet" type="button" [disabled]="disabled() || !!busy() || needsReview()"
+                  [attr.aria-label]="'Adelantar foto ' + (i + 1)" (click)="move(i, i - 1)">Adelantar</button>
+              }
+              @if (!last) {
+                <button class="button button--quiet" type="button" [disabled]="disabled() || !!busy() || needsReview()"
+                  [attr.aria-label]="'Atrasar foto ' + (i + 1)" (click)="move(i, i + 1)">Atrasar</button>
+              }
+              @if (i !== 0) {
+                <button class="button button--quiet" type="button" [disabled]="disabled() || !!busy() || needsReview()"
+                  [attr.aria-label]="'Usar foto ' + (i + 1) + ' como portada'" (click)="move(i, 0)">Hacer portada</button>
+              }
+            </div>
+          }
+        </li>
+      }
+    </ol>
+    @if (alternateOrder() && !needsReview()) {
+      <div class="actions">
+        <button class="button" type="button" [disabled]="!!busy() || disabled()" (click)="commitOrder()">Guardar orden</button>
+        <button class="button button--quiet" type="button" [disabled]="!!busy() || disabled()" (click)="alternateOrder.set(null)">Descartar orden</button>
+      </div>
+    }
+  } @else {
+    <p class="muted">Todavía no hay fotos. Agregá al menos una antes de publicar.</p>
+  }
+
+  <label class="field">Agregar fotos
+    <small>JPG, PNG o WebP. Hasta 12 por vez, 10 MB y 4096 × 4096 px por foto.</small>
+    <input type="file" multiple [accept]="acceptedPhotos" [disabled]="disabled() || !!busy() || needsReview()" (change)="choose($event)" />
+  </label>
+  @if (pending().length > 0) {
+    <ul class="photo-grid" aria-label="Fotos listas para subir">
+      @for (photo of pending(); track photo.key) {
+        <li>
+          @if (photo.url) { <img [src]="photo.url" alt="" width="180" height="180" /> }
+          <span>{{ photo.file.name }}</span>
+          @if (photo.error) { <span class="field-error">{{ photo.error }}</span> }
+          <button class="button button--quiet" type="button" [attr.aria-label]="'Quitar ' + photo.file.name" [disabled]="!!busy() || disabled()" (click)="remove(photo)">Quitar</button>
+        </li>
+      }
+    </ul>
+  }
+  @if (busy()) {
+    <label class="progress" role="status">
+      {{ busy() === 'upload' ? 'Subiendo y optimizando fotos…' : busy() === 'order' ? 'Guardando orden…' : 'Actualizando galería…' }} <progress></progress>
+    </label>
+  }
+  @if (error()) { <p class="callout alert" role="alert">{{ error() }}</p> }
+  @if (message()) { <p role="status">{{ message() }}</p> }
+  <div class="actions">
+    @if (needsReview()) {
+      <button class="button button--quiet" type="button" [disabled]="!!busy() || disabled()" (click)="reload()">Actualizar galería</button>
+    } @else if (pending().length > 0) {
+      <button class="button" type="button" [disabled]="!!busy() || disabled() || !!alternateOrder() || pending().some(hasError)" (click)="upload()">Subir fotos</button>
+    }
+  </div>
+</section>

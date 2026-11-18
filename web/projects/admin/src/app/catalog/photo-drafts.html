@@ -1,0 +1,115 @@
+<section class="catalog-page catalog-page--work">
+  <a class="back" routerLink="/productos">Volver a productos</a>
+  <header class="page-heading">
+    <div><h1>Carga por fotos</h1><p class="muted">Armá un grupo de fotos por producto. Cada grupo se guarda como borrador, sin publicarse.</p></div>
+  </header>
+  @if (loading()) {
+    <div class="loading-block" aria-hidden="true"><span class="skeleton skeleton-line"></span><span class="skeleton skeleton-line"></span></div>
+    <p class="sr-only" role="status">Cargando categorías y marcas…</p>
+  } @else if (loadError()) {
+    <p class="callout alert" role="alert">{{ loadError() }}</p>
+    <button class="button button--quiet" type="button" (click)="load()">Reintentar</button>
+  } @else {
+    @if (!preview()) {
+      <details class="work-section">
+        <summary>Completar datos en varios grupos</summary>
+        <p class="muted">Se aplican solo los valores que completes a los grupos seleccionados que todavía no tienen borrador.</p>
+        <fieldset class="plain-fieldset" [disabled]="running()">
+          <legend class="sr-only">Datos para varios grupos</legend>
+          <div class="field-grid">
+            <label class="field">Precio (UYU)<input [(ngModel)]="common.price" inputmode="decimal" maxlength="11" /></label>
+            <label class="field">Stock<input [(ngModel)]="common.stock" inputmode="numeric" maxlength="10" /></label>
+            <label class="field">Categoría
+              <select [(ngModel)]="common.category">
+                <option [ngValue]="null">No cambiar</option>
+                @for (category of categories(); track category.id) {
+                  @if (category.active) { <option [ngValue]="category.id">{{ category.name }}</option> }
+                }
+              </select>
+            </label>
+            <label class="field">Marca
+              <select [(ngModel)]="common.brand">
+                <option [ngValue]="null">No cambiar</option>
+                @for (brand of brands(); track brand.id) {
+                  @if (brand.active) { <option [ngValue]="brand.id">{{ brand.name }}</option> }
+                }
+              </select>
+            </label>
+          </div>
+          <button class="button button--quiet" type="button" (click)="applyCommon()">Aplicar a la selección</button>
+        </fieldset>
+      </details>
+    }
+
+    <div class="batch-grid">
+      @for (group of groups(); track group.key) {
+        <fieldset class="batch-group" [disabled]="running()">
+          <legend>{{ group.fields.name || 'Grupo ' + group.key }}</legend>
+          @if (group.done) {
+            <p><span class="status-pill" data-status="active">Borrador preparado</span></p>
+            <p>SKU: {{ group.product?.sku }} · {{ group.product?.images?.length }} fotos</p>
+            <a class="button button--quiet" [routerLink]="['/productos', group.product?.id]">Revisar y publicar</a>
+          } @else if (preview() && !group.error && !group.uncertain) {
+            <p>{{ price(group) }} · Stock: {{ group.fields.stock }} · {{ categoryName(group.fields.category) }}</p>
+            <p>{{ group.photos.length }} {{ group.photos.length === 1 ? 'foto' : 'fotos' }}</p>
+            <ul class="photo-grid" aria-label="Vista previa de fotos">
+              @for (photo of group.photos; track photo.key) {
+                <li><img [src]="photo.url" alt="" width="120" height="120" /><span>{{ photo.file.name }}</span></li>
+              }
+            </ul>
+          } @else {
+            @if (group.product) {
+              <p>El borrador ya existe: <a [routerLink]="['/productos', group.product.id]" target="_blank" rel="noopener">{{ group.product.sku }} (abre en otra pestaña)</a>.</p>
+            } @else if (group.uncertain) {
+              <a routerLink="/productos" target="_blank" rel="noopener">Buscar en productos (abre en otra pestaña)</a>
+            } @else if (!preview()) {
+              <label class="choice"><input type="checkbox" [(ngModel)]="group.checked" /> Incluir en cambios comunes</label>
+              <app-product-fields [values]="group.fields" [categories]="categories()" [brands]="brands()" />
+            }
+            @if (!preview() && !group.uncertain) {
+              <label class="field">Fotos de este producto
+                <small>JPG, PNG o WebP; hasta 12 fotos de 10 MB cada una.</small>
+                <input type="file" multiple [accept]="acceptedPhotos" (change)="choose(group, $event)" />
+              </label>
+            }
+            @if (group.photos.length) {
+              <ul class="photo-grid">
+                @for (photo of group.photos; track photo.key) {
+                  <li>
+                    @if (photo.url) { <img [src]="photo.url" alt="" width="120" height="120" /> }
+                    <span>{{ photo.file.name }}</span>
+                    @if (photo.error) { <span class="field-error">{{ photo.error }}</span> }
+                    @if (!preview() && !group.uncertain) {
+                      <button class="button button--quiet" type="button" [attr.aria-label]="'Quitar ' + photo.file.name" (click)="removePhoto(group, photo)">Quitar</button>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+            @if (!preview() && !group.product && !group.uncertain) {
+              <button class="button button--quiet" type="button" [attr.aria-label]="'Quitar grupo ' + group.key" (click)="removeGroup(group)">Quitar grupo</button>
+            }
+            @if (active() === group.key) {
+              <label class="progress" role="status">{{ group.product ? 'Subiendo y optimizando fotos…' : 'Creando borrador…' }} <progress></progress></label>
+            }
+            @if (group.error) { <p class="callout alert" role="alert">{{ group.error }}</p> }
+          }
+        </fieldset>
+      } @empty {
+        <p class="muted">Agregá un grupo para empezar.</p>
+      }
+    </div>
+    @if (result() > 0) {
+      <p class="callout" role="status">{{ result() }} {{ result() === 1 ? 'borrador preparado' : 'borradores preparados' }}. Todavía no se publicaron.</p>
+    }
+    <div class="actions">
+      @if (preview()) {
+        <button class="button" type="button" (click)="run()">Confirmar y crear borradores</button>
+        <button class="button button--quiet" type="button" (click)="preview.set(false)">Volver a editar</button>
+      } @else {
+        <button class="button button--quiet" type="button" [disabled]="running()" (click)="addGroup()">Agregar otro producto</button>
+        <button class="button" type="button" [disabled]="running() || pending().length === 0" (click)="check()">Revisar borradores</button>
+      }
+    </div>
+  }
+</section>

@@ -1,0 +1,270 @@
+<a class="ops-back ops-link" routerLink="/pedidos" [queryParams]="params()">Volver a pedidos</a>
+@let result = response();
+@let detail = result?.status === 'loaded' ? result.value : null;
+
+<header class="ops-heading">
+  <div>
+    <h1>
+      {{
+        detail ? 'Pedido ' + detail.data.reference.slice(0, 8).toUpperCase() : 'Detalle del pedido'
+      }}
+    </h1>
+    @if (detail) {
+      <p>
+        {{ date(detail.data.created_at) }} · Ref.
+        <span class="order-id">{{ detail.data.reference }}</span>
+      </p>
+    }
+  </div>
+  @if (detail) {
+    <div class="ops-actions">
+      <button
+        class="button button--quiet"
+        type="button"
+        [disabled]="working() !== null"
+        (click)="refresh()"
+      >
+        Actualizar datos
+      </button>
+      <a class="ops-link" routerLink="/pedidos/avisos">Ver avisos</a>
+    </div>
+  }
+</header>
+
+@if (feedback(); as message) {
+  <p
+    class="callout"
+    [class.ops-error]="message.error"
+    [attr.role]="message.error ? 'alert' : 'status'"
+  >
+    {{ message.text }}
+  </p>
+}
+@if (result?.status === 'loading') {
+  <camba-operation-loading label="Cargando detalle del pedido" [rows]="5" />
+} @else if (result?.status === 'error') {
+  <div class="callout ops-error" role="alert">
+    <p>{{ result.message }}</p>
+    <button class="button button--quiet" type="button" (click)="refresh()">Reintentar</button>
+  </div>
+} @else if (detail) {
+  @let order = detail.data;
+  @let payment = detail.payment;
+  <div class="order-layout">
+    <section class="ops-section order-main order-summary" aria-labelledby="order-lines-heading">
+      <div class="ops-section-heading">
+        <h2 id="order-lines-heading">Productos del pedido</h2>
+        <span
+          class="ops-state"
+          [class.ops-state--good]="order.status === 'paid'"
+          [class.ops-state--attention]="
+            order.status === 'payment_review' || order.status === 'charged_back'
+          "
+          >{{ orderStatus[order.status] }}</span
+        >
+      </div>
+      <ul class="ops-list" role="list" aria-label="Líneas de pedido">
+        @for (item of order.items; track item.product_id) {
+          <li class="order-line">
+            <div>
+              <strong>{{ item.name }}</strong><span class="muted"
+                >{{ item.sku }} · {{ item.quantity }} × {{ money(item.unit_price_cents) }}</span
+              >
+            </div>
+            <span class="numeric">{{ money(item.line_total_cents) }}</span>
+          </li>
+        } @empty {
+          <li class="order-line">El pedido no tiene productos registrados.</li>
+        }
+      </ul>
+      <dl class="ops-facts order-totals">
+        <div>
+          <dt>Subtotal</dt>
+          <dd class="numeric">{{ money(order.subtotal_cents) }}</dd>
+        </div>
+        <div>
+          <dt>{{ order.shipping_method === 'pickup' ? 'Retiro' : 'Envío' }}</dt>
+          <dd class="numeric">{{ money(order.shipping_cents) }}</dd>
+        </div>
+        <div class="total">
+          <dt>Total</dt>
+          <dd class="numeric">{{ money(order.total_cents) }}</dd>
+        </div>
+      </dl>
+    </section>
+
+    <aside class="ops-aside" aria-label="Contacto y entrega">
+      <section class="ops-section" aria-labelledby="order-contact-heading">
+        <h2 id="order-contact-heading">Contacto</h2>
+        <address class="contact-details">
+          <strong>{{ order.contact.name }}</strong>
+          <a class="ops-link" [href]="emailLink(order.contact.email)">{{ order.contact.email }}</a>
+          @if (order.contact.phone) {
+            <span>{{ order.contact.phone }}</span>
+          }
+        </address>
+      </section>
+
+      <section class="ops-section" aria-labelledby="order-fulfilment-heading">
+        <div class="ops-section-heading">
+          <h2 id="order-fulfilment-heading">
+            {{ order.shipping_method === 'pickup' ? 'Retiro' : 'Envío' }}
+          </h2>
+          <span
+            class="ops-state"
+            [class.ops-state--good]="order.fulfilment_status === 'completed'"
+            >{{ fulfilmentStatus[order.fulfilment_status] }}</span
+          >
+        </div>
+        @if (order.shipping_method === 'pickup') {
+          <p>{{ order.pickup_address || 'No hay lugar de retiro registrado.' }}</p>
+        } @else if (order.address; as address) {
+          <address class="contact-details">
+            <strong>{{ address.recipient }}</strong>
+            <span>{{ address.street }} {{ address.number }}</span>
+            @if (address.details) {
+              <span>{{ address.details }}</span>
+            }
+            <span>{{ address.locality }}, {{ address.department }} {{ address.postal_code }}</span>
+          </address>
+        }
+        @if (order.tracking) {
+          <p><strong>Seguimiento:</strong> {{ order.tracking }}</p>
+        }
+
+        @if (stage(order); as next) {
+          <form class="ops-form" (submit)="fulfil($event, order, next)">
+            @if (next === 'shipped') {
+              <label class="field" for="order-tracking"
+                >Código de seguimiento (opcional)
+                <input
+                  id="order-tracking"
+                  maxlength="100"
+                  [value]="tracking()"
+                  (input)="tracking.set($any($event.target).value)"
+                />
+              </label>
+            }
+            <label class="field" for="order-note"
+              >Nota interna (opcional)
+              <textarea
+                id="order-note"
+                rows="3"
+                maxlength="800"
+                [value]="note()"
+                (input)="note.set($any($event.target).value)"
+              ></textarea>
+            </label>
+            <button type="submit" class="button" [disabled]="working() !== null">
+              {{ working() === 'fulfilment' ? 'Guardando…' : actionLabel(order, next) }}
+            </button>
+          </form>
+        } @else if (order.status !== 'paid' && order.fulfilment_status !== 'completed') {
+          <p class="muted">El pedido tiene que estar pagado para avanzar con la entrega.</p>
+        }
+
+        @if (detail.events.length) {
+          <h3>Historial de entrega</h3>
+          <ol class="ops-list ops-timeline" role="list">
+            @for (event of detail.events; track $index) {
+              <li>
+                <strong>{{ fulfilmentStatus[event.to_status] }}</strong>
+                <span class="muted"
+                  >{{ date(event.created_at) }} · Usuario {{ event.actor_id }}</span
+                >
+                @if (event.note) {
+                  <p>{{ event.note }}</p>
+                }
+              </li>
+            }
+          </ol>
+        }
+      </section>
+    </aside>
+
+    <section class="ops-section order-main order-payment" aria-labelledby="order-payment-heading">
+      <h2 id="order-payment-heading">Pago y conciliación</h2>
+      <dl class="ops-facts">
+        @if (payment?.paid_at; as paidAt) {
+          <div>
+            <dt>Fecha de aprobación</dt>
+            <dd>{{ date(paidAt) }}</dd>
+          </div>
+        }
+        @if (order.status === 'pending_payment') {
+          <div>
+            <dt>Vencimiento de la reserva</dt>
+            <dd>{{ date(order.reservation_expires_at) }}</dd>
+          </div>
+        }
+        @if (payment?.attempt; as attempt) {
+          <div>
+            <dt>Inicio del pago</dt>
+            <dd>
+              {{ attemptStatus[attempt.status] || 'Sin confirmar' }} · vence
+              {{ date(attempt.expires_at) }}
+            </dd>
+          </div>
+        }
+        <div>
+          <dt>Última verificación</dt>
+          <dd>
+            {{
+              payment?.last_checked_at
+                ? date(payment.last_checked_at!)
+                : 'Sin verificaciones registradas'
+            }}
+          </dd>
+        </div>
+        @if (payment?.last_result; as check) {
+          <div>
+            <dt>Resultado</dt>
+            <dd>{{ checkResult[check] || 'Sin información adicional' }}</dd>
+          </div>
+        }
+        @if (payment?.next_check_at; as next) {
+          <div>
+            <dt>Próxima consulta prevista</dt>
+            <dd>{{ date(next) }}</dd>
+          </div>
+        }
+      </dl>
+      @if (payment?.issues?.length) {
+        <section class="callout ops-error" aria-label="Incidencias de pago">
+          <h3>Requiere revisión</h3>
+          <ul class="ops-issues">
+            @for (issue of payment.issues; track issue) {
+              <li>{{ issues[issue] || 'Hay un problema con los datos del pago.' }}</li>
+            }
+          </ul>
+        </section>
+      }
+      @if (payment?.observations?.length) {
+        <h3>Pagos registrados</h3>
+        <ul class="ops-list" role="list" aria-label="Pagos registrados">
+          @for (entry of payment.observations; track entry.id) {
+            <li class="order-line">
+              <div>
+                <strong>{{ providerStatus[entry.status] || 'Estado sin confirmar' }}</strong><span
+                  class="muted"
+                  >{{ date(entry.updated_at) }}</span
+                >
+              </div>
+              <span class="numeric">{{ money(entry.amount_cents) }}</span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="muted">No hay pagos verificados de Mercado Pago para este pedido.</p>
+      }
+      <button
+        class="button button--quiet"
+        type="button"
+        [disabled]="working() !== null"
+        (click)="requestPayment(order)"
+      >
+        {{ working() === 'payment' ? 'Solicitando…' : 'Solicitar verificación del pago' }}
+      </button>
+    </section>
+  </div>
+}
