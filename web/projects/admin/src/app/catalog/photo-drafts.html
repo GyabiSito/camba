@@ -83,7 +83,7 @@
                 <input type="file" multiple [accept]="acceptedPhotos" (change)="choose(group.key, $event)" />
               </label>
             }
-            @if (group.photos.length) {
+            @if (group.photos.length && !cleanupPending(group.upload)) {
               <ul class="photo-grid photo-grid--pending" role="list" [attr.aria-label]="group.retryUpload ? 'Fotos pendientes' : 'Fotos seleccionadas'">
                 @for (photo of group.photos; track photo.key) {
                   <li>
@@ -102,16 +102,21 @@
             }
             @if (active() === group.key) {
               <div class="progress" role="status">
-                <span [id]="'group-progress-' + group.key">{{ group.product ? 'Subiendo y optimizando fotos…' : 'Creando borrador…' }}</span>
+                <span [id]="'group-progress-' + group.key">{{ closing() ? 'Recuperando carga…' : group.product ? 'Subiendo y optimizando fotos…' : 'Creando borrador…' }}</span>
                 <progress [attr.aria-labelledby]="'group-progress-' + group.key"></progress>
               </div>
             }
             @if (group.error) { <p class="callout alert" [id]="'group-error-' + group.key" role="alert">{{ group.error }}</p> }
             @if (group.retryUpload) {
-                <p class="muted">Si no tenés las fotos originales, cerrá la carga en la galería del borrador.</p>
-              <button class="button" type="button" [attr.aria-describedby]="group.error ? 'group-error-' + group.key : null" (click)="retry(group)">Reintentar carga</button>
+              @if (cleanupPending(group.upload)) {
+                <p class="callout" role="status">{{ closePendingMessage }}</p>
+              } @else if (group.photos.length) {
+                <button class="button" type="button" [attr.aria-describedby]="group.error ? 'group-error-' + group.key : null" (click)="retry(group)">Reintentar carga</button>
+              }
+              <button [class]="cleanupPending(group.upload) ? 'button' : 'button button--quiet'" type="button" (click)="closeRecovery(group)">{{ cleanupPending(group.upload) ? 'Reintentar recuperación' : 'Cerrar carga pendiente' }}</button>
             }
           }
+          @if (group.notice) { <p role="status">{{ group.notice }}</p> }
         </fieldset>
       } @empty {
         <p class="muted">Agregá un grupo para empezar.</p>

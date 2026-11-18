@@ -80,12 +80,31 @@ export type LocalPhoto = { key: number; file: File; url: string; error: string }
 let nextPhotoKey = 0;
 
 type PhotoUploadAttempt = { key: string; fingerprint: string; draftSku?: string; replayed?: boolean };
-export type PhotoUploadState = { attempt?: PhotoUploadAttempt; files?: File[] };
+export type PhotoUploadState = { attempt?: PhotoUploadAttempt; files?: File[]; closedKey?: string };
+type PhotoCloseResult =
+  | { kind: 'unconfirmed' }
+  | { kind: 'cleanup-pending' | 'ready'; product?: Product };
 class PhotoUploadInputError extends Error {}
+
+export const photoCloseUnconfirmed = 'Todavía no pudimos confirmar el cierre. Volvé a intentar con la misma carga.';
+export const photoClosePending = 'El servidor confirmó el cierre. Falta liberar la carga en este navegador.';
+export const photoCloseReady = (another: boolean) => another
+  ? 'La carga anterior quedó cerrada. Hay otra carga pendiente.'
+  : 'Recuperación terminada. Ya podés subir nuevas fotos.';
 
 const photoUploadPrefix = 'camba:photo-upload:v1:';
 const uploadRecoveryUnavailable = 'No se puede iniciar una carga segura. Usá un navegador con almacenamiento habilitado.';
 const photoUploadKey = (id: number) => photoUploadPrefix + id;
+const closeMarker = (slot: string, key: string) => `camba:photo-close:${slot}:${key}`;
+
+function wasClosed(slot: string, key: string) {
+  try { return localStorage.getItem(closeMarker(slot, key)) === '1'; }
+  catch { return false; }
+}
+
+export function photoCleanupPending(state: PhotoUploadState) {
+  return !!state.attempt && state.attempt.key === state.closedKey;
+}
 
 function readPhotoUpload(slot: string): PhotoUploadAttempt | null {
   const value = localStorage.getItem(slot);
@@ -107,7 +126,9 @@ export function hasPendingPhotoUpload(id: number) {
 
 export function photoUploadState(id: number): PhotoUploadState {
   try {
-    return { attempt: readPhotoUpload(photoUploadKey(id)) ?? undefined };
+    const slot = photoUploadKey(id);
+    const attempt = readPhotoUpload(slot) ?? undefined;
+    return { attempt, closedKey: attempt && wasClosed(slot, attempt.key) ? attempt.key : undefined };
   } catch {
     return {};
   }
@@ -170,16 +191,43 @@ function releaseUpload(slot: string, key: string, confirmed: boolean) {
   }).catch(() => false);
 }
 
-export async function closePhotoUpload(api: ApiClient, destroy: DestroyRef, id: number, state: PhotoUploadState) {
+export async function closePhotoUpload(api: ApiClient, destroy: DestroyRef, id: number, state: PhotoUploadState): Promise<PhotoCloseResult> {
   const slot = photoUploadKey(id);
-  const key = (state.attempt ?? readPhotoUpload(slot))?.key;
-  const path = `${products}/${id}`;
-  const request = key ? api.post<Data<Product>>(`${path}/images/uploads/close`, undefined, { 'Idempotency-Key': key }) : api.get<Data<Product>>(path);
-  const { data } = await firstValueFrom(request.pipe(takeUntilDestroyed(destroy)));
-  if (data?.id !== id || !Array.isArray(data.images)) throw new Error('Photo upload close was not confirmed');
-  if (key) await releaseUpload(slot, key, true);
-  state.attempt = state.files = undefined;
-  return data;
+  try {
+    state.attempt ??= readPhotoUpload(slot) ?? undefined;
+  } catch {
+    return { kind: 'unconfirmed' };
+  }
+  const key = state.attempt?.key;
+  if (!key) return { kind: 'ready' };
+
+  let product: Product | undefined;
+  if (state.closedKey !== key && !wasClosed(slot, key)) {
+    try {
+      const { data } = await firstValueFrom(api.post<Data<Product>>(
+        `${products}/${id}/images/uploads/close`, undefined, { 'Idempotency-Key': key },
+      ).pipe(takeUntilDestroyed(destroy)));
+      if (data?.id !== id || !Array.isArray(data.images)) return { kind: 'unconfirmed' };
+      product = data;
+    } catch {
+      return { kind: 'unconfirmed' };
+    }
+    // This per-operation marker never overwrites the product's slot, even without the cleanup lock.
+    try { localStorage.setItem(closeMarker(slot, key), '1'); }
+    catch { /* Keep the acknowledgement in memory; a reload can safely repeat the same close. */ }
+  }
+  state.closedKey = key;
+  if (!(await releaseUpload(slot, key, true))) return { kind: 'cleanup-pending', product };
+
+  try { localStorage.removeItem(closeMarker(slot, key)); }
+  catch { /* A stale marker cannot apply to a different operation. */ }
+  state.attempt = state.files = state.closedKey = undefined;
+  if (!product && !destroy.destroyed) {
+    product = await firstValueFrom(api.get<Data<Product>>(`${products}/${id}`).pipe(
+      takeUntilDestroyed(destroy),
+    )).then(({ data }) => data?.id === id && Array.isArray(data.images) ? data : undefined, () => undefined);
+  }
+  return { kind: 'ready', product };
 }
 
 export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product: Product, photos: LocalPhoto[], state: PhotoUploadState, fromBatch = false) {
@@ -212,6 +260,11 @@ export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product:
         throw new PhotoUploadInputError('Hay otra carga sin confirmar. Volvé a abrir la galería para retomarla antes de agregar más fotos.');
       }
       const existing = startedWith ?? stored;
+      if (existing && (state.closedKey === existing.key || wasClosed(slot, existing.key))) {
+        state.attempt = existing;
+        state.closedKey = existing.key;
+        throw new PhotoUploadInputError(photoClosePending);
+      }
       if (existing && existing.fingerprint !== fingerprint) {
         throw new PhotoUploadInputError('Hay una carga sin confirmar. Volvé a elegir las mismas fotos en el mismo orden y reintentá.');
       }

@@ -52,7 +52,15 @@ For the second-engine accessibility checks, install the locked Firefox with `npm
 
 To exercise the independent database connections rather than just browser tabs, use MySQL 8.4 on loopback with a **disposable** `camba_v2_test` schema, a test-only APP_KEY, and no socket or database URL override. Run `php vendor/bin/phpunit --filter MySqlCatalogContentionTest` from `api/`. The runner holds an owner or product row and identifies both waiting connections before releasing it; the SQLite runner intentionally skips these cases.
 
-Both admin upload flows keep the operation key in the current browser until the API confirms it. After a lost response, use **Reintentar carga**. After reopening the gallery, select the original files in the original order; the app verifies the bytes before sending. Reopening **Carga por fotos** shows links to affected drafts. No preview or photo bytes are stored in browser storage, and there is no need to compare saved thumbnails. Use a current browser on HTTPS or loopback, with site storage enabled. Lost confirmation while creating the product itself is separate: find the existing draft before creating it again.
+Both admin upload flows keep the operation key in the current browser. After an uncertain upload, **Reintentar carga** sends the same ordered files with the same key. If the original files are unavailable, use **Cerrar carga pendiente** instead. The server keeps already committed photos and prevents a late upload with that key from appending. Reopening **Carga por fotos** links to the exact draft.
+
+The interface distinguishes three results:
+
+- **Close unconfirmed:** retry the same close. Do not clear the site's reservation or start a replacement upload.
+- **Server closed, browser cleanup pending:** restore site-storage access and select **Reintentar recuperación**. The acknowledgement is stored separately by operation key so another tab or a reload can resume cleanup without uploading files or repeating the close. If storage could not persist the acknowledgement at all, repeating the same close is safe.
+- **Recovery complete:** new photos can be selected, unless another tab already reserved a separate operation. Cleanup never removes that newer reservation.
+
+Site storage is required. IndexedDB serializes reservations when Web Locks is unavailable. Without SubtleCrypto, an exact retry needs the original files still open in memory; otherwise, close the pending upload first. No photo bytes or previews are persisted in browser storage. Use HTTPS in production. Lost confirmation while creating the product itself is separate: find the existing draft before creating it again.
 
 ### Delivered account links and idle-session expiry
 

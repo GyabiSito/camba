@@ -40,17 +40,21 @@
     <p class="muted">Todavía no hay fotos. Agregá al menos una antes de publicar.</p>
   }
 
-  @if (recovering() && !pending().length && !error()) {
+  @if (cleanupPending()) {
+    <p class="callout" id="gallery-upload-recovery" role="status">{{ closePendingMessage }}</p>
+  } @else if (recovering() && !pending().length && !error()) {
     <p class="callout" id="gallery-upload-recovery" role="status">Hay una carga sin confirmar. Elegí las mismas fotos en el mismo orden para reintentar, o cerrá la carga si ya no las tenés.</p>
   }
-  <label class="field">
-    <span>{{ recovering() ? 'Volver a elegir las fotos' : 'Agregar fotos' }}</span>
-    <small id="gallery-file-hint">JPG, PNG o WebP. Hasta 12 por vez, 10 MB y 4096 × 4096 px por foto.</small>
-    <input type="file" multiple [accept]="acceptedPhotos" [disabled]="disabled() || !!busy() || needsReview()"
-      [attr.aria-describedby]="recovering() && !pending().length && !error() ? 'gallery-file-hint gallery-upload-recovery' : 'gallery-file-hint'"
-      (change)="choose($event)" />
-  </label>
-  @if (pending().length > 0) {
+  @if (!cleanupPending()) {
+    <label class="field">
+      <span>{{ recovering() ? 'Volver a elegir las fotos' : 'Agregar fotos' }}</span>
+      <small id="gallery-file-hint">JPG, PNG o WebP. Hasta 12 por vez, 10 MB y 4096 × 4096 px por foto.</small>
+      <input type="file" multiple [accept]="acceptedPhotos" [disabled]="disabled() || !!busy() || needsReview()"
+        [attr.aria-describedby]="recovering() && !pending().length && !error() ? 'gallery-file-hint gallery-upload-recovery' : 'gallery-file-hint'"
+        (change)="choose($event)" />
+    </label>
+  }
+  @if (!cleanupPending() && pending().length > 0) {
     <ul class="photo-grid photo-grid--pending" role="list" [attr.aria-label]="recovering() ? 'Fotos pendientes' : 'Fotos listas para subir'">
       @for (photo of pending(); track photo.key) {
         <li>
@@ -75,12 +79,12 @@
   <div class="actions">
     @if (needsReview()) {
       <button class="button button--quiet" type="button" [disabled]="!!busy() || disabled()" (click)="reload()">Actualizar galería</button>
-    } @else if (pending().length > 0) {
+    } @else if (!cleanupPending() && pending().length > 0) {
       <button class="button" type="button" [disabled]="!!busy() || disabled() || !!alternateOrder() || pending().some(hasError)"
         [attr.aria-describedby]="error() ? 'gallery-error' : null" (click)="upload()">{{ recovering() ? 'Reintentar carga' : 'Subir fotos' }}</button>
     }
     @if (recovering()) {
-      <button class="button button--quiet" type="button" [disabled]="!!busy() || disabled()" (click)="upload(true)">Cerrar carga pendiente</button>
+      <button [class]="cleanupPending() ? 'button' : 'button button--quiet'" type="button" [disabled]="!!busy() || disabled()" (click)="closeRecovery()">{{ cleanupPending() ? 'Reintentar recuperación' : 'Cerrar carga pendiente' }}</button>
     }
   </div>
 </section>

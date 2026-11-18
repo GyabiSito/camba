@@ -4,12 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiClient, formatMoney } from '@camba/shared';
 import { finalize, firstValueFrom, forkJoin } from 'rxjs';
-import { Classification, Data, LocalPhoto, PhotoUploadState, Product, ProductFields, acceptedPhotos, admin, disconnected, fieldErrors, fieldsFrom, hasPendingPhotoUpload, localPhotos, pendingPhotoDrafts, photoUploadFailure, products, productInput, releasePhotos, summaryError, uploadError, uploadPhotos } from './catalog-api';
+import { Classification, Data, LocalPhoto, PhotoUploadState, Product, ProductFields, acceptedPhotos, admin, closePhotoUpload, disconnected, fieldErrors, fieldsFrom, hasPendingPhotoUpload, localPhotos, pendingPhotoDrafts, photoCleanupPending, photoClosePending, photoCloseReady, photoCloseUnconfirmed, photoUploadFailure, photoUploadState, products, productInput, releasePhotos, summaryError, uploadError, uploadPhotos } from './catalog-api';
 import { ProductFieldsForm } from './product-fields';
 
 type Group = {
   key: number; fields: ProductFields; photos: LocalPhoto[]; checked: boolean; product: Product | null;
-  upload: PhotoUploadState; done: boolean; uncertainCreate: boolean; retryUpload: boolean; error: string;
+  upload: PhotoUploadState; done: boolean; uncertainCreate: boolean; retryUpload: boolean; error: string; notice?: string;
 };
 
 @Component({
@@ -27,6 +27,7 @@ export class PhotoDrafts {
   protected readonly loading = signal(false);
   protected readonly running = signal(false);
   protected readonly active = signal<number | null>(null);
+  protected readonly closing = signal(false);
   protected readonly result = computed(() => this.groups().filter((group) => group.done).length);
   protected readonly loadError = signal('');
   protected readonly preview = signal(false);
@@ -34,6 +35,8 @@ export class PhotoDrafts {
   protected readonly common = { price: '', stock: '', category: null as number | null, brand: null as number | null };
   protected readonly acceptedPhotos = acceptedPhotos;
   protected readonly formatMoney = formatMoney;
+  protected readonly cleanupPending = photoCleanupPending;
+  protected readonly closePendingMessage = photoClosePending;
 
   constructor() {
     this.addGroup();
@@ -78,7 +81,7 @@ export class PhotoDrafts {
       this.update(group.key, { error: 'Podés agregar hasta 12 fotos por producto en esta carga.' });
       return;
     }
-    this.update(group.key, { photos: [...group.photos, ...localPhotos(files)], error: '' });
+    this.update(group.key, { photos: [...group.photos, ...localPhotos(files)], error: '', notice: undefined });
   }
 
   protected removePhoto(key: number, photo: LocalPhoto) {
@@ -125,8 +128,40 @@ export class PhotoDrafts {
   }
 
   protected retry(group: Group) {
-    if (group.product && group.retryUpload && !this.running()) return this.runGroups([group]);
+    if (group.product && group.retryUpload && group.photos.length && !photoCleanupPending(group.upload) && !this.running()) return this.runGroups([group]);
     return;
+  }
+
+  protected async closeRecovery(group: Group) {
+    if (!group.product || !group.retryUpload || this.running()) return;
+    this.running.set(true);
+    this.closing.set(true);
+    this.active.set(group.key);
+    this.update(group.key, { error: '', notice: undefined });
+    try {
+      const result = await closePhotoUpload(this.api, this.destroy, group.product.id, group.upload);
+      if (this.destroy.destroyed) return;
+      if (result.kind === 'unconfirmed') {
+        this.update(group.key, { error: photoCloseUnconfirmed });
+        return;
+      }
+      const product = result.product ?? group.product;
+      if (result.kind === 'cleanup-pending') {
+        this.update(group.key, { product });
+        return;
+      }
+      const upload = photoUploadState(product.id);
+      const another = !!upload.attempt || hasPendingPhotoUpload(product.id);
+      releasePhotos(group.photos);
+      this.update(group.key, {
+        product, upload, photos: [], retryUpload: another,
+        done: !another && product.images.length > 0, notice: photoCloseReady(another),
+      });
+    } finally {
+      this.active.set(null);
+      this.closing.set(false);
+      this.running.set(false);
+    }
   }
 
   protected run() {
@@ -166,7 +201,7 @@ export class PhotoDrafts {
           const retryUpload = !!draft && (!!group.upload.attempt || hasPendingPhotoUpload(draft.id));
           const uploadMessage = draft && photoUploadFailure(error, retryUpload);
           if (uploadMessage) {
-            this.update(group.key, { retryUpload, error: uploadMessage });
+            this.update(group.key, { retryUpload, error: photoCleanupPending(group.upload) ? '' : uploadMessage });
             continue;
           }
           const fields = fieldErrors(error);

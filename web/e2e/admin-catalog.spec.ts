@@ -312,7 +312,7 @@ test('cierra una carga sin originales y permite subir otras fotos sin Web Locks'
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
   await page.screenshot({ path: info.outputPath('close-gallery-320.png') });
   await close.press('Enter');
-  await expect(gallery.getByRole('status').filter({ hasText: 'Se cerró la carga' })).toBeVisible();
+  await expect(gallery.getByRole('status').filter({ hasText: 'Recuperación terminada' })).toBeVisible();
   await gallery.getByLabel('Agregar fotos').setInputFiles([photo('detail-photo')]);
   await gallery.getByRole('button', { name: 'Subir fotos' }).click();
   await expect(gallery.getByRole('status').filter({ hasText: 'Fotos agregadas' })).toBeVisible();
