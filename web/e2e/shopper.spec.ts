@@ -145,6 +145,40 @@ test('two tabs each add a unit of the same product without losing an increment',
   });
 });
 
+test('product detail explains all available units are already in the cart', async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await addToCart(page, 'remera-lisa');
+  await page.goto('/carrito');
+  const quantity = page.getByRole('spinbutton', { name: 'Cantidad de Remera lisa' });
+  await expect(quantity).toBeVisible();
+  const stock = Number(await quantity.getAttribute('max'));
+  expect(stock).toBeGreaterThan(1);
+  await quantity.fill(String(stock));
+  await page.getByRole('button', { name: 'Actualizar' }).click();
+  await expect(page.getByRole('status', { name: 'Carrito actualizado' })).toBeVisible();
+
+  await openProduct(page, 'remera-lisa');
+  const rejected = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' && response.url().includes('/api/v1/cart/items/'),
+  );
+  await page.getByRole('button', { name: 'Agregar al carrito' }).press('Enter');
+  const response = await rejected;
+  expect(response.status()).toBe(422);
+  expect((await response.json()).errors.quantity).toBeDefined();
+  const notice = page.getByRole('status').filter({
+    hasText: 'Ya tenés en el carrito todas las unidades disponibles.',
+  });
+  await expect(notice.getByRole('link', { name: 'Ver carrito' })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+  await notice.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: info.outputPath('cart-stock-limit-320.png') });
+  await notice.getByRole('link', { name: 'Ver carrito' }).click();
+  await expect(quantity).toHaveValue(String(stock));
+});
+
 test('a buyer edits profile and saves reminder preferences after signing in', async ({
   page,
 }, info) => {

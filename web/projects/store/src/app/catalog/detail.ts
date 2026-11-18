@@ -11,6 +11,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiClient, apiMessage, CART_CHANGED, formatMoney } from '@camba/shared';
 import { firstValueFrom, map } from 'rxjs';
+import type { Cart, Data } from '../shopper/shopper';
 import { catalogParams, PageResult, Product, readCatalogQuery, useStoreMeta } from './catalog-data';
 import { ProductPhoto } from './product-media';
 
@@ -104,8 +105,28 @@ export class StoreProduct {
         if (error.status === 404) message = 'El producto ya no está disponible.';
         if (error.status === 409)
           message = 'Tu sesión cambió. Actualizá la página antes de volver a intentar.';
-        if (error.status === 422)
+        if (error.status === 422) {
           message = 'No hay stock para agregar otra unidad. Revisá tu carrito.';
+          if (error.error?.errors?.quantity) {
+            const atLimit = await firstValueFrom(
+              this.api.get<Data<Cart>>('/api/v1/cart').pipe(
+                map(({ data }) =>
+                  data.items.some(
+                    (item) => item.product_id === product.id && item.quantity === item.product?.stock,
+                  ),
+                ),
+              ),
+            ).catch(() => false);
+            if (this.product() !== product) return;
+            if (atLimit) {
+              this.cart.set({
+                kind: 'done',
+                message: 'Ya tenés en el carrito todas las unidades disponibles.',
+              });
+              return;
+            }
+          }
+        }
       }
       this.cart.set({ kind: 'error', message });
     }
