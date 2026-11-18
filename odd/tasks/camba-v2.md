@@ -19,6 +19,10 @@ Delivery: `auto-chain`, stacked-to-main local work units; no remote delivery. Fo
 
 - S11 — “Verificá el incremento concurrente del carrito en MySQL/InnoDB.” “Implementá recuperación segura de subidas inciertas, incluso cuando la petición original siga en ejecución. Evitá depender de una comparación manual de fotos.” “Revisá los candidatos de carrito y galería mediante el flujo nativo y corregí los hallazgos que correspondan.” “Completá las verificaciones visuales y de accesibilidad que permitan las capacidades disponibles, sin falsear aprobaciones.”
 - S12 — “Después continuá con las integraciones y CI/CD para las que exista configuración autorizada. Agrupá las dependencias realmente ausentes.”
+- S13 — “Prepará un candidato nuevo que incluya las correcciones necesarias de 6fc1fc0 y resuelva TV-001.” “Conservá intactos el worktree anterior y la evidencia de la revisión escalada.”
+- S14 — “Separá explícitamente: - cierre todavía no confirmado por el servidor; - cierre confirmado, con limpieza local pendiente; - recuperación terminada y nuevas subidas habilitadas.” “informá el resultado parcial sin anunciar éxito completo”; “conservá la misma clave de operación”; “ofrecé reintentar la recuperación sin volver a subir las fotos”; “eliminá únicamente la reserva correspondiente a esa operación.”
+- S15 — “Probá primero la reproducción exacta de TV-001 como regresión.” “Después verificá recuperación al restablecer el almacenamiento, recarga, otra pestaña y solicitudes atrasadas. Comprobá que no se dupliquen fotos, no cambie la portada y no se borre una reserva nueva.” “Reutilizá el manejo común en ambos flujos de subida.” “Conservá la cobertura de los cinco hallazgos originales y verificá Chromium, Firefox e InnoDB según corresponda.”
+- S16 — “Dejá el candidato probado y documentado antes de iniciar la resolución de revisión que permita el proveedor. Conservá trazabilidad con la escalación anterior; no la ocultes ni transfieras aprobaciones.” “Continuá después con los demás pendientes ejecutables del proyecto.”
 
 ## Tasks
 
@@ -69,6 +73,7 @@ Delivery: `auto-chain`, stacked-to-main local work units; no remote delivery. Fo
 - A10 — S11, Bounded native cart and gallery review and a11y; inline orchestration and independent second-engine verification; no spoken reader available. Cart native review `review-bf2438cb97b4c1c4` approved and acknowledged after `R3-001` correction `e1511c0` (integrated `031371e`). Gallery review `review-5eb04e69d9b23eb0` partial: one correction `6fc1fc0` retained separately, all original criteria met, but targeted validation found `TV-001` and escalated; no approval or integration.
 - A11 — S12, Camba-local configuration inventory and CI checks; inline inventory, delegated long image builds. Local API/admin builds, Compose static validation, and actual change selection passed; production services and remote delivery lack authorized configuration.
 - A12 — S11/S12, Fail closed during API/admin version skew; inline `06e41c0`; independent runtime/contract/build confirmation, SQLite RED 404 → GREEN 9/110, final InnoDB 2/28 and Chromium 6/6; no legacy fallback. Risk: items 3 and 5 (consumer contract and rolling release compatibility).
+- A13 — S13–S16, Recover an acknowledged gallery close when browser cleanup fails; new candidate on a separate worktree from the current feature branch. Inline coupled state transitions, independent verifier for cross-tab/late-write ordering, both browsers and disposable InnoDB. Pending. Risk: item 4; no review authority is inherited.
 
 ## Log
 
@@ -265,3 +270,39 @@ The ordinal granted only the cart candidate. Three native results admitted; `R3-
 The ordinal granted only gallery `0067bc0`. Four native results admitted; one correction addressed all five original blockers (R1-001, R2-001, R3-001, R4-001, R4-002). `6fc1fc0` is retained in the gallery review worktree; 200 changed lines, with local database, Chromium, independent Firefox and packaged API/admin evidence. The native validator found new regression `TV-001` after the correction; gallery was escalated without approval or acknowledgement. Do not reopen this transaction or integrate the rejected correction as-is. The next separate candidate must preserve accurate feedback and idempotent local recovery if a confirmed close cannot remove its persisted browser reservation. Risk: items 3 and 4 (close contract and concurrent writes/reservations).
 
 TV-001 was reproduced with a standalone Chromium probe outside both worktrees: after a synthetic pre-forward 504, a genuine close returned 200 while IndexedDB was made unavailable, readable localStorage retained the key, and the success status appeared alongside the still-pending state. The diagnostic exit 0 means reproduction, not a workflow pass. Commit `6fc1fc0` was not changed after validation.
+
+### L14 — Fresh gallery recovery candidate
+
+Continuá desde el HEAD actual de feat/camba-v2, posterior a d71657b.
+
+Prepará un candidato nuevo que incluya las correcciones necesarias
+de 6fc1fc0 y resuelva TV-001. Conservá intactos el worktree anterior
+y la evidencia de la revisión escalada.
+
+Separá explícitamente:
+- cierre todavía no confirmado por el servidor;
+- cierre confirmado, con limpieza local pendiente;
+- recuperación terminada y nuevas subidas habilitadas.
+
+Si el servidor responde 200 pero falla la limpieza local:
+- informá el resultado parcial sin anunciar éxito completo;
+- conservá la misma clave de operación;
+- ofrecé reintentar la recuperación sin volver a subir las fotos;
+- eliminá únicamente la reserva correspondiente a esa operación.
+
+Probá primero la reproducción exacta de TV-001 como regresión.
+Después verificá recuperación al restablecer el almacenamiento,
+recarga, otra pestaña y solicitudes atrasadas. Comprobá que no se
+dupliquen fotos, no cambie la portada y no se borre una reserva nueva.
+
+Reutilizá el manejo común en ambos flujos de subida. Conservá la
+cobertura de los cinco hallazgos originales y verificá Chromium,
+Firefox e InnoDB según corresponda.
+
+Dejá el candidato probado y documentado antes de iniciar la
+resolución de revisión que permita el proveedor. Conservá trazabilidad
+con la escalación anterior; no la ocultes ni transfieras aprobaciones.
+
+Continuá después con los demás pendientes ejecutables del proyecto.
+
+Observed source HEAD `d71657b`; the earlier native target remains detached at `6fc1fc0` with its escalation evidence. The Engram mirror previously remained pending supported host registration.
