@@ -17,3 +17,7 @@ Route::prefix('v1/auth')->group(function (): void {
             ->middleware('throttle:verification-notification');
     });
 });
+
+Route::get('v1/admin/session', [AuthController::class, 'me'])->middleware(['auth:sanctum', 'can:camba-admin']);
+
+require __DIR__.'/account.php';

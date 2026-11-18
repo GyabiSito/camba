@@ -57,6 +57,22 @@ class BuyerAccessTest extends TestCase
         $this->assertDatabaseCount('users', 0);
     }
 
+    public function test_only_a_verified_account_granted_admin_locally_can_use_admin_session(): void
+    {
+        $unverified = User::factory()->unverified()->create();
+        $owner = User::factory()->create(['email' => 'owner@example.test']);
+        $this->withHeader('Origin', 'http://localhost');
+
+        $this->getJson('/api/v1/admin/session')->assertUnauthorized();
+        $this->actingAs($owner, 'web')->getJson('/api/v1/admin/session')->assertForbidden();
+        $this->artisan('camba:grant-admin', ['email' => $unverified->email])->assertFailed();
+        $this->assertSame('buyer', $unverified->fresh()->role);
+        $this->artisan('camba:grant-admin', ['email' => ' OWNER@Example.Test '])->assertSuccessful();
+        $this->assertSame('admin', $owner->fresh()->role);
+        $this->app['auth']->forgetGuards();
+        $this->actingAs($owner->fresh(), 'web')->getJson('/api/v1/admin/session')->assertOk()->assertJsonPath('data.role', 'admin');
+    }
+
     public function test_a_buyer_can_retry_verification_after_a_queue_outage(): void
     {
         Queue::shouldReceive('connection')->once()->andThrow(new RuntimeException('Test queue unavailable'));

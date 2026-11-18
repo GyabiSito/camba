@@ -66,6 +66,15 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/UserEnvelope' }
         '401': { description: No authenticated session }
+  /api/v1/admin/session:
+    get:
+      operationId: getAdminSession
+      description: Returns the current user only when the server recognizes a verified administrator.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/UserEnvelope' }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
   /api/v1/auth/forgot-password:
     post:
       operationId: requestPasswordReset
@@ -126,6 +135,85 @@ paths:
         '419': { description: Missing or invalid CSRF token }
         '429': { description: Too many requests }
         '503': { description: Queue unavailable; retry later }
+  /api/v1/account/profile:
+    get:
+      operationId: getAccountProfile
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/UserEnvelope' }
+        '401': { description: No authenticated session }
+    patch:
+      operationId: updateAccountName
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120 }
+      responses:
+        '200': { $ref: '#/components/responses/UserEnvelope' }
+        '401': { description: No authenticated session }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid name or attempt to change a protected field }
+  /api/v1/account/addresses:
+    get:
+      operationId: listAddresses
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Only the current account's saved addresses }
+        '401': { description: No authenticated session }
+    post:
+      operationId: saveAddress
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - { $ref: '#/components/schemas/AddressInput' }
+                - { required: [recipient, department, locality, street, number] }
+      responses:
+        '201': { description: Address saved for the current account }
+        '401': { description: No authenticated session }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid address fields or caller-supplied owner }
+  /api/v1/account/addresses/{address}:
+    parameters:
+      - { name: address, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getAddress
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Address belonging to the current account }
+        '401': { description: No authenticated session }
+        '404': { description: Address not found for the current account }
+    patch:
+      operationId: updateAddress
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddressInput' }
+      responses:
+        '200': { description: Address updated }
+        '401': { description: No authenticated session }
+        '404': { description: Address not found for the current account }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid address fields or caller-supplied owner }
+    delete:
+      operationId: deleteAddress
+      security: [{ sessionCookie: [] }]
+      responses:
+        '204': { description: Address removed }
+        '401': { description: No authenticated session }
+        '404': { description: Address not found for the current account }
+        '419': { description: Missing or invalid CSRF token }
   /email/verify/{id}/{hash}:
     get:
       operationId: verifyEmail
@@ -141,6 +229,19 @@ paths:
         '404': { description: The user no longer exists }
         '429': { description: Too many requests }
 components:
+  schemas:
+    AddressInput:
+      type: object
+      not: { required: [user_id] }
+      properties:
+        recipient: { type: string, maxLength: 120 }
+        department: { type: string, maxLength: 80 }
+        locality: { type: string, maxLength: 120 }
+        street: { type: string, maxLength: 160 }
+        number: { type: string, maxLength: 20 }
+        details: { type: [string, 'null'], maxLength: 255 }
+        phone: { type: [string, 'null'], maxLength: 30 }
+        postal_code: { type: [string, 'null'], maxLength: 12 }
   securitySchemes:
     sessionCookie: { type: apiKey, in: cookie, name: camba_session }
   responses:
