@@ -17,6 +17,9 @@ Delivery: `auto-chain`, stacked-to-main local work units; no remote delivery. Fo
 - S9 — “La captura del hero de Impeccable ya no es una condición para implementar el resto del frontend.” “Configurá pruebas y capturas de la aplicación con Playwright y Chromium.” “Conectá tienda y admin con las APIs existentes.” “Completá productos, galerías, carga masiva, pedidos, configuración, autenticación, carrito, checkout y todos los estados y recorridos del encargo.” “Mantené la dirección visual elegida y terminá el diseño.”
 - S10 — “diagnosticá y corregí el LCP móvil y completá todos los pendientes locales de la matriz. No postergues esas tareas por falta de staging.” Preserve closed review scopes; verify the 4c1480e §9 local matrix and supported hook recovery without external services.
 
+- S11 — “Verificá el incremento concurrente del carrito en MySQL/InnoDB.” “Implementá recuperación segura de subidas inciertas, incluso cuando la petición original siga en ejecución. Evitá depender de una comparación manual de fotos.” “Revisá los candidatos de carrito y galería mediante el flujo nativo y corregí los hallazgos que correspondan.” “Completá las verificaciones visuales y de accesibilidad que permitan las capacidades disponibles, sin falsear aprobaciones.”
+- S12 — “Después continuá con las integraciones y CI/CD para las que exista configuración autorizada. Agrupá las dependencias realmente ausentes.”
+
 ## Tasks
 
 - A1 — S10, Five-run baseline and measured mobile LCP fix; inline `3e1bc12`, independent Docker/HTTP proof and exact native approval acknowledged. Median 3.50 → 2.11 s; real staging/field pending. Risk: item 5 (store runtime dependency).
@@ -59,6 +62,13 @@ Delivery: `auto-chain`, stacked-to-main local work units; no remote delivery. Fo
 - T8 / S6, S7 — pending P8 migration and operational handoff; assign route when scoped.
 - T8a / S6, S7, S8 — delegated legacy catalog dry-run and stock/photo reconciliation from an isolated export; parallel with payment and import on disjoint legacy-planner surfaces. Risk: item 1 if subsequently applying; this unit is read-only.
 - T8b / S6, S7, S8 — delegated legacy catalog staging and repeatability rehearsal against disposable data. Risk: items 1 and 2 (migration and file/path integrity).
+
+- A7 — S11, MySQL cart overlap; inline proof `a85e626` using independent guarded processes; MySQL 8.4.13 observed two waiters before each release, 200/200 → 3 and 200/422 → 4, 1/26 in the durable regression. Risk: item 4 (concurrent cart writes under proof, not a runtime change).
+- A8 — S11, Durable upload identity and contention; delegated parallel writer (API migration, write and tests independent of UI files); `cada0a7`, RED/GREEN in isolated InnoDB 5/104 and SQLite 16/186; independent conflicting-body, lost postcommit acknowledgement, ordering and FK probes passed. Risk: items 1, 3 and 4 (migration, upload contract and concurrent writes).
+- A9 — S11, Retry of the same upload in both admin screens; delegated parallel writer (independent UI and browser evidence); `c80aacf`, final Chromium 6/6 with `06e41c0` and inspected captures. Risk: item 4 (retry and stale responses).
+- A10 — S11, Bounded native cart and gallery review and a11y; inline orchestration, independent second-engine verification, and portability fix in `06e41c0`. Firefox admin shell and both pre-forward recovery paths passed; no spoken reader available. Both native assessments are high; separate candidate consents and verdicts pending.
+- A11 — S12, Camba-local configuration inventory and CI checks; inline inventory, delegated long image builds. Local API/admin builds, Compose static validation, and actual change selection passed; production services and remote delivery lack authorized configuration.
+- A12 — S11/S12, Fail closed during API/admin version skew; inline `06e41c0`; independent runtime/contract/build confirmation, SQLite RED 404 → GREEN 9/110, final InnoDB 2/28 and Chromium 6/6; no legacy fallback. Risk: items 3 and 5 (consumer contract and rolling release compatibility).
 
 ## Log
 
@@ -216,3 +226,28 @@ Final Chromium run: 27 passed and three opt-in skips covered on the earlier Mail
 1
 
 The provider admitted all three perspectives for `3e1bc12`, returned `approved`, and the exact acknowledgement burned authority for `review-81e40b94c8f301d9`. No correction was required. The sole informational finding was addressed separately with a real compiled-SSR HTTP check: gzip, Brotli and identity yielded identical decoded bytes, with exact uncompressed `206` range behavior. No production code changed in the follow-up and no review verdict was attributed to cart/gallery or publishing.
+
+### L11 — InnoDB and uncertain gallery upload recovery
+
+Retomá feat/camba-v2 desde su HEAD actual, posterior a af5547a.
+Conservá código, registros y revisiones cerradas.
+
+Completá los pendientes locales reales:
+1. Verificá el incremento concurrente del carrito en MySQL/InnoDB.
+2. Implementá recuperación segura de subidas inciertas, incluso
+   cuando la petición original siga en ejecución. Evitá depender
+   de una comparación manual de fotos.
+3. Revisá los candidatos de carrito y galería mediante el flujo
+   nativo y corregí los hallazgos que correspondan.
+4. Completá las verificaciones visuales y de accesibilidad que
+   permitan las capacidades disponibles, sin falsear aprobaciones.
+
+Después continuá con las integraciones y CI/CD para las que exista
+configuración autorizada. Agrupá las dependencias realmente ausentes.
+
+No repitas controles ya suficientes ni cierres por terminar una
+revisión mientras quede trabajo ejecutable. Continuá automáticamente.
+
+Observed local HEAD was af5547a, worktrees intact, with only the previously existing untracked .impeccable/ and assets/. The existing manual comparison is superseded by S11. Engram task mirror is pending supported host registration.
+
+Final observed scope: legacy POST behavior preserved; durable gallery retry verified even before the original completes. The dedicated route fails closed against older API versions. Local API regression reached 110/1,489 on MySQL before the final route delta; the final focused MySQL suite passed 2/28, gallery SQLite 9/110, Chromium 6/6, and final local image probes passed. Native reviews still require separate consent: exact cart implementation `89e8224` first, then the isolated gallery slice `0067bc0`. No former approval is reopened or inherited.

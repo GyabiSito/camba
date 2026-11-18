@@ -48,6 +48,12 @@ Captures and failure traces are in `web/test-results/`; open the local HTML repo
 
 For the second-engine accessibility checks, install the locked Firefox with `npm exec -- playwright install firefox`, set `CAMBA_E2E_BROWSER=firefox`, then run `npm run test:e2e -- e2e/admin-store-accessibility.spec.ts`. The default remains Chromium. The checks cover computed contrast, keyboard focus, form alerts, reduced motion, 200% text size and reflow at 320 CSS px. They do not audit spoken announcements.
 
+### Cart contention and photo recovery
+
+To exercise the independent database connections rather than just browser tabs, use MySQL 8.4 on loopback with a **disposable** `camba_v2_test` schema, a test-only APP_KEY, and no socket or database URL override. Run `php vendor/bin/phpunit --filter MySqlCatalogContentionTest` from `api/`. The runner holds an owner or product row and identifies both waiting connections before releasing it; the SQLite runner intentionally skips these cases.
+
+Both admin upload flows keep the operation key in the current browser until the API confirms it. After a lost response, use **Reintentar carga**. After reopening the gallery, select the original files in the original order; the app verifies the bytes before sending. Reopening **Carga por fotos** shows links to affected drafts. No preview or photo bytes are stored in browser storage, and there is no need to compare saved thumbnails. Use a current browser on HTTPS or loopback, with site storage enabled. Lost confirmation while creating the product itself is separate: find the existing draft before creating it again.
+
 ### Delivered account links and idle-session expiry
 
 The standard run sends no email outside the Laravel array transport. For real local SMTP delivery, run a disposable Mailpit in a separate terminal:
