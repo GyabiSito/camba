@@ -56,6 +56,14 @@ Leer PROGRESS.md y odd/tasks/camba-v2.md si existen localmente. Si origin/main c
 
 Comprobar que el commit corregido conserva los dos arreglos y sus pruebas. Resolver la revisión nativa por el procedimiento soportado, integrar la corrección en la rama de implementación, verificar allí y continuar con workspace Angular, Docker dev y CI. No dejar el sistema dividido entre ramas como resultado final.
 
+## 4.1. Checkpoint posterior: priorizar el estado real más reciente
+
+El usuario aportó después otro registro local: `feat/camba-v2` en `c429f10`; revisión de cuentas `f1d1b8a` aprobada y cerrada; 98 pruebas / 1.258 aserciones reportadas, Pint y OpenAPI aprobados. Las correcciones antiguas ya aparecen integradas en el progreso adjunto. El backend avanzó en catálogo, medios, carrito, pedidos, pagos/reconciliación, importaciones, comunicaciones y entrega aislada. El principal trabajo restante es la interfaz funcional completa y su validación, además de verificaciones externas.
+
+Estos resultados proceden del registro del usuario y deben contrastarse con el checkout actual. El remoto puede contener solamente el encargo: no asumir que origin/main tiene el avance local. Conservar `feat/camba-v2`, sus commits, cambios sin commit, worktrees, `PRODUCT.md`, `.impeccable/` y los documentos locales más nuevos.
+
+La descripción anterior de `a6b2af6` es histórica. No ejecutar de nuevo su recuperación/integración si el log y el árbol muestran que ya se realizó. No reabrir automáticamente la revisión cerrada de `f1d1b8a`. Continuar desde la lista vigente de aceptación, sin repetir la auditoría general ni reconstruir el backend que ya funciona.
+
 ## 5. Recuperación de revisiones y hooks
 
 El registro muestra dos fallos de herramientas diferentes:
@@ -133,3 +141,43 @@ El sistema está terminado cuando UC01–UC30 y T01–T06 están implementados y
 El despliegue real depende de disponer de configuración, accesos y secretos válidos. Cuando falte algo externo, completar todo lo que sí puede terminarse, mantener preparado el pipeline y enumerar exactamente la única verificación/acción pendiente por dependencia. No llamar «sistema completo validado en producción» a lo que solo se probó con fakes.
 
 Los reportes de avance no son cierres. Una pausa técnica de sesión debe dejar un checkpoint preciso para continuar desde ahí; no reiniciar desde cero ni reducir el objetivo al último commit.
+
+## 8. Continuar el frontend cuando falla el acceso al navegador
+
+### Cambio del orden de trabajo
+
+El registro local establecía «no pasar a fases posteriores» hasta capturar el hero de Impeccable. La condición de revisar la primera pantalla antes de extenderla también figuraba en el encargo remoto. **Esa dependencia global queda sustituida:** una validación visual pendiente no impide implementar otras pantallas, integrar API, formularios y estados, escribir pruebas o terminar el diseño en código.
+
+Conservar Impeccable, las comps y placas elegidas como referencia visual. No borrar su configuración ni registrar fases como aprobadas sin sus evidencias. Si su proceso de comp exige una captura aún no disponible, mantener esa comprobación pendiente y continuar el trabajo funcional fuera de esa dependencia de orden. No desactivar hooks de seguridad ni inventar una excepción técnica para afirmar que el gate pasó.
+
+### Alternativa ejecutable en el proyecto
+
+1. Comprobar una vez el estado actual de las herramientas y de los servidores de store/admin. Conservar los puertos del proyecto o elegir otros libres. No volver a comprobar lo mismo sin cambio de entorno ni dedicar la tanda completa a diagnosticar Brave.
+2. Inspeccionar los tests/dependencias del workspace. Si falta, incorporar `@playwright/test` como dependencia de desarrollo compatible y con lockfile, mediante el gestor y los permisos admitidos en la sesión. Instalar su Chromium por la vía oficial. Es un runner de pruebas de la aplicación propia, no una forma de controlar un navegador ajeno cuya URL no se haya confirmado.
+3. Configurar baseURL/webServer y datos de prueba aislados. Lanzar Chromium headless desde Playwright sin depender de una pestaña abierta de Brave ni de Computer Use. Si corresponde usar Docker/CI para el runner, mantener la versión de imagen alineada con el paquete y documentar la conectividad a los servicios de prueba.
+4. Navegar a la aplicación real, ejecutar acciones/expectativas y obtener screenshots. Capturar el hero a 1586×992 para comparar con la comp existente y vistas móviles a 320 px; añadir tamaños intermedios necesarios. Abrir las imágenes y corregir discrepancias reales. No generar una imagen de diseño y presentarla como captura del producto.
+5. Registrar en el flujo de diseño únicamente evidencias que ese flujo admita y que realmente se hayan producido. Si exige otra vía no disponible, mantener pendiente esa validación específica; la captura de Playwright conserva su valor como prueba independiente, sin atribuirle una aprobación inexistente de Impeccable.
+6. Si no puede ejecutarse ningún navegador autorizado, registrar la causa y seguir implementando UI, componentes, rutas, formularios y estados completos con comprobaciones estáticas/unitarias/builds. Estos controles permiten avanzar, pero no se etiquetan como pruebas visuales, de accesibilidad o E2E aprobadas. Reintentar el navegador cuando cambien las condiciones o al verificar la siguiente entrega.
+
+Documentación oficial: https://playwright.dev/docs/intro , https://playwright.dev/docs/browsers y https://playwright.dev/docs/running-tests . Ajustar comandos/versiones al workspace real. No hay evidencia todavía de que esta alternativa haya sido ejecutada en el equipo del usuario.
+
+### Trabajo concreto a continuar
+
+El backend reportado y los shells Angular permiten avanzar sin volver a planificar todo. Inspeccionar el estado actual y completar, en entregas pequeñas:
+
+- Admin funcional de productos, categorías/marcas, precio/stock, publicación/archivo y galería; conectar los endpoints existentes.
+- Carga agrupada por fotos, vista previa de planilla, confirmación, progreso, corrección de errores y reanudación.
+- Pedidos administrativos, preparación/envío/retiro, avisos y configuración operativa.
+- Store: inicio, catálogo, filtros/búsqueda/paginación, ficha, galería y 404; SSR e hidratación reales con datos de API.
+- Cuenta: registro/login/verificación/reenvío/reset, perfil, direcciones y pedidos propios.
+- Carrito invitado/comprador, checkout, entrega/retiro y retorno de pago con todos sus estados.
+- Preferencias, recordatorios y notificaciones visibles que correspondan.
+- Responsive, semántica, foco, errores, estados vacíos/carga y rendimiento en cada recorrido; terminar el diseño ya en la implementación.
+
+Primero reutilizar y corregir los contratos existentes; cambiar backend solo donde falte una capacidad o un fallo real impida esos recorridos. No gastar la siguiente tanda en volver a revisar las mismas cuentas ya aprobadas mientras toda la UI sigue pendiente.
+
+### Estado y criterio de cierre
+
+Actualizar localmente PROGRESS.md y el log de tareas para distinguir «implementación pendiente» de «implementado, pendiente de verificar en navegador». Sustituir la frase que bloquea fases posteriores por esta regla. No sobrescribir esos archivos con sus versiones iniciales de origin/main.
+
+Compartir avances y continuar automáticamente al siguiente caso de uso. Si el navegador aún falta, eso no justifica una respuesta final mientras haya código/diseño/integración/pruebas independientes por completar. Una vez agotado todo el trabajo ejecutable, describir solo las verificaciones que realmente continúan bloqueadas. No declarar completo/visualmente aprobado/productivo lo que todavía no se verificó.
