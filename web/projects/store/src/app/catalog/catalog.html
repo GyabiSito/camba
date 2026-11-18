@@ -87,7 +87,7 @@
             }
           </div>
         } @else if (products.data.length) {
-          <store-product-grid [products]="products.data" [query]="query()" />
+          <store-product-grid [products]="products.data" [query]="query()" [prioritizeFirst]="true" />
           @if (last > 1) {
             <nav class="pagination" aria-label="Páginas de productos">
               @if (page > 1) {

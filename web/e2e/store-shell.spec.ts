@@ -46,6 +46,15 @@ test('store captures real catalog data and offers a visible keyboard skip link',
 test('public product is in the SSR HTML and an unknown product is HTTP 404', async ({
   request,
 }) => {
+  const catalog = await request.get('/tienda');
+  expect(catalog.status()).toBe(200);
+  const images = ((await catalog.text()).match(/<img\b[^>]*>/g) ?? [])
+    .filter((image) => image.includes('/storage/products/'));
+  expect(images.length).toBeGreaterThan(1);
+  expect(images[0]).toContain('loading="eager"');
+  expect(images[0]).toContain('fetchpriority="high"');
+  expect(images.slice(1).every((image) => image.includes('loading="lazy"'))).toBe(true);
+
   const product = await request.get('/producto/remera-lisa');
   expect(product.status()).toBe(200);
   expect(await product.text()).toMatch(/<h1[^>]*>Remera lisa<\/h1>/);

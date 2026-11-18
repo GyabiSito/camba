@@ -77,7 +77,12 @@ export class ProductPhoto {
     <ul class="products" role="list">
       @for (product of products(); track product.id) {
         <li>
-          <store-product-photo [photo]="product.images[0]" [name]="product.name" variant="card" />
+          <store-product-photo
+            [photo]="product.images[0]"
+            [name]="product.name"
+            [priority]="prioritizeFirst() && $first"
+            variant="card"
+          />
           <div class="caption">
             <h3>
               <a [routerLink]="['/producto', product.slug]" [queryParams]="backParams()">{{
@@ -173,6 +178,7 @@ export class ProductPhoto {
 export class ProductGrid {
   readonly products = input.required<Product[]>();
   readonly query = input<CatalogQuery>();
+  readonly prioritizeFirst = input(false);
   protected readonly money = formatMoney;
   protected readonly backParams = computed(() => {
     const query = this.query();
