@@ -191,7 +191,7 @@ Rediseñar tienda y admin completos. Conservar identidad reconocible de Camba co
 - Paginación e índices de base; evitar N+1, invalidar caché al publicar/importar. No cachear respuestas personalizadas o stock reservado de forma insegura ni copiar cinco bases Redis por sección.
 - Definir presupuestos medibles de bundles/imagen y una medición reproducible de rendimiento móvil. Registrar LCP/CLS/INP cuando se pueda obtener evidencia adecuada y Lighthouse como medición de laboratorio, sin confundirlo con datos reales de usuarios. No inventar puntuaciones ni relajar presupuestos para conseguir un verde.
 
-La primera entrega visual de admin/catalogo debe revisarse en navegador antes de extenderla. No completar todo el frontend con estilos provisionales para prometer un rediseño posterior.
+Revisar la primera entrega visual de admin/catálogo en cuanto exista una vía de navegador disponible. La falta de control de Brave/Computer Use o de una captura del hero no bloquea implementar las demás pantallas y casos de uso. Usar pruebas y capturas reales con Playwright/Chromium del proyecto cuando estén disponibles; si tampoco pueden ejecutarse, registrar únicamente la validación visual como pendiente y continuar con la implementación funcional y el diseño completo. Conservar las comps, tokens y componentes como referencia; no declarar validado un diseño sin evidencia ni dejar todo el frontend con estilos provisionales. Aplicar la sección 8 de AUTONOMOUS_EXECUTION.md.
 
 ## 9. Docker de desarrollo y producción
 

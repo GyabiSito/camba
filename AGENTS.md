@@ -14,6 +14,12 @@ El objetivo principal es que la dueña pueda cargar productos y operar pedidos s
 
 Antes de editar, leer el encargo, las referencias y el progreso. Si ya existe código al retomar, inspeccionar cambios y conservar el trabajo del usuario. Trabajar por entregas pequeñas, implementar y verificar; no terminar cada fase pidiendo autorización para continuar con lo ya solicitado. Mantener un punto de reanudación concreto en `docs/PROGRESS.md`.
 
+## Navegador y continuidad del frontend
+
+El usuario exige continuar el sistema completo. **La disponibilidad de Computer Use, Brave, Engram o el estado hero de una comp no es una condición para implementar el resto del frontend.** Aplicar la sección 8 de `docs/AUTONOMOUS_EXECUTION.md`: probar alternativas soportadas, preferir tests/capturas del proyecto con Playwright/Chromium y continuar la implementación aun si la comprobación visual sigue pendiente. Esta regla cambia el orden de trabajo del proyecto; no convierte una captura inexistente en evidencia ni aprueba una revisión automáticamente.
+
+Conservar el avance local más nuevo: el registro aportado sitúa `feat/camba-v2` en `c429f10` y la revisión de cuentas `f1d1b8a` aprobada/cerrada. Verificar el estado actual antes de actuar. No reiniciar la implementación, repetir una revisión cerrada por defecto ni recuperar otra vez `a6b2af6` si ya está integrado.
+
 ## Exclusiones firmes
 
 - Clasificación del catálogo: **solo categorías planas y marca**. Marca opcional; categorías sin jerarquía.
