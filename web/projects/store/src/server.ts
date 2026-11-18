@@ -5,6 +5,7 @@ import {
   writeResponseToNodeResponse,
 } from '@angular/ssr/node';
 import express from 'express';
+import compression from 'compression';
 import { join } from 'node:path';
 
 const app = express();
@@ -13,6 +14,10 @@ app.disable('x-powered-by');
 app.get('/healthz', (_request, response) => {
   response.set('Cache-Control', 'no-store').send('ok');
 });
+app.use(compression({
+  filter: (request, response) => !request.headers.range && !response.hasHeader('Set-Cookie') &&
+    compression.filter(request, response),
+}));
 app.use(express.static(join(import.meta.dirname, '../browser'), {
   maxAge: '1h',
   index: false,

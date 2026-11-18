@@ -2,6 +2,7 @@
 
 # Compiled output
 /test-results/
+/performance-results/
 /playwright-report/
 /dist
 /tmp
