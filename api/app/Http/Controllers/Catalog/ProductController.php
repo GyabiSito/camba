@@ -9,6 +9,7 @@ use App\Http\Requests\Catalog\SaveProductRequest;
 use App\Http\Resources\Catalog\ProductResource;
 use App\Models\Product;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +21,7 @@ class ProductController
     public function index(BrowseProductsRequest $request): AnonymousResourceCollection
     {
         $filters = $request->validated();
-        $query = Product::query()->with(self::RELATIONS);
+        $query = Product::query()->with(['category', 'brand', 'images' => fn (HasMany $relation) => $relation->limit(1)]);
 
         if (! $request->routeIs('admin.catalog.*')) {
             $query->published();

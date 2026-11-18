@@ -12,7 +12,7 @@ All paths below are relative to `/api/v1`. Requests and responses use JSON. Coll
 
 For example, `GET /products?q=glass&category=home&brand=senda&sort=price_asc&per_page=12&page=2` searches product names and SKUs. The category and brand filters use slugs and combine with the search. Sort choices are `newest` (default, highest created ID first), `name`, `price_asc`, and `price_desc`. The default page size is 24; callers can request 1–100. Invalid parameters return 422.
 
-Products include `id`, `sku`, `slug`, `name`, `description`, `price_cents`, `currency` (`UYU`), `stock`, `in_stock`, `category`, `brand` (nullable), and ordered `images`. Classifications expose `id`, `slug`, and `name`; image entries expose `id`, `url`, `thumbnail_url`, and `alt`. The first image is the cover.
+Products include `id`, `sku`, `slug`, `name`, `description`, `price_cents`, `currency` (`UYU`), `stock`, `in_stock`, `category`, `brand` (nullable), and ordered `images`. Classifications expose `id`, `slug`, and `name`; image entries expose `id`, `url`, `thumbnail_url`, and `alt`. The first image is the cover; public and admin lists load only that image. Detail and writes include the full gallery.
 
 ## Administration
 

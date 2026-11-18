@@ -214,6 +214,32 @@ class CatalogTest extends TestCase
         ];
     }
 
+    public function test_product_lists_load_only_covers_and_detail_keeps_the_full_gallery(): void
+    {
+        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $category = $this->classification('categories', 'Clothing');
+        $products = [];
+        foreach (['Shirt', 'Trousers'] as $name) {
+            $product = $this->draft(['name' => $name, 'price_cents' => 10000, 'category_id' => $category['id']]);
+            $this->addImage($product['id']);
+            DB::table('product_images')->insert([
+                'product_id' => $product['id'], 'path' => "catalog/{$product['id']}/second.webp", 'position' => 1,
+            ]);
+            $this->postJson("/api/v1/admin/products/{$product['id']}/publish")->assertOk();
+            $products[] = $product;
+        }
+
+        DB::enableQueryLog();
+        $result = $this->getJson('/api/v1/products')->assertOk()->assertJsonCount(2, 'data');
+        $queries = DB::getQueryLog();
+        DB::disableQueryLog();
+        $this->assertCount(1, array_filter($queries, fn (array $query) => str_contains($query['query'], 'product_images')));
+        $result->assertJsonCount(1, 'data.0.images')->assertJsonCount(1, 'data.1.images');
+        $this->getJson("/api/v1/products/{$products[0]['slug']}")->assertOk()->assertJsonCount(2, 'data.images');
+        $this->getJson('/api/v1/admin/products')->assertOk()->assertJsonCount(1, 'data.0.images');
+        $this->getJson("/api/v1/admin/products/{$products[0]['id']}")->assertOk()->assertJsonCount(2, 'data.images');
+    }
+
     public function test_price_and_stock_audit_records_only_committed_changes_and_the_actor(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
