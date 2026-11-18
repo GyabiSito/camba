@@ -80,6 +80,25 @@ class CartTest extends TestCase
         $this->assertDatabaseCount('cart_items', 0);
     }
 
+    public function test_post_adds_one_unit_with_server_price_and_stock_while_put_sets_the_quantity(): void
+    {
+        $product = $this->product(stock: 3);
+        $item = $this->item($product);
+        $this->keepSession($this->getJson(self::CART)->assertOk());
+        $this->postJson($item)->assertOk()
+            ->assertJsonPath('data.items.0.quantity', 1)
+            ->assertJsonPath('data.items.0.product.price_cents', 12345);
+        $this->postJson($item)->assertOk()->assertJsonPath('data.items.0.quantity', 2);
+        $this->postJson($item)->assertOk()->assertJsonPath('data.items.0.quantity', 3);
+        $this->postJson($item)->assertUnprocessable()->assertJsonValidationErrors('quantity');
+        $this->getJson(self::CART)->assertOk()->assertJsonPath('data.items.0.quantity', 3);
+        $this->assertDatabaseHas('cart_items', ['product_id' => $product->id, 'quantity' => 3]);
+
+        $this->putJson($item, ['quantity' => 1])->assertOk()->assertJsonPath('data.items.0.quantity', 1);
+        $this->putJson($item, ['quantity' => 1])->assertOk()->assertJsonPath('data.items.0.quantity', 1);
+        $this->assertDatabaseHas('cart_items', ['product_id' => $product->id, 'quantity' => 1]);
+    }
+
     public function test_only_real_item_removals_reset_the_cart_inactivity_window(): void
     {
         $product = $this->product();
@@ -129,6 +148,7 @@ class CartTest extends TestCase
         $this->useSession($guestSession);
         $this->getJson(self::CART)->assertOk()->assertJsonPath('data.items', []);
         $this->putJson($this->item($product), ['quantity' => 1])->assertConflict();
+        $this->postJson($this->item($product))->assertConflict();
         $this->assertDatabaseCount('cart_items', 1);
     }
 
@@ -137,9 +157,11 @@ class CartTest extends TestCase
         $product = $this->product();
         $this->withHeader('Origin', 'https://unrelated.example.test')
             ->putJson($this->item($product), ['quantity' => 1])->assertBadRequest();
+        $this->postJson($this->item($product))->assertBadRequest();
         $this->app->instance('env', 'local');
         $this->withHeader('Origin', 'http://localhost')
             ->putJson($this->item($product), ['quantity' => 1])->assertStatus(419);
+        $this->postJson($this->item($product))->assertStatus(419);
         $this->assertDatabaseCount('cart_items', 0);
     }
 

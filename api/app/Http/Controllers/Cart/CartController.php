@@ -27,6 +27,15 @@ class CartController
         return new CartResource($cart?->load('items.product'));
     }
 
+    public function addItem(CartRequest $request, string $product, SetCartItem $item): CartResource
+    {
+        $cart = $item->execute(
+            $request->user('web')?->id, $request->session()->getId(), $product, 1, increment: true,
+        );
+
+        return new CartResource($cart?->load('items.product'));
+    }
+
     public function removeItem(CartRequest $request, string $product, SetCartItem $item): Response
     {
         $item->execute($request->user('web')?->id, $request->session()->getId(), $product, null);

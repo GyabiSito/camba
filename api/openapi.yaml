@@ -242,6 +242,16 @@ paths:
   /api/v1/cart/items/{product}:
     parameters:
       - { name: product, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: addCartUnit
+      description: Atomically adds one unit using current server stock. No request body is used. If the result is unknown, read the cart before sending another POST.
+      responses:
+        '200': { $ref: '#/components/responses/CartEnvelope' }
+        '400': { description: First-party session required }
+        '404': { description: Product does not exist or is not published }
+        '409': { description: Guest cart already associated with an account; use the active session }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Insufficient stock for another unit }
     put:
       operationId: setCartQuantity
       description: Sets the exact quantity rather than incrementing it.

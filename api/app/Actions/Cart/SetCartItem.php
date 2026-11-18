@@ -9,11 +9,11 @@ use Illuminate\Validation\ValidationException;
 
 class SetCartItem
 {
-    public function execute(?int $userId, string $sessionId, string $productId, ?int $quantity): ?Cart
+    public function execute(?int $userId, string $sessionId, string $productId, ?int $quantity, bool $increment = false): ?Cart
     {
         $owner = Cart::ownerKey($userId, $sessionId);
 
-        return DB::transaction(function () use ($owner, $productId, $quantity): ?Cart {
+        return DB::transaction(function () use ($owner, $productId, $quantity, $increment): ?Cart {
             $cart = $quantity === null
                 ? Cart::query()->where($owner)->lockForUpdate()->first()
                 : Cart::lockOwner($owner);
@@ -33,6 +33,9 @@ class SetCartItem
             }
 
             $product = Product::query()->published()->lockForUpdate()->findOrFail($productId);
+            if ($increment) {
+                $quantity += (int) $cart->items()->where('product_id', $productId)->lockForUpdate()->value('quantity');
+            }
             if ($quantity < 1 || $quantity > $product->stock) {
                 throw ValidationException::withMessages(['quantity' => 'Choose a quantity within the current stock.']);
             }

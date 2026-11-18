@@ -5,10 +5,11 @@ Guests and buyers use the same cart endpoints. Start the first-party Sanctum ses
 | Method and path | Request | Success |
 | --- | --- | --- |
 | `GET /api/v1/cart` | — | `200` with the current cart |
+| `POST /api/v1/cart/items/{product}` | — | `200` with one unit added to the updated cart |
 | `PUT /api/v1/cart/items/{product}` | `{"quantity":2}` | `200` with the updated cart |
 | `DELETE /api/v1/cart/items/{product}` | — | `204`, even if the item was already absent |
 
-`{product}` is the numeric catalog product ID. PUT sets the quantity, not a delta, so retrying it does not add units. Quantity must be a JSON integer from 1 through 2147483647 and cannot exceed current stock. Client-supplied ownership and body product IDs are rejected; pricing comes from the catalog.
+`{product}` is the numeric catalog product ID. POST adds exactly one unit atomically and does not use a request body. If its outcome is unknown, check the cart before another POST. PUT sets the quantity, not a delta, so retrying it does not add units. Its quantity must be a JSON integer from 1 through 2147483647; it rejects client-supplied ownership and body product IDs. Neither write can exceed current stock, and pricing always comes from the catalog.
 
 ```json
 {
@@ -33,7 +34,7 @@ Guest carts belong to the current first-party session. A successful buyer login 
 ## Failures
 
 - `400`: no first-party session.
-- `404`: PUT targets a missing or non-public product.
+- `404`: POST or PUT targets a missing or non-public product.
 - `409`: an old guest session tries to write to a cart that was already associated. Refresh with the active session.
 - `419`: missing or invalid CSRF token.
 - `422`: invalid payload or quantity above current stock. See `errors.quantity` for quantity errors.

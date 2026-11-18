@@ -14,10 +14,6 @@ import { firstValueFrom, map } from 'rxjs';
 import { catalogParams, PageResult, Product, readCatalogQuery, useStoreMeta } from './catalog-data';
 import { ProductPhoto } from './product-media';
 
-interface Cart {
-  data: { items: { product_id: number; quantity: number }[] };
-}
-
 interface CartFeedback {
   kind: 'idle' | 'working' | 'done' | 'error';
   message?: string;
@@ -92,28 +88,17 @@ export class StoreProduct {
     if (!product.in_stock || this.cart().kind === 'working') return;
     this.cart.set({ kind: 'working' });
     try {
-      // ponytail: PUT replaces quantity; a concurrent tab can still overwrite it. Use an atomic API increment if needed.
-      const { data } = await firstValueFrom(this.api.get<Cart>('/api/v1/cart'));
-      if (this.product()?.id !== product.id) return;
-      const quantity = data.items.find((item) => item.product_id === product.id)?.quantity ?? 0;
-      if (quantity >= product.stock) {
-        this.cart.set({
-          kind: 'done',
-          message: 'Ya tenés en el carrito todas las unidades disponibles.',
-        });
-        return;
-      }
-      await firstValueFrom(
-        this.api.put(`/api/v1/cart/items/${product.id}`, { quantity: quantity + 1 }),
-      );
+      await firstValueFrom(this.api.post(`/api/v1/cart/items/${product.id}`));
       this.document.defaultView?.dispatchEvent(new Event(CART_CHANGED));
       if (this.product()?.id === product.id) {
         this.cart.set({ kind: 'done', message: 'Producto agregado al carrito.' });
       }
     } catch (error) {
       if (this.product()?.id !== product.id) return;
-      let message = apiMessage(error, 'No pudimos agregar el producto. Volvé a intentarlo.');
-      if (error instanceof HttpErrorResponse) {
+      let message =
+        'No pudimos comprobar si se agregó. Revisá tu carrito antes de intentarlo de nuevo.';
+      if (error instanceof HttpErrorResponse && error.status >= 400 && error.status < 500) {
+        message = apiMessage(error, 'No pudimos agregar el producto. Volvé a intentarlo.');
         if (error.status === 400)
           message = 'No pudimos acceder a tu carrito. Actualizá la página y volvé a intentar.';
         if (error.status === 404) message = 'El producto ya no está disponible.';
