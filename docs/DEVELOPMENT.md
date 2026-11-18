@@ -29,6 +29,37 @@ To stop development without deleting data, run the same Compose file pair with `
 ## Native checks
 
 - **API:** from `api/`, install locked Composer dependencies, then run `php vendor/bin/pint --test`, `php vendor/bin/phpunit` with a disposable `APP_KEY` and the PDO driver(s), and `postman spec lint openapi.yaml --issueType syntax --no-report-events`.
-- **Angular:** from `web/`, run `npm ci --ignore-scripts` and `npm exec -- ng build store` / `npm exec -- ng build admin`. The current apps are incomplete: these checks do not prove browsing, checkout, or WCAG requirements.
+- **Angular:** from `web/`, run `npm ci --ignore-scripts` and `npm exec -- ng build store` / `npm exec -- ng build admin`. These builds do not prove browser interactions or accessibility.
 - **Images:** with Docker running, use `bash infra/ci/build-image.sh <api|store|admin> <local-name>`. The script builds and probes local artifacts without pushing.
 - **Release:** local rehearsals and input configuration are described in [RELEASE.md](RELEASE.md). The [progress matrix](PROGRESS.md) distinguishes executed checks from pending user journeys and external checks.
+
+## Browser checks and captures
+
+Install PHP 8.4 with SQLite PDO, GD, EXIF and ZIP, plus the locked dependencies in `api/` (`composer install`). From `web/` with the locked npm dependencies installed:
+
+```sh
+npm run test:e2e:install
+npm run test:e2e
+```
+
+Playwright starts both Angular applications, Laravel and a queue worker on loopback with a temporary SQLite database, synthetic users/catalog, and no real payment or mail provider. It does not start or change the development Compose stack. Set the distinct numeric variables `CAMBA_E2E_API_PORT`, `CAMBA_E2E_ADMIN_PORT` and `CAMBA_E2E_STORE_PORT` if the defaults `43819–43821` are already in use. Use `npm run test:e2e -- --project=store` or `--project=admin` to restrict assertions.
+
+Captures and failure traces are in `web/test-results/`; open the local HTML report with `npm exec -- playwright show-report`. These artifacts are ignored by Git. Successful captures do not mark the Impeccable phase approved; read [the progress matrix](PROGRESS.md#acceptance-matrix) for the current evidence and limits.
+
+### Reproduce the mobile storefront audit
+
+Use the same synthetic API and the **compiled SSR server**, not `ng serve`: Vite injects a development client and source maps even with production optimization. Run each server in a separate terminal from `web/` with loopback-only ports:
+
+| Command | Environment |
+| --- | --- |
+| `node e2e/fixtures/start-api.mjs` | `CAMBA_E2E_API_PORT=43859`, `CAMBA_E2E_ADMIN_PORT=43860`, `CAMBA_E2E_STORE_PORT=43863` |
+| `npm exec -- ng build store`, then `node dist/store/server/server.mjs` | `HOST=127.0.0.1`, `PORT=43862`, `NG_ALLOWED_HOSTS=127.0.0.1,localhost`, `CAMBA_SSR_API_ORIGIN=http://127.0.0.1:43859`, `CAMBA_PUBLIC_STORE_ORIGIN=http://127.0.0.1:43863` |
+| `node e2e/fixtures/performance-proxy.mjs` | `CAMBA_E2E_STORE_PORT=43863`, `CAMBA_E2E_API_PORT=43859`, `PORT=43862` |
+
+Set `CHROME_PATH` to the path printed by `node -e "console.log(require('playwright').chromium.executablePath())"`. After checking `http://127.0.0.1:43863/` returns 200, run:
+
+```sh
+npm exec --yes --package=lighthouse@13.6.0 -- lighthouse http://127.0.0.1:43863/ --only-categories=performance,accessibility,seo --output=json --output-path=./test-results/lighthouse-mobile.json --chrome-flags=--headless --quiet
+```
+
+The Angular initial budget is 500 kB warning / 1 MB error per application. Inspect actual WebP bytes in the report; target at most 250 kB for the above-fold hero on mobile, use smaller derivatives for listings, and keep LCP at or below 2.5 s and CLS at or below 0.10 in the mobile lab. This isolated report is not real-user INP, production edge timing, or a WCAG certification. Stop the three lab servers after the run.

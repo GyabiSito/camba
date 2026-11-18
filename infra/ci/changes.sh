@@ -26,6 +26,10 @@ shared_runtime=(infra/compose.dev.yml infra/compose.dev.apps.yml infra/compose.p
 changed api api "${shared_runtime[@]}" ':(exclude)api/docs/**' ':(exclude)api/README.md'
 store=$(changed store web/projects/store "${shared_web[@]}" "${shared_runtime[@]}")
 admin=$(changed admin web/projects/admin web/nginx-admin.conf "${shared_web[@]}" "${shared_runtime[@]}")
-if [[ $store == store=true || $admin == admin=true ]]; then printf 'web=true\n'; else printf 'web=false\n'; fi
+if [[ $store == store=true || $admin == admin=true ]]; then
+  printf 'web=true\n'
+else
+  changed web web/e2e web/playwright.config.ts
+fi
 printf '%s\n' "$store" "$admin"
 changed infra infra .github/workflows

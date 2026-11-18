@@ -40,6 +40,11 @@ esac
   printf '{}\n' > web/package.json
   git add web && git commit -qm shared
   test "$(bash "$here/changes.sh" "$base" HEAD)" = $'api=false\nweb=true\nstore=true\nadmin=true\ninfra=false'
+  base=$(git rev-parse HEAD)
+  mkdir -p web/e2e
+  printf 'browser test\n' > web/e2e/store.spec.ts
+  git add web/e2e && git commit -qm browser
+  test "$(bash "$here/changes.sh" "$base" HEAD)" = $'api=false\nweb=true\nstore=false\nadmin=false\ninfra=false'
 )
 
 for changes in success failure cancelled skipped; do

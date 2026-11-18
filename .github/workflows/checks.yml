@@ -75,7 +75,7 @@ jobs:
 
   web:
     needs: changes
-    if: needs.changes.outputs.web == 'true'
+    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.api == 'true'
     runs-on: ubuntu-24.04
     defaults:
       run:
@@ -96,6 +96,15 @@ jobs:
       - name: Build administration CSR
         if: needs.changes.outputs.admin == 'true'
         run: npm exec -- ng build admin
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, gd, exif, zip
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+        working-directory: api
+      - run: npm run test:e2e:install -- --with-deps
+      - run: npm run test:e2e
 
   infra:
     needs: changes
@@ -137,7 +146,7 @@ jobs:
           CHANGE_RESULT: ${{ needs.changes.result }}
           API_NEEDED: ${{ needs.changes.outputs.api }}
           API_RESULT: ${{ needs.api.result }}
-          WEB_NEEDED: ${{ needs.changes.outputs.web }}
+          WEB_NEEDED: ${{ needs.changes.outputs.web == 'true' || needs.changes.outputs.api == 'true' }}
           WEB_RESULT: ${{ needs.web.result }}
           INFRA_NEEDED: ${{ needs.changes.outputs.infra }}
           INFRA_RESULT: ${{ needs.infra.result }}
@@ -145,7 +154,7 @@ jobs:
 
   publish:
     needs: [changes, required]
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CAMBA_RELEASE_ENABLED == 'true' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true') }}
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CAMBA_RELEASE_ENABLED == 'true' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.store == 'true' || needs.changes.outputs.admin == 'true') }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
