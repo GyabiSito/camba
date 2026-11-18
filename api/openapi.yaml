@@ -251,6 +251,78 @@ paths:
         '400': { description: First-party session required }
         '409': { description: Guest cart already associated with an account; use the active session }
         '419': { description: Missing or invalid CSRF token }
+  /api/v1/checkout/quote:
+    post:
+      operationId: quoteCheckout
+      description: Prices catalog items and configured pickup or delivery options without reserving stock. First-party guest and buyer sessions are supported.
+      externalDocs: { url: docs/orders.md }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items: { $ref: '#/components/schemas/CheckoutItems' }
+      responses:
+        '200': { description: Current UYU prices and options with server-authenticated quote tokens }
+        '400': { description: First-party session required }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid or unavailable items }
+  /api/v1/orders:
+    get:
+      operationId: listOwnOrders
+      externalDocs: { url: docs/orders.md }
+      responses:
+        '200': { description: Newest-first private page of this buyer or guest session's orders }
+        '400': { description: First-party session required }
+    post:
+      operationId: placeOrder
+      description: Snapshots the exact server-calculated total and reserves inventory once for this owner and idempotency key.
+      externalDocs: { url: docs/orders.md }
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, shipping_method, quote_token, contact]
+              properties:
+                items: { $ref: '#/components/schemas/CheckoutItems' }
+                shipping_method: { type: string, enum: [pickup, delivery] }
+                quote_token: { type: string }
+                contact:
+                  type: object
+                  required: [name, email]
+                  properties:
+                    name: { type: string }
+                    email: { type: string, format: email }
+                    phone: { type: string }
+                address: { $ref: '#/components/schemas/AddressInput' }
+      responses:
+        '200': { description: Existing same-owner order for a valid same-payload replay }
+        '201': { description: Order snapshot and inventory reservation created; payment is still pending }
+        '400': { description: First-party session required }
+        '409': { description: Quote changed, idempotency conflict, or stale session }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid input or unavailable products/shipping }
+  /api/v1/orders/{reference}:
+    parameters:
+      - { name: reference, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getOwnOrder
+      description: A reference is not proof of ownership. Only the buyer account or unexpired original guest session may read it.
+      externalDocs: { url: docs/orders.md }
+      responses:
+        '200': { description: This session's private order snapshot }
+        '400': { description: First-party session required }
+        '404': { description: Missing, foreign, or expired order }
   /api/v1/products:
     get:
       operationId: browseProducts
@@ -442,6 +514,17 @@ paths:
         '429': { description: Too many requests }
 components:
   schemas:
+    CheckoutItems:
+      type: array
+      minItems: 1
+      maxItems: 50
+      description: Each product ID appears only once. Quantities never reserve stock until order creation.
+      items:
+        type: object
+        required: [product_id, quantity]
+        properties:
+          product_id: { type: integer, minimum: 1 }
+          quantity: { type: integer, minimum: 1, maximum: 1000 }
     AddressInput:
       type: object
       not: { required: [user_id] }
