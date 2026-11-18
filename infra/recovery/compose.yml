@@ -1,0 +1,77 @@
+x-app: &app
+  image: ${CAMBA_REHEARSAL_IMAGE:?Use a local Camba API runtime image}
+  networks: [recovery]
+  environment:
+    APP_ENV: local
+    APP_URL: http://api:8080
+    APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+    DB_CONNECTION: mysql
+    DB_HOST: mysql
+    DB_DATABASE: ${CAMBA_REHEARSAL_DB:?Use a new synthetic schema}
+    DB_USERNAME: drill
+    DB_PASSWORD: synthetic-db
+    REDIS_HOST: redis
+    CACHE_STORE: redis
+    SESSION_DRIVER: redis
+    QUEUE_CONNECTION: redis
+    MAIL_MAILER: smtp
+    MAIL_HOST: mailpit
+    MAIL_PORT: '1025'
+    MAIL_FROM_ADDRESS: shop@example.test
+    CAMBA_MP_WEBHOOK_SECRET: synthetic-recovery-signature
+  volumes:
+    - public-media:/var/www/html/storage/app/public
+    - private-files:/var/www/html/storage/app/private
+
+services:
+  api-fpm:
+    <<: *app
+  api:
+    image: ${CAMBA_REHEARSAL_IMAGE:?Use a local Camba API runtime image}
+    command: [nginx, -e, stderr, -c, /etc/nginx/camba.conf, -g, 'daemon off;']
+    networks: [recovery]
+    volumes:
+      - public-media:/var/www/html/storage/app/public:ro
+    healthcheck:
+      test: [CMD, curl, -fsS, --max-time, '6', 'http://127.0.0.1:8080/ready']
+      interval: 2s
+      timeout: 7s
+      retries: 20
+  mysql:
+    image: mysql:8.4@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
+    environment:
+      MYSQL_DATABASE: ${CAMBA_REHEARSAL_DB:?Use a new synthetic schema}
+      MYSQL_USER: drill
+      MYSQL_PASSWORD: synthetic-db
+      MYSQL_ROOT_PASSWORD: synthetic-root
+    networks: [recovery]
+    volumes:
+      - mysql:/var/lib/mysql
+    healthcheck:
+      test: [CMD-SHELL, 'mysql --protocol=TCP -h 127.0.0.1 -u"$$MYSQL_USER" -p"$$MYSQL_PASSWORD" "$$MYSQL_DATABASE" -e "SELECT 1" >/dev/null 2>&1']
+      interval: 2s
+      timeout: 4s
+      retries: 25
+  redis:
+    image: redis:7.2.16-alpine3.21@sha256:ee061d86c25773048211e99f00d63b47b9ecfe28560113e16cce2c962d5bec1c
+    networks: [recovery]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+  mailpit:
+    image: axllent/mailpit:v1.31.5
+    networks: [recovery]
+
+networks:
+  recovery:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${CAMBA_REHEARSAL_SUBNET:?Use a new private subnet}
+
+volumes:
+  mysql:
+  public-media:
+  private-files:
