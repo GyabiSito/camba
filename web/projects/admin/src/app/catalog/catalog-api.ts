@@ -1,5 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { apiMessage } from '@camba/shared';
+import { DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ApiClient, apiMessage } from '@camba/shared';
+import { firstValueFrom } from 'rxjs';
 
 export const admin = '/api/v1/admin';
 export const products = `${admin}/products`;
@@ -73,14 +76,144 @@ export function productInput(fields: ProductFields) {
   };
 }
 
-export function uploadBody(files: readonly File[]) {
-  const body = new FormData();
-  for (const file of files) body.append('photos[]', file, file.name);
-  return body;
-}
-
 export type LocalPhoto = { key: number; file: File; url: string; error: string };
 let nextPhotoKey = 0;
+
+type PhotoUploadAttempt = { key: string; fingerprint: string; draftSku?: string; replayed?: boolean };
+export type PhotoUploadState = { attempt?: PhotoUploadAttempt };
+class PhotoUploadInputError extends Error {}
+
+const photoUploadPrefix = 'camba:photo-upload:v1:';
+const uploadRecoveryUnavailable = 'No se puede iniciar una carga segura. Usá un navegador actualizado, con almacenamiento habilitado y conexión segura.';
+const photoUploadKey = (id: number) => photoUploadPrefix + id;
+
+function readPhotoUpload(slot: string): PhotoUploadAttempt | null {
+  const value = localStorage.getItem(slot);
+  if (value === null) return null;
+  const attempt: PhotoUploadAttempt = JSON.parse(value);
+  if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(attempt?.key) || !/^(?:[A-Za-z0-9+/]{43}=){1,12}$/.test(attempt?.fingerprint)) {
+    throw new Error('Invalid photo upload recovery record');
+  }
+  return attempt;
+}
+
+export function hasPendingPhotoUpload(id: number) {
+  try {
+    return localStorage.getItem(photoUploadKey(id)) !== null;
+  } catch {
+    return false;
+  }
+}
+
+export function photoUploadState(id: number): PhotoUploadState {
+  try {
+    return { attempt: readPhotoUpload(photoUploadKey(id)) ?? undefined };
+  } catch {
+    return {};
+  }
+}
+
+export function pendingPhotoDrafts() {
+  try {
+    return Object.keys(localStorage).flatMap((slot) => {
+      if (!slot.startsWith(photoUploadPrefix)) return [];
+      const id = Number(slot.slice(photoUploadPrefix.length));
+      try {
+        const sku = readPhotoUpload(slot)?.draftSku;
+        return Number.isSafeInteger(id) && id > 0 && typeof sku === 'string' ? [{ id, sku }] : [];
+      } catch {
+        return [];
+      }
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product: Product, photos: LocalPhoto[], state: PhotoUploadState, fromBatch = false) {
+  if (!globalThis.crypto?.subtle || !crypto.randomUUID || !navigator.locks) {
+    throw new PhotoUploadInputError(uploadRecoveryUnavailable);
+  }
+  // The earlier response may clear storage while this retry is hashing. Keep the attempt we saw.
+  const startedWith = state.attempt ?? photoUploadState(product.id).attempt;
+  let fingerprint = '';
+  const body = new FormData();
+  try {
+    // Digest files one at a time, keeping their selection order without storing photo contents.
+    for (const { file } of photos) {
+      const hash = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
+      fingerprint += btoa(String.fromCharCode(...new Uint8Array(hash)));
+      body.append('photos[]', file, file.name);
+    }
+  } catch {
+    throw new PhotoUploadInputError('No pudimos leer las fotos. Volvé a elegir los archivos y reintentá.');
+  }
+  if (destroy.destroyed) throw new Error('Photo upload canceled');
+
+  const slot = photoUploadKey(product.id);
+  let fresh = false;
+  try {
+    // Lock only the local reservation; the server arbitrates overlapping requests with the same key.
+    await navigator.locks.request(slot, () => {
+      if (destroy.destroyed) return;
+      const stored = readPhotoUpload(slot);
+      if (startedWith && stored && startedWith.key !== stored.key) {
+        throw new PhotoUploadInputError('Hay otra carga sin confirmar. Volvé a abrir la galería para retomarla antes de agregar más fotos.');
+      }
+      const existing = startedWith ?? stored;
+      if (existing && existing.fingerprint !== fingerprint) {
+        throw new PhotoUploadInputError('Hay una carga sin confirmar. Volvé a elegir las mismas fotos en el mismo orden y reintentá.');
+      }
+      const attempt = existing ?? { key: crypto.randomUUID(), fingerprint, ...(fromBatch && { draftSku: product.sku }) };
+      if (!stored || !stored.replayed) {
+        localStorage.setItem(slot, JSON.stringify(existing ? { ...attempt, replayed: true } : attempt));
+      }
+      fresh = !existing;
+      state.attempt = attempt;
+    });
+  } catch (error) {
+    if (error instanceof PhotoUploadInputError) throw error;
+    throw new PhotoUploadInputError(uploadRecoveryUnavailable);
+  }
+  const attempt = state.attempt;
+  if (destroy.destroyed || !attempt) throw new Error('Photo upload canceled');
+
+  const finish = async (confirmed: boolean) => {
+    // Keep the result authoritative even if browser storage becomes unavailable after the request.
+    const released = await navigator.locks.request(slot, () => {
+      const stored = readPhotoUpload(slot);
+      if (stored?.key !== attempt.key) return true;
+      if (!confirmed && stored.replayed) return false;
+      localStorage.removeItem(slot);
+      return true;
+    }).catch(() => false);
+    if (confirmed || released) state.attempt = undefined;
+  };
+  try {
+    const result = await firstValueFrom(api.post<Data<Product>>(`${products}/${product.id}/images`, body, {
+      'Idempotency-Key': attempt.key,
+    }).pipe(takeUntilDestroyed(destroy)));
+    if (result?.data?.id !== product.id || !Array.isArray(result.data.images)) {
+      throw new Error('Photo upload response was not confirmed');
+    }
+    await finish(true);
+    return result.data;
+  } catch (error) {
+    // A definitive first rejection is editable; rejection of a replay cannot settle the earlier request.
+    if (fresh && error instanceof HttpErrorResponse && [400, 401, 403, 404, 413, 415, 419, 422, 429].includes(error.status)) {
+      await finish(false);
+    }
+    throw error;
+  }
+}
+
+export function photoUploadFailure(error: unknown, recovering: boolean) {
+  if (error instanceof PhotoUploadInputError) return error.message;
+  if (!recovering) return '';
+  return error instanceof HttpErrorResponse && error.status === 409
+    ? 'Esta selección no coincide con la carga anterior. Volvé a elegir las fotos originales en el mismo orden.'
+    : 'No pudimos confirmar la carga. Podés reintentar con las mismas fotos sin duplicarlas.';
+}
 
 export function localPhotos(files: readonly File[]) {
   return files.map((file): LocalPhoto => {

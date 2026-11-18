@@ -14,15 +14,15 @@
           @if (gallery().length > 1) {
             <div class="actions">
               @if (i !== 0) {
-                <button class="button button--quiet" type="button" [disabled]="disabled() || !!busy() || needsReview()"
+                <button class="button button--quiet" type="button" [disabled]="disabled() || !!busy() || needsReview() || recovering()"
                   [attr.aria-label]="'Adelantar foto ' + (i + 1)" (click)="move(i, i - 1)">Adelantar</button>
               }
               @if (!last) {
-                <button class="button button--quiet" type="button" [disabled]="disabled() || !!busy() || needsReview()"
+                <button class="button button--quiet" type="button" [disabled]="disabled() || !!busy() || needsReview() || recovering()"
                   [attr.aria-label]="'Atrasar foto ' + (i + 1)" (click)="move(i, i + 1)">Atrasar</button>
               }
               @if (i !== 0) {
-                <button class="button button--quiet" type="button" [disabled]="disabled() || !!busy() || needsReview()"
+                <button class="button button--quiet" type="button" [disabled]="disabled() || !!busy() || needsReview() || recovering()"
                   [attr.aria-label]="'Usar foto ' + (i + 1) + ' como portada'" (click)="move(i, 0)">Hacer portada</button>
               }
             </div>
@@ -36,38 +36,48 @@
         <button class="button button--quiet" type="button" [disabled]="!!busy() || disabled()" (click)="alternateOrder.set(null)">Descartar orden</button>
       </div>
     }
-  } @else {
+  } @else if (!recovering()) {
     <p class="muted">Todavía no hay fotos. Agregá al menos una antes de publicar.</p>
   }
 
-  <label class="field">Agregar fotos
-    <small>JPG, PNG o WebP. Hasta 12 por vez, 10 MB y 4096 × 4096 px por foto.</small>
-    <input type="file" multiple [accept]="acceptedPhotos" [disabled]="disabled() || !!busy() || needsReview()" (change)="choose($event)" />
+  @if (recovering() && !pending().length && !error()) {
+    <p class="callout" id="gallery-upload-recovery" role="status">Hay una carga sin confirmar. Elegí las mismas fotos en el mismo orden para reintentar sin duplicarlas.</p>
+  }
+  <label class="field">
+    <span>{{ recovering() ? 'Volver a elegir las fotos' : 'Agregar fotos' }}</span>
+    <small id="gallery-file-hint">JPG, PNG o WebP. Hasta 12 por vez, 10 MB y 4096 × 4096 px por foto.</small>
+    <input type="file" multiple [accept]="acceptedPhotos" [disabled]="disabled() || !!busy() || needsReview()"
+      [attr.aria-describedby]="recovering() && !pending().length && !error() ? 'gallery-file-hint gallery-upload-recovery' : 'gallery-file-hint'"
+      (change)="choose($event)" />
   </label>
   @if (pending().length > 0) {
-    <ul class="photo-grid" aria-label="Fotos listas para subir">
+    <ul class="photo-grid photo-grid--pending" role="list" [attr.aria-label]="recovering() ? 'Fotos pendientes' : 'Fotos listas para subir'">
       @for (photo of pending(); track photo.key) {
         <li>
           @if (photo.url) { <img [src]="photo.url" alt="" width="180" height="180" /> }
           <span>{{ photo.file.name }}</span>
           @if (photo.error) { <span class="field-error">{{ photo.error }}</span> }
-          <button class="button button--quiet" type="button" [attr.aria-label]="'Quitar ' + photo.file.name" [disabled]="!!busy() || disabled()" (click)="remove(photo)">Quitar</button>
+          @if (!recovering()) {
+            <button class="button button--quiet" type="button" [attr.aria-label]="'Quitar ' + photo.file.name" [disabled]="!!busy() || disabled()" (click)="remove(photo)">Quitar</button>
+          }
         </li>
       }
     </ul>
   }
   @if (busy()) {
-    <label class="progress" role="status">
-      {{ busy() === 'upload' ? 'Subiendo y optimizando fotos…' : busy() === 'order' ? 'Guardando orden…' : 'Actualizando galería…' }} <progress></progress>
-    </label>
+    <div class="progress" role="status">
+      <span id="gallery-progress-label">{{ busy() === 'upload' ? 'Subiendo y optimizando fotos…' : busy() === 'order' ? 'Guardando orden…' : 'Actualizando galería…' }}</span>
+      <progress aria-labelledby="gallery-progress-label"></progress>
+    </div>
   }
-  @if (error()) { <p class="callout alert" role="alert">{{ error() }}</p> }
+  @if (error()) { <p class="callout alert" id="gallery-error" role="alert">{{ error() }}</p> }
   @if (message()) { <p role="status">{{ message() }}</p> }
   <div class="actions">
     @if (needsReview()) {
       <button class="button button--quiet" type="button" [disabled]="!!busy() || disabled()" (click)="reload()">Actualizar galería</button>
     } @else if (pending().length > 0) {
-      <button class="button" type="button" [disabled]="!!busy() || disabled() || !!alternateOrder() || pending().some(hasError)" (click)="upload()">Subir fotos</button>
+      <button class="button" type="button" [disabled]="!!busy() || disabled() || !!alternateOrder() || pending().some(hasError)"
+        [attr.aria-describedby]="error() ? 'gallery-error' : null" (click)="upload()">{{ recovering() ? 'Reintentar carga' : 'Subir fotos' }}</button>
     }
   </div>
 </section>

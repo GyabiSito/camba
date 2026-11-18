@@ -4,12 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiClient, formatMoney } from '@camba/shared';
 import { finalize, firstValueFrom, forkJoin } from 'rxjs';
-import { Classification, Data, LocalPhoto, Product, ProductFields, acceptedPhotos, admin, disconnected, fieldErrors, fieldsFrom, localPhotos, products, productInput, releasePhotos, summaryError, uploadBody, uploadError } from './catalog-api';
+import { Classification, Data, LocalPhoto, PhotoUploadState, Product, ProductFields, acceptedPhotos, admin, disconnected, fieldErrors, fieldsFrom, hasPendingPhotoUpload, localPhotos, pendingPhotoDrafts, photoUploadFailure, products, productInput, releasePhotos, summaryError, uploadError, uploadPhotos } from './catalog-api';
 import { ProductFieldsForm } from './product-fields';
 
 type Group = {
   key: number; fields: ProductFields; photos: LocalPhoto[]; checked: boolean; product: Product | null;
-  done: boolean; uncertain: boolean; reviewed: boolean; error: string;
+  upload: PhotoUploadState; done: boolean; uncertainCreate: boolean; retryUpload: boolean; error: string;
 };
 
 @Component({
@@ -30,6 +30,7 @@ export class PhotoDrafts {
   protected readonly result = computed(() => this.groups().filter((group) => group.done).length);
   protected readonly loadError = signal('');
   protected readonly preview = signal(false);
+  protected readonly interruptedDrafts = pendingPhotoDrafts();
   protected readonly common = { price: '', stock: '', category: null as number | null, brand: null as number | null };
   protected readonly acceptedPhotos = acceptedPhotos;
   protected readonly formatMoney = formatMoney;
@@ -57,7 +58,8 @@ export class PhotoDrafts {
 
   protected addGroup() {
     this.groups.update((groups) => [...groups, {
-      key: ++this.nextGroup, fields: fieldsFrom(), checked: true, photos: [], product: null, done: false, uncertain: false, reviewed: false, error: '',
+      key: ++this.nextGroup, fields: fieldsFrom(), checked: true, photos: [], product: null, upload: {},
+      done: false, uncertainCreate: false, retryUpload: false, error: '',
     }]);
   }
 
@@ -66,11 +68,12 @@ export class PhotoDrafts {
     this.groups.update((groups) => groups.filter((item) => item.key !== group.key));
   }
 
-  protected choose(group: Group, event: Event) {
+  protected choose(key: number, event: Event) {
     const input = event.target as HTMLInputElement;
     const files = [...(input.files ?? [])];
     input.value = '';
-    if (!files.length) return;
+    const group = this.groups().find((item) => item.key === key);
+    if (!files.length || !group || this.running() || group.uncertainCreate || group.retryUpload) return;
     if (group.photos.length + files.length > 12) {
       this.update(group.key, { error: 'Podés agregar hasta 12 fotos por producto en esta carga.' });
       return;
@@ -78,13 +81,15 @@ export class PhotoDrafts {
     this.update(group.key, { photos: [...group.photos, ...localPhotos(files)], error: '' });
   }
 
-  protected removePhoto(group: Group, photo: LocalPhoto) {
+  protected removePhoto(key: number, photo: LocalPhoto) {
+    const group = this.groups().find((item) => item.key === key);
+    if (!group || this.running() || group.uncertainCreate || group.retryUpload) return;
     releasePhotos([photo]);
     this.update(group.key, { photos: group.photos.filter((item) => item.key !== photo.key), error: '' });
   }
 
   protected applyCommon() {
-    for (const group of this.groups().filter((item) => item.checked && !item.product && !item.uncertain)) {
+    for (const group of this.groups().filter((item) => item.checked && !item.product && !item.uncertainCreate)) {
       const fields = { ...group.fields };
       for (const key of ['price', 'stock'] as const) {
         if (this.common[key].trim()) fields[key] = this.common[key];
@@ -107,7 +112,7 @@ export class PhotoDrafts {
   }
 
   protected pending() {
-    return this.groups().filter((item) => !item.done && !item.uncertain);
+    return this.groups().filter((item) => !item.done && !item.uncertainCreate && !item.retryUpload);
   }
 
   protected categoryName(id: number | null) {
@@ -119,34 +124,19 @@ export class PhotoDrafts {
     return cents === null ? 'Sin precio' : formatMoney(cents);
   }
 
-  protected checkGallery(group: Group) {
-    if (!group.product || !group.uncertain || this.running()) return;
-    this.running.set(true);
-    this.active.set(group.key);
-    this.update(group.key, { error: '' });
-    this.api.get<Data<Product>>(`${products}/${group.product.id}`).pipe(
-      takeUntilDestroyed(this.destroy),
-      finalize(() => {
-        this.active.set(null);
-        this.running.set(false);
-      }),
-    ).subscribe({
-      next: ({ data }) => this.update(group.key, { product: data, reviewed: true }),
-      error: () => this.update(group.key, { error: 'No se pudo consultar la galería guardada. Volvé a intentarlo antes de subir fotos.' }),
-    });
+  protected retry(group: Group) {
+    if (group.product && group.retryUpload && !this.running()) return this.runGroups([group]);
+    return;
   }
 
-  protected resolveReview(group: Group) {
-    if (!group.uncertain || !group.reviewed || this.running()) return;
-    // ponytail: compare manually; unattended retries would need durable photo identifiers.
-    this.preview.set(false);
-    this.update(group.key, { uncertain: false, reviewed: false, done: !group.photos.length, error: '' });
-  }
-
-  protected async run() {
+  protected run() {
     if (!this.preview() || this.running()) return;
     const groups = this.pending().filter((group) => !this.validate(group));
-    if (!groups.length) return;
+    if (groups.length) return this.runGroups(groups);
+    return;
+  }
+
+  private async runGroups(groups: Group[]) {
     this.preview.set(false);
     this.running.set(true);
     try {
@@ -160,20 +150,23 @@ export class PhotoDrafts {
             draft = (await firstValueFrom(this.api.post<Data<Product>>(products, productInput(group.fields)).pipe(takeUntilDestroyed(this.destroy)))).data;
             this.update(group.key, { product: draft });
           }
-          const response = await firstValueFrom(this.api.post<Data<Product>>(
-            `${products}/${draft.id}/images`, uploadBody(group.photos.map((photo) => photo.file)),
-          ).pipe(takeUntilDestroyed(this.destroy)));
+          const response = await uploadPhotos(this.api, this.destroy, draft, group.photos, group.upload, true);
+          if (this.destroy.destroyed) break;
           releasePhotos(group.photos);
-          this.update(group.key, { product: response.data, photos: [], done: true });
+          this.update(group.key, { product: response, photos: [], done: true, retryUpload: false });
         } catch (error) {
           if (this.destroy.destroyed) break;
-          if (disconnected(error)) {
+          if (!draft && disconnected(error)) {
             this.update(group.key, {
-              uncertain: true,
-              error: draft
-                ? 'No recibimos confirmación de la carga. Consultá la galería guardada antes de volver a subir fotos.'
-                : 'No recibimos confirmación de la creación. Buscá este nombre en Productos antes de volver a crearlo.',
+              uncertainCreate: true,
+              error: 'No recibimos confirmación de la creación. Buscá este nombre en Productos antes de volver a crearlo.',
             });
+            continue;
+          }
+          const retryUpload = !!draft && (!!group.upload.attempt || hasPendingPhotoUpload(draft.id));
+          const uploadMessage = draft && photoUploadFailure(error, retryUpload);
+          if (uploadMessage) {
+            this.update(group.key, { retryUpload, error: uploadMessage });
             continue;
           }
           const fields = fieldErrors(error);

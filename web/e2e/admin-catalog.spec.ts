@@ -7,7 +7,7 @@ async function signIn(page: Page) {
   await page.getByLabel('Correo electrónico').fill('admin@camba.test');
   await page.getByLabel('Contraseña', { exact: true }).fill('Camba-test-only-2026');
   await page.getByRole('button', { name: 'Ingresar' }).click();
-  await expect(page.getByRole('heading', { name: 'Productos', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Productos', exact: true })).toBeVisible({ timeout: 15_000 });
 }
 
 function photo(name: string) {
@@ -77,29 +77,84 @@ test('el reintento de fotos continúa en el mismo borrador', async ({ page }) =>
   await edit.getByRole('combobox', { name: 'Categoría', exact: true }).selectOption({ label: 'Remeras' });
   await edit.getByLabel('Fotos de este producto').setInputFiles(photo('image-pocket'));
   let creates = 0;
-  let uploads = 0;
+  const uploads: string[] = [];
   const targets = new Set<string>();
   page.on('request', (request) => {
     if (request.method() === 'POST' && request.url().endsWith('/api/v1/admin/products')) creates++;
   });
   await page.route('**/api/v1/admin/products/*/images', (route) => {
     targets.add(route.request().url());
-    return ++uploads === 1 ? route.fulfill({ status: 422, json: { message: 'No se pudo guardar la foto.' } }) : route.continue();
+    uploads.push(route.request().headers()['idempotency-key']);
+    return uploads.length === 1
+      ? route.fulfill({ status: 422, json: { errors: { 'photos.0': ['No se pudo leer la imagen.'] } } })
+      : route.continue();
   });
   const preview = page.getByRole('button', { name: 'Revisar borradores' });
   const confirm = page.getByRole('button', { name: 'Confirmar y crear borradores' });
   await preview.click();
   await confirm.click();
   await expect(page.getByText(/El borrador ya existe/).first()).toBeVisible();
-  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('No se pudo leer la imagen.');
+  const invalid = edit.getByRole('button', { name: 'Quitar image-pocket.webp' });
+  await invalid.click();
+  await edit.getByLabel('Fotos de este producto').setInputFiles(photo('detail-photo'));
+  await expect(invalid).toHaveCount(0);
   await preview.click();
   await confirm.click();
   await expect(page.getByRole('link', { name: 'Revisar y publicar' })).toBeVisible();
-  expect({ creates, uploads, targets: targets.size }).toEqual({ creates: 1, uploads: 2, targets: 1 });
+  expect({ creates, uploads: uploads.length, targets: targets.size }).toEqual({ creates: 1, uploads: 2, targets: 1 });
+  expect(uploads[0]).toBeTruthy();
+  expect(uploads[1]).not.toBe(uploads[0]);
 });
 
+async function uncertainUpload(page: Page, committed: boolean) {
+  const uploads: string[] = [];
+  const savedIds: number[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && /\/api\/v1\/admin\/products\/\d+\/images$/.test(request.url())) {
+      uploads.push(request.headers()['idempotency-key']);
+    }
+  });
+  // Chromium can drop a real response after Laravel commits without rebuilding a multipart request.
+  const network = await page.context().newCDPSession(page);
+  await network.send('Fetch.enable', { patterns: [{
+    urlPattern: '*/api/v1/admin/products/*/images',
+    requestStage: committed ? 'Response' : 'Request',
+  }] });
+  network.once('Fetch.requestPaused', async ({ requestId, responseStatusCode }) => {
+    if (committed) {
+      expect(responseStatusCode).toBe(201);
+      const result = await network.send('Fetch.getResponseBody', { requestId });
+      const body = result.base64Encoded ? Buffer.from(result.body, 'base64').toString('utf8') : result.body;
+      savedIds.push(...JSON.parse(body).data.images.map((image: { id: number }) => image.id));
+    }
+    await network.send('Fetch.fulfillRequest', {
+      requestId, responseCode: committed ? 500 : 504, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }],
+      body: Buffer.from('{"message":"Write was not confirmed"}').toString('base64'),
+    });
+    await network.send('Fetch.disable');
+  });
+  return { uploads, savedIds };
+}
+
+async function expectRecovered(page: Page, draftPath: string, attempts: Awaited<ReturnType<typeof uncertainUpload>>) {
+  const saved = await page.request.get(draftPath, { headers: { Referer: page.url() } });
+  expect(saved.status()).toBe(200);
+  const product = (await saved.json()).data;
+  const ids = product.images.map((image: { id: number }) => image.id);
+  expect(new Set(ids).size).toBe(2);
+  expect(ids).toHaveLength(2);
+  if (attempts.savedIds.length) expect(ids).toEqual(attempts.savedIds);
+  expect(attempts.uploads[0]).toMatch(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/);
+  expect(new Set(attempts.uploads).size).toBe(1);
+  return product;
+}
+
 for (const committed of [true, false]) {
-  test(`consulta la galería antes de resolver una subida ${committed ? 'guardada' : 'no guardada'} sin confirmación`, async ({ page }, testInfo) => {
+  const outcome = committed ? 'después de guardar' : 'antes de llegar al servidor';
+
+  test(`reintenta una carga agrupada que pierde confirmación ${outcome}`, async ({ page }, testInfo) => {
+    test.setTimeout(75_000);
     await signIn(page);
     await page.goto('/productos/carga-por-fotos');
     const name = committed ? 'Lote guardado sin confirmación' : 'Lote pendiente sin confirmación';
@@ -109,88 +164,125 @@ for (const committed of [true, false]) {
     await group.getByRole('combobox', { name: 'Categoría', exact: true }).selectOption({ label: 'Remeras' });
     await group.getByLabel('Fotos de este producto').setInputFiles([photo('image-pocket'), photo('detail-photo')]);
     const create = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().endsWith('/api/v1/admin/products'));
-    const preview = page.getByRole('button', { name: 'Revisar borradores' });
-    const confirm = page.getByRole('button', { name: 'Confirmar y crear borradores' });
-    const savedIds: number[] = [];
-    let uploads = 0;
-    page.on('request', (request) => {
-      if (request.method() === 'POST' && /\/api\/v1\/admin\/products\/\d+\/images$/.test(request.url())) uploads++;
-    });
-    const network = await page.context().newCDPSession(page);
-    await network.send('Fetch.enable', { patterns: [{
-      urlPattern: '*/api/v1/admin/products/*/images',
-      requestStage: committed ? 'Response' : 'Request',
-    }] });
-    network.once('Fetch.requestPaused', async ({ requestId, responseStatusCode }) => {
-      if (committed) {
-        expect(responseStatusCode).toBe(201);
-        const result = await network.send('Fetch.getResponseBody', { requestId });
-        const body = result.base64Encoded ? Buffer.from(result.body, 'base64').toString('utf8') : result.body;
-        savedIds.push(...JSON.parse(body).data.images.map((image: { id: number }) => image.id));
-      }
-      await network.send('Fetch.fulfillRequest', {
-        requestId, responseCode: committed ? 500 : 504, responseHeaders: [{ name: 'Content-Type', value: 'application/json' }],
-        body: Buffer.from('{"message":"Write was not confirmed"}').toString('base64'),
-      });
-      await network.send('Fetch.disable');
-    });
-
-    await preview.click();
-    await confirm.click();
+    const attempts = await uncertainUpload(page, committed);
+    await page.getByRole('button', { name: 'Revisar borradores' }).click();
+    await page.getByRole('button', { name: 'Confirmar y crear borradores' }).click();
     const created = await create;
     expect(created.status()).toBe(201);
     const draft = (await created.json()).data;
     const draftPath = `/api/v1/admin/products/${draft.id}`;
-    await expect(group.getByRole('alert')).toContainText('confirmación');
-    await expect(preview).toBeDisabled();
-    await expect(group.getByRole('button', { name: 'Continuar con las fotos pendientes' })).toHaveCount(0);
-
-    const consult = group.getByRole('button', { name: 'Consultar galería guardada' });
-    await expect(consult).toBeVisible();
-    if (!committed) {
-      await page.route(`**${draftPath}`, (route) => route.fulfill({ status: 503, json: { message: 'Offline fixture' } }), { times: 1 });
-      await consult.click();
-      await expect(group.getByRole('alert')).toContainText('No se pudo consultar la galería guardada');
-      await expect(preview).toBeDisabled();
-      expect(uploads).toBe(1);
-    }
-    const catalogRead = page.waitForResponse((response) => response.request().method() === 'GET' && response.url().endsWith(draftPath));
-    await consult.click();
-    const read = await catalogRead;
-    expect(read.status()).toBe(200);
-    expect((await read.json()).data.images.map((image: { id: number }) => image.id)).toEqual(savedIds);
-    expect(uploads).toBe(1);
+    await expect(group.getByRole('alert')).toContainText('confirmar');
+    const pending = group.getByRole('list', { name: 'Fotos pendientes' }).getByRole('listitem');
+    await expect(pending).toHaveCount(2);
+    const retry = group.getByRole('button', { name: 'Reintentar carga' });
+    await expect(retry).toBeEnabled();
+    await expect(group.getByRole('button', { name: /^Quitar .*webp$/ })).toHaveCount(0);
     if (committed) {
-      const gallery = group.getByRole('list', { name: 'Galería guardada' });
-      await expect(gallery.getByRole('img')).toHaveCount(2);
-      await expect.poll(() => gallery.locator('img').evaluateAll((images: HTMLImageElement[]) => images.every((img) => img.naturalWidth > 0))).toBe(true);
-      await expect(gallery.getByRole('listitem').first()).toContainText('Portada');
-      await page.screenshot({ path: testInfo.outputPath('photo-drafts-recovery-desktop.png'), fullPage: true });
+      const resumed = await page.context().newPage();
+      await resumed.goto('/productos/carga-por-fotos');
+      const savedDrafts = resumed.getByRole('region', { name: 'Cargas pendientes' });
+      const draftLink = savedDrafts.getByRole('link', { name: `Abrir borrador ${draft.sku}` });
+      await expect(draftLink).toHaveAttribute('href', `/productos/${draft.id}`);
+      await draftLink.click();
+      await expect(resumed.getByRole('region', { name: 'Galería' }).getByRole('status')).toContainText('mismo orden');
+      await resumed.close();
+      await group.getByRole('link', { name: /abre en otra pestaña/ }).focus();
+      await page.keyboard.press('Tab');
+      await expect(retry).toBeFocused();
+      await page.screenshot({ path: testInfo.outputPath('photo-drafts-retry-desktop.png') });
       await page.setViewportSize({ width: 320, height: 800 });
+      await retry.scrollIntoViewIfNeeded();
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
-      await page.screenshot({ path: testInfo.outputPath('photo-drafts-recovery-mobile.png'), fullPage: true });
-      await group.getByRole('button', { name: 'image-pocket.webp ya guardada' }).press('Enter');
-      await group.getByRole('button', { name: 'detail-photo.webp ya guardada' }).click();
-      await group.getByRole('button', { name: 'Marcar borrador preparado' }).click();
-    } else {
-      await expect(group.getByText('No hay fotos guardadas en este borrador.')).toBeVisible();
-      await group.getByRole('button', { name: 'Continuar con las fotos pendientes' }).click();
-      await preview.click();
-      await confirm.click();
+      expect((await pending.first().boundingBox())!.y).toBe((await pending.last().boundingBox())!.y);
+      await page.screenshot({ path: testInfo.outputPath('photo-drafts-retry-mobile.png') });
     }
+    if (committed) await page.keyboard.press('Enter');
+    else await retry.press('Enter');
     await expect(group.getByRole('link', { name: 'Revisar y publicar' })).toHaveAttribute('href', `/productos/${draft.id}`);
-    const headers = { Referer: page.url() };
-    const saved = await page.request.get(draftPath, { headers });
-    expect(saved.status()).toBe(200);
-    const product = (await saved.json()).data;
+    await expect(page.getByRole('status')).toContainText('1 borrador preparado');
+    const product = await expectRecovered(page, draftPath, attempts);
+    expect(attempts.uploads).toHaveLength(2);
     expect(product).toMatchObject({ id: draft.id, sku: draft.sku, status: 'draft' });
-    expect(product.images).toHaveLength(2);
-    expect(new Set(product.images.map((image: { id: number }) => image.id)).size).toBe(2);
-    if (committed) expect(product.images.map((image: { id: number }) => image.id)).toEqual(savedIds);
-    expect(uploads).toBe(committed ? 1 : 2);
-    const search = await page.request.get('/api/v1/admin/products', { headers, params: { q: name } });
+    const search = await page.request.get('/api/v1/admin/products', { headers: { Referer: page.url() }, params: { q: name } });
     expect(search.status()).toBe(200);
     expect((await search.json()).data.map((item: { id: number }) => item.id)).toEqual([draft.id]);
+    await group.getByRole('link', { name: 'Revisar y publicar' }).click();
+    const gallery = page.getByRole('region', { name: 'Galería' });
+    await expect(gallery.getByText('Portada', { exact: true })).toBeVisible();
+    await expect(gallery.getByRole('img').first()).toHaveAttribute('src', product.images[0].thumbnail_url);
+  });
+
+  test(`reintenta la galería que pierde confirmación ${outcome}`, async ({ page }, testInfo) => {
+    test.setTimeout(75_000);
+    await signIn(page);
+    await page.getByRole('link', { name: 'Nuevo producto' }).click();
+    const name = committed ? 'Galería guardada sin confirmación' : 'Galería pendiente sin confirmación';
+    await page.getByLabel('Nombre', { exact: true }).fill(name);
+    await page.getByRole('button', { name: 'Crear borrador' }).click();
+    await expect(page.getByRole('heading', { name })).toBeVisible();
+    const draftPath = `/api/v1/admin/products/${page.url().split('/').at(-1)}`;
+    const attempts = await uncertainUpload(page, committed);
+    const gallery = page.getByRole('region', { name: 'Galería' });
+    const files = [photo('image-pocket'), photo('detail-photo')];
+    await gallery.getByLabel('Agregar fotos').setInputFiles(files);
+    await gallery.getByRole('button', { name: 'Subir fotos' }).click();
+    await expect(gallery.getByRole('alert')).toContainText('confirmar');
+    const retry = gallery.getByRole('button', { name: 'Reintentar carga' });
+    await expect(retry).toBeEnabled();
+    if (committed) {
+      await retry.focus();
+      await page.screenshot({ path: testInfo.outputPath('gallery-retry-desktop.png') });
+      await page.setViewportSize({ width: 320, height: 800 });
+      await retry.scrollIntoViewIfNeeded();
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+      await page.screenshot({ path: testInfo.outputPath('gallery-retry-mobile.png') });
+      await page.reload();
+      const originals = gallery.getByLabel('Volver a elegir las fotos');
+      await expect(originals).toBeVisible();
+      await originals.setInputFiles([...files].reverse());
+      await retry.click();
+      await expect(gallery.getByRole('alert')).toContainText('mismo orden');
+      expect(attempts.uploads).toHaveLength(1);
+      await originals.setInputFiles(files);
+
+      // Another tab may confirm the upload and clear the durable slot after this tab offered recovery.
+      const other = await page.context().newPage();
+      await other.goto(page.url());
+      const otherGallery = other.getByRole('region', { name: 'Galería' });
+      await otherGallery.getByLabel('Volver a elegir las fotos').setInputFiles(files);
+      const otherRequest = other.waitForRequest((request) => request.method() === 'POST' && request.url().endsWith(`${draftPath}/images`));
+      await otherGallery.getByRole('button', { name: 'Reintentar carga' }).click();
+      expect((await otherRequest).headers()['idempotency-key']).toBe(attempts.uploads[0]);
+      await expect(otherGallery.getByRole('status')).toContainText('Fotos agregadas a la galería.');
+      await other.close();
+
+      const interruptedAgain = await uncertainUpload(page, true);
+      await originals.focus();
+      await page.keyboard.press('Tab');
+      await expect(retry).toBeFocused();
+      await page.keyboard.press('Enter');
+      await expect(gallery.getByRole('alert')).toContainText('confirmar');
+      expect(interruptedAgain.uploads).toEqual([attempts.uploads[0]]);
+      await page.reload();
+      await expect(gallery.getByRole('status')).toContainText('mismo orden');
+      await originals.setInputFiles(files);
+    } else {
+      await page.route(`**${draftPath}/images`, (route) => route.fulfill({ status: 409, json: { message: 'Upload conflicts' } }), { times: 1 });
+      await retry.click();
+      await expect(gallery.getByRole('alert')).toContainText('no coincide');
+      await expect(gallery.getByText('Fotos agregadas a la galería.')).toHaveCount(0);
+      expect(attempts.uploads).toHaveLength(2);
+    }
+    await retry.press('Enter');
+    await expect(gallery.getByRole('status')).toContainText('Fotos agregadas a la galería.');
+    const product = await expectRecovered(page, draftPath, attempts);
+    expect(attempts.uploads).toHaveLength(3);
+    await expect(gallery.getByText('Portada', { exact: true })).toBeVisible();
+    await expect(gallery.getByRole('img').first()).toHaveAttribute('src', product.images[0].thumbnail_url);
+    await expect(gallery.getByRole('list', { name: 'Fotos listas para subir' })).toHaveCount(0);
+    await page.reload();
+    await expect(gallery.getByLabel('Agregar fotos')).toBeVisible();
+    await expect(gallery.getByRole('button', { name: 'Reintentar carga' })).toHaveCount(0);
   });
 }
 

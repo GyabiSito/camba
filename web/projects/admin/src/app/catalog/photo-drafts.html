@@ -10,6 +10,17 @@
     <p class="callout alert" role="alert">{{ loadError() }}</p>
     <button class="button button--quiet" type="button" (click)="load()">Reintentar</button>
   } @else {
+    @if (interruptedDrafts.length) {
+      <section class="work-section" aria-labelledby="interrupted-drafts">
+        <h2 id="interrupted-drafts">Cargas pendientes</h2>
+        <p class="muted">Abrí el borrador para reintentar con las fotos originales, sin crear otro producto.</p>
+        <ul>
+          @for (draft of interruptedDrafts; track draft.id) {
+            <li><a [routerLink]="['/productos', draft.id]">Abrir borrador {{ draft.sku }}</a></li>
+          }
+        </ul>
+      </section>
+    }
     @if (!preview()) {
       <details class="work-section">
         <summary>Completar datos en varios grupos</summary>
@@ -49,7 +60,7 @@
             <p><span class="status-pill" data-status="active">Borrador preparado</span></p>
             <p>SKU: {{ group.product?.sku }} · {{ group.product?.images?.length }} fotos</p>
             <a class="button button--quiet" [routerLink]="['/productos', group.product?.id]">Revisar y publicar</a>
-          } @else if (preview() && !group.error && !group.uncertain) {
+          } @else if (preview() && !group.error && !group.uncertainCreate && !group.retryUpload) {
             <p>{{ price(group) }} · Stock: {{ group.fields.stock }} · {{ categoryName(group.fields.category) }}</p>
             <p>{{ group.photos.length }} {{ group.photos.length === 1 ? 'foto' : 'fotos' }}</p>
             <ul class="photo-grid" aria-label="Vista previa de fotos">
@@ -60,65 +71,45 @@
           } @else {
             @if (group.product) {
               <p>El borrador ya existe: <a [routerLink]="['/productos', group.product.id]" target="_blank" rel="noopener">{{ group.product.sku }} (abre en otra pestaña)</a>.</p>
-            } @else if (group.uncertain) {
+            } @else if (group.uncertainCreate) {
               <a routerLink="/productos" target="_blank" rel="noopener">Buscar en productos (abre en otra pestaña)</a>
             } @else if (!preview()) {
               <label class="choice"><input type="checkbox" [(ngModel)]="group.checked" /> Incluir en cambios comunes</label>
               <app-product-fields [values]="group.fields" [categories]="categories()" [brands]="brands()" />
             }
-            @if (group.uncertain && group.product) {
-              @if (group.reviewed) {
-                @if (group.product.images.length) {
-                  <p role="status">Compará las fotos guardadas con tu selección. Marcá las que ya estén en el borrador.</p>
-                  <p class="muted">Fotos guardadas</p>
-                  <ol class="photo-grid photo-grid--compare" role="list" aria-label="Galería guardada">
-                    @for (photo of group.product.images; track photo.id; let i = $index) {
-                      <li [class.is-cover]="i === 0">
-                        <img [src]="photo.thumbnail_url" [alt]="photo.alt" width="120" height="120" />
-                        <span>{{ i === 0 ? 'Portada' : 'Foto ' + (i + 1) }}</span>
-                      </li>
-                    }
-                  </ol>
-                } @else {
-                  <p role="status">No hay fotos guardadas en este borrador.</p>
-                }
-              } @else {
-                <button class="button button--quiet" type="button" (click)="checkGallery(group)">Consultar galería guardada</button>
-              }
-            }
-            @if (!preview() && !group.uncertain) {
+            @if (!preview() && !group.uncertainCreate && !group.retryUpload) {
               <label class="field">Fotos de este producto
                 <small>JPG, PNG o WebP; hasta 12 fotos de 10 MB cada una.</small>
-                <input type="file" multiple [accept]="acceptedPhotos" (change)="choose(group, $event)" />
+                <input type="file" multiple [accept]="acceptedPhotos" (change)="choose(group.key, $event)" />
               </label>
             }
             @if (group.photos.length) {
-              @if (group.reviewed) { <p class="muted">Fotos de tu selección</p> }
-              <ul class="photo-grid" [class.photo-grid--compare]="group.reviewed" [attr.aria-label]="group.reviewed ? 'Fotos pendientes de revisar' : null">
+              <ul class="photo-grid photo-grid--pending" role="list" [attr.aria-label]="group.retryUpload ? 'Fotos pendientes' : 'Fotos seleccionadas'">
                 @for (photo of group.photos; track photo.key) {
                   <li>
                     @if (photo.url) { <img [src]="photo.url" alt="" width="120" height="120" /> }
                     <span>{{ photo.file.name }}</span>
                     @if (photo.error) { <span class="field-error">{{ photo.error }}</span> }
-                    @if (group.reviewed && group.product?.images?.length) {
-                      <button class="button button--quiet" type="button" [attr.aria-label]="photo.file.name + ' ya guardada'" (click)="removePhoto(group, photo)">Ya guardada</button>
-                    } @else if (!preview() && !group.uncertain) {
-                      <button class="button button--quiet" type="button" [attr.aria-label]="'Quitar ' + photo.file.name" (click)="removePhoto(group, photo)">Quitar</button>
+                    @if (!preview() && !group.uncertainCreate && !group.retryUpload) {
+                      <button class="button button--quiet" type="button" [attr.aria-label]="'Quitar ' + photo.file.name" (click)="removePhoto(group.key, photo)">Quitar</button>
                     }
                   </li>
                 }
               </ul>
             }
-            @if (group.reviewed) {
-              <button class="button button--quiet" type="button" (click)="resolveReview(group)">{{ group.photos.length ? 'Continuar con las fotos pendientes' : 'Marcar borrador preparado' }}</button>
-            }
-            @if (!preview() && !group.product && !group.uncertain) {
+            @if (!preview() && !group.product && !group.uncertainCreate) {
               <button class="button button--quiet" type="button" [attr.aria-label]="'Quitar grupo ' + group.key" (click)="removeGroup(group)">Quitar grupo</button>
             }
             @if (active() === group.key) {
-              <label class="progress" role="status">{{ group.uncertain ? 'Consultando galería guardada…' : group.product ? 'Subiendo y optimizando fotos…' : 'Creando borrador…' }} <progress></progress></label>
+              <div class="progress" role="status">
+                <span [id]="'group-progress-' + group.key">{{ group.product ? 'Subiendo y optimizando fotos…' : 'Creando borrador…' }}</span>
+                <progress [attr.aria-labelledby]="'group-progress-' + group.key"></progress>
+              </div>
             }
-            @if (group.error) { <p class="callout alert" role="alert">{{ group.error }}</p> }
+            @if (group.error) { <p class="callout alert" [id]="'group-error-' + group.key" role="alert">{{ group.error }}</p> }
+            @if (group.retryUpload) {
+              <button class="button" type="button" [attr.aria-describedby]="group.error ? 'group-error-' + group.key : null" (click)="retry(group)">Reintentar carga</button>
+            }
           }
         </fieldset>
       } @empty {

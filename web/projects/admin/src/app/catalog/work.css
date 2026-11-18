@@ -2,6 +2,7 @@
 .manage-row p { margin: 0; overflow-wrap: anywhere; }
 .manage-row .status-pill { justify-self: start; }
 .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 175px), 1fr)); gap: 1rem; margin: .75rem 0 1.15rem; padding: 0; list-style: none; }
+.work-section .photo-grid--pending { padding-inline-start: 0; }
 .photo-grid li { display: grid; min-width: 0; align-content: start; gap: .45rem; border: 1px solid var(--line); border-radius: 10px; padding: .65rem; overflow-wrap: anywhere; }
 .photo-grid figure { margin: 0; }
 .photo-grid img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; border-radius: 6px; background: var(--paper); }
@@ -28,5 +29,5 @@
 @media (max-width: 590px) {
   .manage-row { grid-template-columns: minmax(0, 1fr) auto; }
   .manage-row > .actions { grid-column: 1 / -1; }
-  .batch-group .photo-grid--compare { grid-template-columns: repeat(auto-fill, minmax(min(100%, 96px), 1fr)); }
+  .photo-grid--pending, .batch-group .photo-grid--pending { grid-template-columns: repeat(auto-fill, minmax(min(100%, 96px), 1fr)); }
 }
