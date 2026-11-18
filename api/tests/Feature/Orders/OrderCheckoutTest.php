@@ -3,6 +3,7 @@
 namespace Tests\Feature\Orders;
 
 use App\Models\Category;
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -180,6 +181,39 @@ class OrderCheckoutTest extends TestCase
         $this->withHeader('Origin', 'http://localhost')->postJson(self::ORDERS, [])->assertStatus(419);
         $this->assertDatabaseCount('orders', 0);
         $this->assertSame(10, $product->fresh()->stock);
+    }
+
+    public function test_verified_admin_can_prepare_and_hand_over_paid_pickup_without_exposing_notes(): void
+    {
+        $items = $this->items($this->product());
+        $buyer = User::factory()->create();
+        $this->login($buyer);
+        $ref = $this->place($this->payload($items, 'pickup', $this->quote($items, 'pickup')))
+            ->assertCreated()->json('data.reference');
+        $base = '/api/v1/admin/orders/'.$ref;
+        $this->getJson($base)->assertForbidden();
+
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->login($admin);
+        $this->getJson('/api/v1/admin/orders')->assertOk()->assertJsonPath('data.0.reference', $ref);
+        $this->patchJson("$base/fulfilment", ['status' => 'preparing'])->assertConflict();
+        $this->assertDatabaseEmpty('order_fulfilment_events');
+        Order::query()->where('reference', $ref)->update(['status' => 'paid']);
+        $this->patchJson("$base/fulfilment", ['status' => 'completed'])->assertConflict();
+        $this->patchJson("$base/fulfilment", ['status' => 'preparing', 'note' => 'Package inspected'])
+            ->assertOk()->assertJsonPath('data.fulfilment_status', 'preparing');
+        $this->patchJson("$base/fulfilment", ['status' => 'shipped', 'tracking' => 'carrier-123'])->assertConflict();
+        $this->patchJson("$base/fulfilment", ['status' => 'ready_for_pickup'])->assertOk();
+        $this->patchJson("$base/fulfilment", ['status' => 'completed'])->assertOk();
+        $this->getJson($base)->assertOk()->assertJsonPath('data.status', 'paid')
+            ->assertJsonPath('data.fulfilment_status', 'completed')
+            ->assertJsonPath('events.2.note', 'Package inspected')
+            ->assertJsonPath('events.2.actor_id', $admin->id);
+        $this->assertDatabaseCount('order_fulfilment_events', 3);
+
+        $this->login($buyer);
+        $this->getJson(self::ORDERS.'/'.$ref)->assertOk()->assertJsonPath('data.fulfilment_status', 'completed')
+            ->assertJsonMissing(['note' => 'Package inspected']);
     }
 
     private function quote(array $items, string $method): string

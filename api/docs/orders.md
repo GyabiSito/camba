@@ -56,3 +56,9 @@ Unset or invalid values disable that method. If neither is configured, the quote
 - `400` / `419`: no first-party session or invalid CSRF token.
 - `409`: prices or shipping changed, the guest session changed, or the idempotency key cannot be reused. Request a fresh quote when details changed; do not automatically create a second order after an uncertain response.
 - `422`: invalid input, unavailable product/quantity, or unavailable shipping method. Field messages appear in `errors`.
+
+## Administrative fulfilment
+
+Verified administrators can list orders at `GET /api/v1/admin/orders`, filter by payment `status` or `fulfilment_status`, and read a private snapshot and event history at `GET /api/v1/admin/orders/{reference}`.
+
+Use `PATCH /api/v1/admin/orders/{reference}/fulfilment` with `status` and an optional private `note`. A paid order moves from `unstarted` to `preparing`, then to `ready_for_pickup` (pickup) or `shipped` (delivery), then to `completed`. Delivery may add `tracking` on the shipped transition. Other jumps or orders not currently paid return 409. Every accepted change records the operator and transition in the same transaction. Notes are encrypted and never returned to buyers.

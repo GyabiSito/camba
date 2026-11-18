@@ -19,6 +19,7 @@ class OrderResource extends JsonResource
             'shipping_cents' => $this->shipping_cents,
             'total_cents' => $this->total_cents,
             'shipping_method' => $this->shipping_method,
+            'fulfilment_status' => $this->fulfilment_status ?? 'unstarted',
             'reservation_expires_at' => $this->reservation_expires_at->toISOString(),
             'created_at' => $this->created_at->toISOString(),
         ];
@@ -28,6 +29,7 @@ class OrderResource extends JsonResource
             'contact' => $this->contact,
             'address' => $this->address,
             'pickup_address' => $this->pickup_address,
+            'tracking' => $this->tracking,
             'guest_access_expires_at' => $this->guest_access_expires_at?->toISOString(),
             'items' => $this->items->map(fn (OrderItem $item): array => $item->only([
                 'product_id', 'sku', 'name', 'quantity', 'unit_price_cents', 'line_total_cents',
