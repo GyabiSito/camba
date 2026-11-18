@@ -6,7 +6,7 @@ The mobile lab now meets its **2.5 s median LCP** budget: **3.50 s → 2.11 s**.
 
 All ten reports attribute LCP to `figure.hero-photo > store-product-photo > picture > img`. The initial SSR HTML already contained an eager, high-priority image; the fixture itself is only 2,980 bytes. The network trace showed that the compiled 315,685-byte entry script was requested beside it without transfer compression. The response waterfall and local timings gave no reason to change the hero image, add preloads, or defer accessible content.
 
-The storefront's Express runtime now negotiates gzip/Brotli for compressible responses, using the maintained [Express compression middleware](https://expressjs.com/en/resources/middleware/compression/). The API/media route is outside that server. `Range` and responses setting cookies bypass compression. The HTTP regression checks `Vary: Accept-Encoding`, byte equality after decoding, identity, and an exact uncompressed `206` response.
+The storefront's Express runtime now negotiates gzip/Brotli for compressible responses, using the maintained [Express compression middleware](https://expressjs.com/en/resources/middleware/compression/). The API/media route is outside that server. `Range` and responses setting cookies bypass compression. The HTTP regression requests gzip and Brotli separately and checks their encodings, `Vary: Accept-Encoding`, decoded byte equality with identity, and an exact uncompressed `206` response.
 
 ## Comparable five-run batches
 

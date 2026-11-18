@@ -10,18 +10,20 @@ assert.ok(entry, 'Compiled Angular entry point should be present in SSR HTML');
 
 const headers = (encoding) => ({ 'accept-encoding': encoding });
 const url = `${origin}/${entry}`;
-const gzip = await fetch(url, { headers: headers('gzip') });
 const identity = await fetch(url, { headers: headers('identity') });
-assert.equal(gzip.status, 200);
 assert.equal(identity.status, 200);
-assert.equal(gzip.headers.get('content-encoding'), 'gzip');
-assert.match(gzip.headers.get('vary') ?? '', /(?:^|,)\s*accept-encoding\s*(?:,|$)/i);
 assert.equal(identity.headers.get('content-encoding'), null);
 const original = await identity.bytes();
-assert.deepEqual(await gzip.bytes(), original);
+for (const encoding of ['gzip', 'br']) {
+  const compressed = await fetch(url, { headers: headers(encoding) });
+  assert.equal(compressed.status, 200);
+  assert.equal(compressed.headers.get('content-encoding'), encoding);
+  assert.match(compressed.headers.get('vary') ?? '', /(?:^|,)\s*accept-encoding\s*(?:,|$)/i);
+  assert.deepEqual(await compressed.bytes(), original);
+}
 const range = await fetch(url, { headers: { ...headers('gzip'), range: 'bytes=0-31' } });
 assert.equal(range.status, 206);
 assert.equal(range.headers.get('content-encoding'), null);
 assert.equal(range.headers.get('content-range'), `bytes 0-31/${original.length}`);
 assert.deepEqual(await range.bytes(), original.slice(0, 32));
-console.log(`Negotiated gzip and identity return identical ${entry} bytes`);
+console.log(`Negotiated gzip, Brotli and identity return identical ${entry} bytes; 206 range is uncompressed`);

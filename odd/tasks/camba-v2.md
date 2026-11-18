@@ -19,7 +19,7 @@ Delivery: `auto-chain`, stacked-to-main local work units; no remote delivery. Fo
 
 ## Tasks
 
-- A1 — S10, Five-run baseline and measured mobile LCP fix; inline `3e1bc12`, independent Docker/HTTP proof. Median 3.50 → 2.11 s; real staging/field pending. Risk: item 5 (store runtime dependency).
+- A1 — S10, Five-run baseline and measured mobile LCP fix; inline `3e1bc12`, independent Docker/HTTP proof and exact native approval acknowledged. Median 3.50 → 2.11 s; real staging/field pending. Risk: item 5 (store runtime dependency).
 - A2 — S10, UC02–UC04 delivered links and session expiry; delegated parallel writer `eddbb40`, opt-in fixture; 4/4 Chromium with real Mailpit and 62 s idle. External SMTP pending.
 - A3 — S10, UC06/UC08/UC18 cart tabs, catalog pagination and delivery; delegated parallel writer, `89e8224`/`b831b5b`; SQLite Chromium overlapping adds and independently repeated regression, real two-page API and delivery readback. Risk: item 4.
 - A4 — S10, UC10–UC15 classification/lifecycle/gallery/uncertainty; delegated parallel writer `25338e2`, bounded UI, committed-500 RED/GREEN and independent Chromium recheck; 23/382 MySQL catalog suite. Risk: item 4; manual gallery reconciliation is not server write idempotency.
@@ -210,3 +210,9 @@ Local HEAD resolved to `051939b`; adopted only upstream instruction changes as `
 A3 fixed a real lost update: two browser intents read quantity 1 and wrote absolute 2, so one unit disappeared. The sibling POST writes a locked increment and two real writes persist 3; PUT remains absolute. A4 handles every 5xx as potentially committed after a reproduced failure; retrieval and explicit review precede another write. A6 fixed anchor resolution with the SPA base and adopted text-relative container breakpoints after an observed 450 px overflow. Full API: 105/1,406 MySQL (plus intended SQLite cases), isolated SQLite run 105 enumerated / 1,321 assertions / 4 InnoDB-only skips; Pint/OpenAPI and the local CI/release rehearsals passed. Unchanged closed reviews; `3e1bc12` is the new bounded runtime candidate for a separate native review (not yet approved).
 
 Final Chromium run: 27 passed and three opt-in skips covered on the earlier Mailpit/idle-session run. Firefox final loaded-inventory reflow and shell accessibility both passed. `eaaec7a` corrects first-listing image priority, proved in SSR without making other listing images eager. Both optimized application builds passed. PROGRESS records the native readiness and the tool/capability limits (Engram host, spoken announcements, static Impeccable plate gate) separately from real provider/staging validation.
+
+### L10 — Compression review consent
+
+1
+
+The provider admitted all three perspectives for `3e1bc12`, returned `approved`, and the exact acknowledgement burned authority for `review-81e40b94c8f301d9`. No correction was required. The sole informational finding was addressed separately with a real compiled-SSR HTTP check: gzip, Brotli and identity yielded identical decoded bytes, with exact uncompressed `206` range behavior. No production code changed in the follow-up and no review verdict was attributed to cart/gallery or publishing.
