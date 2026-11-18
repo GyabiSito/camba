@@ -12,6 +12,12 @@ if (ports.some((port) => !Number.isInteger(port) || port < 1024 || port > 65535)
   throw new Error('The runner requires three distinct trusted loopback ports.');
 }
 const [apiPort, adminPort, storePort] = ports;
+const mailPorts = ['SMTP', 'HTTP'].map((name) => process.env[`CAMBA_E2E_MAILPIT_${name}_PORT`]);
+const mailEnabled = mailPorts.some(Boolean);
+if (mailEnabled && (mailPorts.some((port) => !/^\d{4,5}$/.test(port ?? '') ||
+  Number(port) < 1024 || Number(port) > 65535) || new Set([...ports, ...mailPorts.map(Number)]).size !== 5)) {
+  throw new Error('Mailpit requires two other distinct trusted loopback ports.');
+}
 const base = realpathSync(tmpdir());
 const scratch = mkdtempSync(join(base, 'camba-browser-'));
 const db = join(scratch, 'browser.sqlite');
@@ -35,6 +41,12 @@ const env = {
   SESSION_SECURE_COOKIE: 'false', CACHE_STORE: 'file', QUEUE_CONNECTION: 'database',
   BCRYPT_ROUNDS: '4', MAIL_MAILER: 'array', CAMBA_MP_ACCESS_TOKEN: '', CAMBA_MP_WEBHOOK_SECRET: '',
   CAMBA_E2E_SYNTHETIC: 'yes', LOG_CHANNEL: 'single',
+  ...(process.env.CAMBA_E2E_SHORT_SESSION === '1' && { SESSION_LIFETIME: '1', SESSION_EXPIRE_ON_CLOSE: 'false' }),
+  ...(mailEnabled && {
+    MAIL_MAILER: 'smtp', MAIL_HOST: '127.0.0.1', MAIL_PORT: mailPorts[0],
+    MAIL_URL: 'null', MAIL_USERNAME: 'null', MAIL_PASSWORD: 'null', MAIL_SCHEME: 'smtp',
+    MAIL_FROM_ADDRESS: 'browser@camba.test', MAIL_FROM_NAME: 'Camba Browser Fixture',
+  }),
 };
 const loaded = spawnSync('php', ['-m'], { encoding: 'utf8' });
 const extensions = loaded.stdout?.includes('pdo_sqlite') ? [] : ['-d', 'extension=pdo_sqlite'];
