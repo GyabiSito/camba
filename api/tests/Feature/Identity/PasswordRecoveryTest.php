@@ -128,7 +128,7 @@ class PasswordRecoveryTest extends TestCase
         $this->postJson('/api/v1/auth/login', ['email' => $user->email, 'password' => 'password'])->assertStatus(204);
         $this->getJson('/api/v1/auth/me')->assertStatus(200);
         $token = Password::createToken($user);
-        $this->postJson('/api/v1/auth/reset-password',$this->payload($user,$token))->assertStatus(204);
+        $this->postJson('/api/v1/auth/reset-password', $this->payload($user, $token))->assertStatus(204);
         $this->app['auth']->forgetGuards();
         $this->getJson('/api/v1/auth/me')->assertStatus(401);
     }
