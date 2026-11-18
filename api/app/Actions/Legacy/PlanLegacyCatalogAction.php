@@ -8,6 +8,8 @@ class PlanLegacyCatalogAction
 {
     private const MAX = 2147483647;
 
+    public function __construct(private LegacyCatalogFiles $files) {}
+
     public function execute(array $export, array $mapping, string $photoRoot): array
     {
         $errors = Validator::make(['export' => $export, 'mapping' => $mapping], $this->rules())->errors()->toArray();
@@ -202,7 +204,7 @@ class PlanLegacyCatalogAction
     private function photo(string $relative, string $key, string $root, array &$photos, array &$errors): ?array
     {
         if (! array_key_exists($relative, $photos)) {
-            $path = $this->resolvePhoto($relative, $root);
+            $path = $this->files->resolvePhoto($relative, $root);
             // ponytail: the isolated snapshot must stay unchanged while planning; mount it read-only where possible.
             $hash = $path === null ? false : @hash_file('sha256', $path);
             $photos[$relative] = $hash === false ? null : ['path' => $relative, 'sha256' => $hash];
@@ -212,30 +214,6 @@ class PlanLegacyCatalogAction
         }
 
         return $photos[$relative];
-    }
-
-    private function resolvePhoto(string $relative, string $root): ?string
-    {
-        if (preg_match('~[\\\\:<>"?*|\x00-\x1f\x7f]~', $relative)) {
-            return null;
-        }
-        $path = $root;
-        foreach (explode('/', $relative) as $segment) {
-            if ($segment === '' || rtrim($segment, '. ') !== $segment) {
-                return null;
-            }
-            $path = rtrim($path, '/\\').DIRECTORY_SEPARATOR.$segment;
-            if (is_link($path) || ($resolved = realpath($path)) === false || ! $this->samePath($path, $resolved)) {
-                return null;
-            }
-        }
-
-        return is_file($path) ? $path : null;
-    }
-
-    private function samePath(string $expected, string $resolved): bool
-    {
-        return DIRECTORY_SEPARATOR === '\\' ? strcasecmp($expected, $resolved) === 0 : $expected === $resolved;
     }
 
     private function sorted(array $entries): array

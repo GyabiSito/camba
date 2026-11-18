@@ -1,6 +1,6 @@
 # Rehearse the legacy catalog migration
 
-Run the planner against **an isolated, frozen copy** of the legacy catalog and photos. It reads local files, prints a report and never connects to either database or writes catalog data. A clean report is an input to a staging rehearsal, not approval for migration or publication.
+Run the planner against **an isolated, frozen copy** of the legacy catalog and photos. It reads local files, prints a report and never connects to either database or writes catalog data. A clean report can be rehearsed in a disposable local v2 database. It is not approval for production migration or publication.
 
 ## Run and review
 
@@ -62,6 +62,9 @@ Prepare UTF-8 files outside the repository and keep customer information and cre
   ],
   "residuals": [
     {"unit": "variation:91", "stock": 2, "label": "Standard"}
+  ],
+  "redirects": [
+    {"legacy_slug": "lamp", "source_unit": "subvariation:201"}
   ]
 }
 ```
@@ -75,9 +78,28 @@ Prepare UTF-8 files outside the repository and keep customer information and cre
 
 The example yields seven `Lamp / Blue / Tall` units and two `Lamp / Blue / Standard` units, not 18. The original product and variation stock of nine count as caps, not extra rows.
 
-## Before applying anything
+## Rehearse an apply in disposable v2 only
 
-1. Compare snapshot and candidate totals by source product; review excluded records, optional brands, exact money, photos and legacy links. Create or verify target categories/brands in staging before using the rows.
-2. Confirm how staged application preserves exact legacy SKUs and slugs. The [ordinary catalog importer](imports.md) uppercases SKUs and generates slugs; it is not a drop-in apply step for this report. Do not lose those identifiers through a blind CSV conversion. Keep a reviewed source-to-target identity ledger and rehearse applying it twice with unchanged counts.
-3. Separately reconcile historical users, addresses, orders, payments and sales against a real authorized snapshot; preserve historical prices, promotion snapshots and links without reintroducing promotion features. Check supported password hashes on isolated samples, or plan a reset rather than assuming compatibility. Neither those datasets nor historical comparisons are supplied by this catalog command.
-4. Rehearse backup, cutover and rollback on staging. Review photos and old links against the staged storefront. Never roll back by restoring an old database over new orders or accounts; preserve new operations and reconcile them before rollback.
+1. Use `APP_ENV=local` or `testing` and migrate **only the disposable target**. The apply command allows a local SQLite file named `camba_v2_migration.sqlite` or MySQL/MariaDB database `camba_v2_migration` on loopback. In-memory SQLite is allowed only in tests. Create or verify the exact mapped active categories and optional brands first.
+2. For photos, use a separate, pre-created local public disk under `camba_v2_migration_media/app/public`; in an isolated Laravel process, set `LARAVEL_STORAGE_PATH` to the `camba_v2_migration_media` directory before boot. Keep both copies unchanged and stop other writers during the rehearsal. Do not point either input or output at the old installation.
+3. Review the complete mapping. For a previously published slug with more than one new product, choose exactly one `source_unit` belonging to that slug under `redirects`. A single destination is inferred; an unpublished legacy row does not get a redirect.
+4. Save a clean dry-run report to a UTF-8 file without a BOM, record the SHA-256 of the exact reviewed mapping file, then run the separate apply command:
+
+```sh
+php artisan camba:stage-legacy-catalog /isolated/export.json /isolated/mapping.json /isolated/plan.json \
+  --photos=/isolated/photos --mapping-sha256="$REVIEWED_MAPPING_SHA256" --apply --no-ansi
+```
+
+On PowerShell, obtain the checksum with `(Get-FileHash /isolated/mapping.json -Algorithm SHA256).Hash`. Do not use Windows PowerShell 5.1's default output redirection for the JSON plan; save the command output as UTF-8 without a BOM. The apply command recomputes the planner output and rejects any change to candidates, mapping hash or source photo bytes.
+
+The command creates drafts and stores a receipt for each source unit. It preserves original case, rejects unrelated SKU/slug conflicts instead of adopting rows, and never updates a previously staged product from a different plan. A conflicting draft batch is rolled back. Use a fresh disposable target to rehearse a changed plan.
+
+Photos follow cover-then-gallery order, with one entry per repeated path. The command uses the existing gallery validation and processing (JPEG, PNG or WebP; up to 12 files per draft, 10 MiB and 4096 pixels per side). If an image batch fails, drafts and successful galleries remain; retry the **same** reviewed plan to finish unfinished galleries. An abrupt process kill or ambiguous database commit can leave unlinked derivatives; reconcile paths against the staging DB or rebuild the disposable target instead of deleting blindly.
+
+Expect the same product and photo counts on a second run. Compare the returned source IDs, exact identifiers, and proposed 301 manifest (`/product/:slug` → `/producto/:slug`) to the review. The command does not enable redirects, publish drafts, or serve any staging assets.
+
+## Before any real cutover
+
+1. Compare an authorized snapshot with candidate totals by source product; review excluded records, brands, money, pictures and links. The [ordinary catalog importer](imports.md) uppercases SKUs and generates slugs; it is not interchangeable with this rehearsal.
+2. Separately reconcile historical users, addresses, orders, payments and sales; preserve historical prices, promotion snapshots and links without reintroducing promotion features. Check supported password hashes on isolated samples, or plan a reset rather than assuming compatibility.
+3. Rehearse backup, cutover and rollback on staging. Review photos and old links against the staged storefront. Never roll back by restoring an old database over new orders or accounts; preserve new operations and reconcile them before rollback.
