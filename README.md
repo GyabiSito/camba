@@ -4,7 +4,7 @@ Reconstrucción de Camba como una tienda simple de administrar, con un catálogo
 
 ## Estado
 
-Este commit prepara el encargo para **Codex local**. La aplicación, Docker y los workflows de despliegue todavía no están implementados. No hay resultados de pruebas de aplicación ni despliegues atribuidos a este arranque.
+The first local API delivery is available in [`api/`](api/README.md): Laravel with buyer registration, signed email verification, and Sanctum sessions. See [progress](docs/PROGRESS.md) for verified behavior and outstanding work. The storefront, admin, full Docker setup and production workflows are not available yet.
 
 ## Empezar con Codex local
 

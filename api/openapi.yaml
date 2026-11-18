@@ -1,0 +1,111 @@
+openapi: 3.1.0
+info:
+  title: Camba API
+  version: 0.1.0
+paths:
+  /up:
+    get:
+      operationId: liveness
+      description: Framework liveness, not database or queue readiness.
+      responses:
+        '200': { description: Application is running }
+  /sanctum/csrf-cookie:
+    get:
+      operationId: initializeCsrfCookie
+      description: Obtain the session and XSRF-TOKEN cookies. Same-origin write requests send the decoded XSRF-TOKEN in X-XSRF-TOKEN.
+      responses:
+        '204': { description: CSRF cookie initialized }
+  /api/v1/auth/register:
+    post:
+      operationId: registerBuyer
+      description: Creates an unverified buyer only. Role input is rejected; this operation does not create a logged-in session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, password_confirmation]
+              properties:
+                name: { type: string, maxLength: 120 }
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, format: password, minLength: 12, description: Maximum 72 UTF-8 bytes }
+                password_confirmation: { type: string, format: password }
+              not:
+                required: [role]
+      responses:
+        '201': { $ref: '#/components/responses/UserEnvelope' }
+        '400': { description: First-party session is unavailable }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid fields or duplicate email }
+        '429': { description: Too many requests }
+  /api/v1/auth/login:
+    post:
+      operationId: signIn
+      description: First-party browser session only. Send the stateful origin and CSRF header with the cookie.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, format: password, description: Maximum 72 UTF-8 bytes }
+      responses:
+        '204': { description: Authenticated with a regenerated session }
+        '400': { description: First-party session is unavailable }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid fields or credentials }
+        '429': { description: Too many requests }
+  /api/v1/auth/me:
+    get:
+      operationId: getSessionUser
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/UserEnvelope' }
+        '401': { description: No authenticated session }
+  /api/v1/auth/logout:
+    post:
+      operationId: signOut
+      security: [{ sessionCookie: [] }]
+      responses:
+        '204': { description: Session invalidated }
+        '401': { description: No authenticated session }
+        '419': { description: Missing or invalid CSRF token }
+  /email/verify/{id}/{hash}:
+    get:
+      operationId: verifyEmail
+      description: Use the temporary signed URL in the verification notification. No logged-in session is required.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { name: hash, in: path, required: true, schema: { type: string } }
+        - { name: expires, in: query, required: true, schema: { type: integer } }
+        - { name: signature, in: query, required: true, schema: { type: string } }
+      responses:
+        '204': { description: Email verified }
+        '403': { description: 'Invalid, expired or mismatched signed URL' }
+        '404': { description: The user no longer exists }
+        '429': { description: Too many requests }
+components:
+  securitySchemes:
+    sessionCookie: { type: apiKey, in: cookie, name: camba_session }
+  responses:
+    UserEnvelope:
+      description: Buyer or authenticated user, with no credentials in the response
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                type: object
+                required: [id, name, email, role, email_verified]
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+                  email: { type: string, format: email }
+                  role: { type: string, enum: [buyer, admin] }
+                  email_verified: { type: boolean }
