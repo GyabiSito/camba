@@ -78,9 +78,10 @@ class CommerceNoticeTest extends TestCase
         $this->signIn($admin);
         $entries = $this->getJson(self::ADMIN)->assertOk()->assertJsonCount(8, 'data')
             ->assertDontSee('verified-buyer@example.test')->assertDontSee('unverified-checkout@example.test');
-        $this->assertContains('payment_issue', array_column($entries->json('data'), 'kind'));
-        $this->assertContains('low_stock', array_column($entries->json('data'), 'kind'));
-        $this->assertContains('paid_overdue', array_column($entries->json('data'), 'kind'));
+        $notices = collect($entries->json('data'))->keyBy('kind');
+        $this->assertSame($order->reference, $notices['payment_issue']['order_reference']);
+        $this->assertNull($notices['low_stock']['order_reference']);
+        $this->assertSame($order->reference, $notices['paid_overdue']['order_reference']);
         $product->update(['stock' => 10]);
         $this->project();
         $this->assertDatabaseHas('commerce_notices', ['kind' => 'low_stock', 'state' => 'resolved']);

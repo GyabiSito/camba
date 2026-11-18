@@ -4,6 +4,8 @@ namespace Tests\Feature\Orders;
 
 use App\Models\Category;
 use App\Models\Order;
+use App\Models\Payment;
+use App\Models\PaymentAttempt;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -214,6 +216,48 @@ class OrderCheckoutTest extends TestCase
         $this->login($buyer);
         $this->getJson(self::ORDERS.'/'.$ref)->assertOk()->assertJsonPath('data.fulfilment_status', 'completed')
             ->assertJsonMissing(['note' => 'Package inspected']);
+    }
+
+    public function test_admin_order_detail_exposes_only_operational_payment_evidence(): void
+    {
+        $items = $this->items($this->product());
+        $buyer = User::factory()->create();
+        $this->login($buyer);
+        $ref = $this->place($this->payload($items, 'pickup', $this->quote($items, 'pickup')))
+            ->assertCreated()->json('data.reference');
+        $adminUrl = '/api/v1/admin/orders/'.$ref;
+        $order = Order::query()->where('reference', $ref)->firstOrFail();
+        $order->forceFill([
+            'payment_issues' => ['multiple_approved_payments', 'unrecognized_value'],
+            'payment_reconciled_at' => now(),
+            'payment_reconcile_result' => 'verified',
+            'payment_reconcile_token' => Str::uuid()->toString(),
+        ])->save();
+        PaymentAttempt::query()->forceCreate([
+            'order_id' => $order->id, 'idempotency_key' => Str::uuid()->toString(), 'status' => 'ready',
+            'provider_preference_id' => 'hidden-preference', 'checkout_url' => 'https://payment.example.test/private',
+            'expires_at' => now()->addMinutes(10),
+        ]);
+        foreach (['approved', 'refunded'] as $index => $state) {
+            Payment::query()->forceCreate([
+                'order_id' => $order->id, 'provider_payment_id' => (string) (982367111 + $index), 'status' => $state,
+                'amount_cents' => $order->total_cents, 'provider_updated_at' => "2026-09-22T14:00:0$index.000Z",
+            ]);
+        }
+
+        $this->getJson($adminUrl)->assertForbidden();
+        $this->getJson(self::ORDERS.'/'.$ref)->assertOk()->assertJsonMissingPath('payment');
+        $this->login(User::factory()->create(['role' => 'admin']));
+        $this->getJson('/api/v1/admin/orders')->assertOk()->assertJsonMissingPath('data.0.payment');
+        $this->getJson($adminUrl)->assertOk()
+            ->assertJsonPath('payment.attempt.status', 'ready')
+            ->assertJsonPath('payment.issues', ['multiple_approved_payments'])
+            ->assertJsonPath('payment.last_result', 'verified')
+            ->assertJsonPath('payment.observations.0.status', 'refunded')
+            ->assertJsonPath('payment.observations.0.amount_cents', $order->total_cents)
+            ->assertJsonPath('payment.observations.1.updated_at', '2026-09-22T14:00:00.000Z')
+            ->assertDontSee('hidden-preference')->assertDontSee('payment.example.test')
+            ->assertDontSee($order->payment_reconcile_token)->assertDontSee('982367111');
     }
 
     private function quote(array $items, string $method): string
