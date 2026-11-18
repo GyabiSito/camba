@@ -8,7 +8,7 @@ mkdir "$work/bin" "$work/state"
 touch "$work/runtime.env" "$work/compose.yml"
 export CAMBA_RELEASE_DIR="$work/state" CAMBA_RUNTIME_ENV_FILE="$work/runtime.env" CAMBA_COMPOSE_FILE="$work/compose.yml"
 export DOCKER_LOG="$work/docker.log" PATH="$work/bin:$PATH"
-unset FAIL_NEXT_UP
+unset FAIL_NEXT_UP HOLD_STORE_UP
 
 cat >"$work/bin/docker" <<'FAKE'
 #!/usr/bin/env bash
@@ -25,6 +25,14 @@ done
 printf '%s | %s\n' "$*" "$(grep '^CAMBA_.*_IMAGE=' "$version_file" | tr '\n' ' ')" >> "$DOCKER_LOG"
 if [[ $1 = up && -n ${FAIL_NEXT_UP:-} && ! -e $FAIL_NEXT_UP ]]; then
   touch "$FAIL_NEXT_UP"
+  exit 1
+fi
+if [[ $1 = up && ${!#} = store && -n ${HOLD_STORE_UP:-} ]]; then
+  touch "$HOLD_STORE_UP.ready"
+  for _ in {1..200}; do
+    [[ -e $HOLD_STORE_UP.release ]] && exit 0
+    sleep .025
+  done
   exit 1
 fi
 FAKE
@@ -68,4 +76,28 @@ grep -qx "CAMBA_API_IMAGE=$api" "$CAMBA_RELEASE_DIR/current.env"
 feed_count=$(wc -l < "$DOCKER_LOG")
 if apply 14 'api=ghcr.io/example/camba-api:latest'; then exit 1; fi
 test "$feed_count" -eq "$(wc -l < "$DOCKER_LOG")"
-printf 'selective release, stale skip, rollback, and input validation passed\n'
+
+unset FAIL_NEXT_UP
+export HOLD_STORE_UP="$work/hold"
+store3=$(ref store 14)
+admin2=$(ref admin 15)
+apply 14 "store=$store3" &
+first=$!
+for _ in {1..200}; do
+  [[ -f $HOLD_STORE_UP.ready ]] && break
+  sleep .025
+done
+test -f "$HOLD_STORE_UP.ready"
+apply 15 "admin=$admin2" &
+second=$!
+sleep .2
+if grep -q '^pull admin |' "$DOCKER_LOG"; then
+  touch "$HOLD_STORE_UP.release"
+  wait "$first" "$second" || true
+  exit 1
+fi
+touch "$HOLD_STORE_UP.release"
+wait "$first" "$second"
+grep -qx "CAMBA_STORE_IMAGE=$store3" "$CAMBA_RELEASE_DIR/current.env"
+grep -qx "CAMBA_ADMIN_IMAGE=$admin2" "$CAMBA_RELEASE_DIR/current.env"
+printf 'selective release, concurrent lock, stale skip, rollback, and input validation passed\n'
