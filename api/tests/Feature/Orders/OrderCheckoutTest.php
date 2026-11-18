@@ -218,6 +218,19 @@ class OrderCheckoutTest extends TestCase
             ->assertJsonMissing(['note' => 'Package inspected']);
     }
 
+    public function test_admin_order_detail_reports_empty_evidence_before_the_first_payment_attempt(): void
+    {
+        $items = $this->items($this->product());
+        $ref = $this->place($this->payload($items, 'pickup', $this->quote($items, 'pickup')))
+            ->assertCreated()->json('data.reference');
+
+        $this->login(User::factory()->create(['role' => 'admin']));
+        $this->getJson('/api/v1/admin/orders/'.$ref)->assertOk()
+            ->assertJsonStructure(['payment' => ['attempt', 'observations']])
+            ->assertJsonPath('payment.attempt', null)
+            ->assertJsonPath('payment.observations', []);
+    }
+
     public function test_admin_order_detail_exposes_only_operational_payment_evidence(): void
     {
         $items = $this->items($this->product());

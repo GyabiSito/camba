@@ -400,7 +400,7 @@ paths:
                     type: object
                     properties:
                       paid_at: { type: string, format: date-time, nullable: true }
-                      last_checked_at: { type: string, format: date-time, nullable: true }
+                      last_checked_at: { type: string, format: date-time, nullable: true, description: The local reconciliation timestamp }
                       next_check_at: { type: string, format: date-time, nullable: true }
                       last_result: { type: string, nullable: true, enum: [verified, conflicting_evidence, provider_incomplete, provider_candidate_limit, null] }
                       issues: { type: array, items: { type: string }, description: Allowlisted operational issue codes }
@@ -419,7 +419,7 @@ paths:
                             id: { type: integer, description: Local payment record ID }
                             status: { type: string, enum: [approved, authorized, pending, in_process, in_mediation, rejected, cancelled, refunded, charged_back] }
                             amount_cents: { type: integer }
-                            updated_at: { type: string, format: date-time }
+                            updated_at: { type: string, format: date-time, description: The provider timestamp for the observed payment state }
         '401': { description: No authenticated session }
         '403': { description: Verified administrator required }
         '404': { description: Order not found }
