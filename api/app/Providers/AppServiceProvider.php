@@ -27,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
         Sanctum::getAccessTokenFromRequestUsing(static fn () => null);
 
         RateLimiter::for('register', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
+        RateLimiter::for('verification-notification', fn (Request $request) => Limit::perMinute(3)->by($request->user()->getAuthIdentifier()));
         RateLimiter::for('login', function (Request $request): array {
             $email = $request->input('email');
             $email = is_string($email) ? Str::lower(trim($email)) : '';

@@ -12,12 +12,17 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class AuthController
 {
     public function register(RegisterBuyerRequest $request, RegisterBuyerAction $register): UserResource
     {
-        return new UserResource($register->execute($request->safe()->only(['name', 'email', 'password'])));
+        $result = $register->execute($request->safe()->only(['name', 'email', 'password']));
+
+        return (new UserResource($result['user']))->additional([
+            'meta' => ['verification_queued' => $result['verification_queued']],
+        ]);
     }
 
     public function login(LoginRequest $request): Response
@@ -41,6 +46,22 @@ class AuthController
         Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        return response()->noContent();
+    }
+
+    public function resendVerification(Request $request): Response
+    {
+        $buyer = $request->user();
+
+        if (! $buyer->hasVerifiedEmail()) {
+            try {
+                $buyer->sendEmailVerificationNotification();
+            } catch (Throwable $exception) {
+                report($exception);
+                abort(503, 'No se pudo solicitar la verificación. Intenta de nuevo más tarde.');
+            }
+        }
 
         return response()->noContent();
     }

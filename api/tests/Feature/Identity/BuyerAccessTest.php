@@ -7,7 +7,9 @@ use App\Notifications\QueuedVerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
+use RuntimeException;
 use Tests\TestCase;
 
 class BuyerAccessTest extends TestCase
@@ -53,6 +55,25 @@ class BuyerAccessTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors('role');
 
         $this->assertDatabaseCount('users', 0);
+    }
+
+    public function test_a_buyer_can_retry_verification_after_a_queue_outage(): void
+    {
+        Queue::shouldReceive('connection')->once()->andThrow(new RuntimeException('Test queue unavailable'));
+        $this->withHeader('Origin', 'http://localhost');
+
+        $this->postJson('/api/v1/auth/register', $this->registration())
+            ->assertCreated()->assertJsonPath('meta.verification_queued', false);
+        $buyer = User::query()->sole();
+        $this->assertFalse($buyer->hasVerifiedEmail());
+
+        Notification::fake();
+        $this->postJson('/api/v1/auth/email/verification-notification')->assertUnauthorized();
+        $this->postJson('/api/v1/auth/login', ['email' => $buyer->email, 'password' => 'testing-only-passphrase'])
+            ->assertNoContent();
+        $this->postJson('/api/v1/auth/email/verification-notification')->assertNoContent();
+        Notification::assertSentToTimes($buyer, QueuedVerifyEmail::class, 1);
+        $this->assertDatabaseCount('users', 1);
     }
 
     public function test_registration_cannot_create_an_account_without_a_first_party_session(): void

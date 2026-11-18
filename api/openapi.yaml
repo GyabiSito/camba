@@ -18,7 +18,7 @@ paths:
   /api/v1/auth/register:
     post:
       operationId: registerBuyer
-      description: Creates an unverified buyer only. Role input is rejected; this operation does not create a logged-in session.
+      description: Creates an unverified buyer only. Role input is rejected; this does not log the buyer in. If verification_queued is false, the account still exists and the buyer can sign in to request another verification email.
       requestBody:
         required: true
         content:
@@ -74,6 +74,17 @@ paths:
         '204': { description: Session invalidated }
         '401': { description: No authenticated session }
         '419': { description: Missing or invalid CSRF token }
+  /api/v1/auth/email/verification-notification:
+    post:
+      operationId: resendVerification
+      description: Queues a verification email for the signed-in unverified buyer only. Verified users are unchanged. Does not accept a recipient in the request.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '204': { description: Verification queued or already verified }
+        '401': { description: No authenticated session }
+        '419': { description: Missing or invalid CSRF token }
+        '429': { description: Too many requests }
+        '503': { description: Queue unavailable; retry later }
   /email/verify/{id}/{hash}:
     get:
       operationId: verifyEmail
@@ -109,3 +120,9 @@ components:
                   email: { type: string, format: email }
                   role: { type: string, enum: [buyer, admin] }
                   email_verified: { type: boolean }
+              meta:
+                type: object
+                description: Present on registration only.
+                required: [verification_queued]
+                properties:
+                  verification_queued: { type: boolean }

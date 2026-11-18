@@ -6,11 +6,15 @@ use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class RegisterBuyerAction
 {
-    /** @param array{name: string, email: string, password: string} $data */
-    public function execute(array $data): User
+    /**
+     * @param  array{name: string, email: string, password: string}  $data
+     * @return array{user: User, verification_queued: bool}
+     */
+    public function execute(array $data): array
     {
         try {
             $user = User::create($data);
@@ -18,8 +22,14 @@ class RegisterBuyerAction
             throw ValidationException::withMessages(['email' => 'Ya existe una cuenta con ese correo.']);
         }
 
-        event(new Registered($user));
+        $queued = true;
+        try {
+            event(new Registered($user));
+        } catch (Throwable $exception) {
+            report($exception);
+            $queued = false;
+        }
 
-        return $user->refresh();
+        return ['user' => $user->refresh(), 'verification_queued' => $queued];
     }
 }

@@ -10,5 +10,7 @@ Route::prefix('v1/auth')->group(function (): void {
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('me', [AuthController::class, 'me']);
         Route::post('logout', [AuthController::class, 'logout']);
+        Route::post('email/verification-notification', [AuthController::class, 'resendVerification'])
+            ->middleware('throttle:verification-notification');
     });
 });
