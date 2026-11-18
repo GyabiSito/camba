@@ -80,6 +80,21 @@ class CartTest extends TestCase
         $this->assertDatabaseCount('cart_items', 0);
     }
 
+    public function test_only_real_item_removals_reset_the_cart_inactivity_window(): void
+    {
+        $product = $this->product();
+        $this->keepSession($this->getJson(self::CART)->assertOk());
+        $this->putJson($this->item($product), ['quantity' => 1])->assertOk();
+        $before = DB::table('carts')->value('updated_at');
+        $this->travel(2)->hours();
+        $this->deleteJson($this->item($product))->assertNoContent();
+        $removedAt = DB::table('carts')->value('updated_at');
+        $this->assertNotSame($before, $removedAt);
+        $this->travel(2)->hours();
+        $this->deleteJson($this->item($product))->assertNoContent();
+        $this->assertSame($removedAt, DB::table('carts')->value('updated_at'));
+    }
+
     public function test_login_merges_once_without_leaking_cart_on_logout_or_account_switch(): void
     {
         $product = $this->product(stock: 5);

@@ -25,7 +25,9 @@ class SetCartItem
             abort_if($cart->claimed_at !== null, 409, 'This guest cart has already been associated with an account.');
 
             if ($quantity === null) {
-                $cart->items()->where('product_id', $productId)->delete();
+                if ($cart->items()->where('product_id', $productId)->delete() > 0) {
+                    $cart->touch();
+                }
 
                 return $cart;
             }
