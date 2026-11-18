@@ -30,9 +30,9 @@ class SaveProductAction
         return $product;
     }
 
-    public function update(string $productId, array $input, ?ProductStatus $transition = null): Product
+    public function update(string $productId, array $input, ?ProductStatus $transition = null, ?int $actorId = null): Product
     {
-        return DB::transaction(function () use ($productId, $input, $transition): Product {
+        return DB::transaction(function () use ($productId, $input, $transition, $actorId): Product {
             $current = Product::query()->lockForUpdate()->findOrFail($productId);
             $current->fill($input);
 
@@ -45,6 +45,17 @@ class SaveProductAction
                 $this->validatePublication($current);
             }
 
+            if ($current->isDirty(['price_cents', 'stock'])) {
+                DB::table('product_adjustments')->insert([
+                    'product_id' => $current->id,
+                    'actor_id' => $actorId,
+                    'old_price_cents' => $current->getOriginal('price_cents'),
+                    'price_cents' => $current->price_cents,
+                    'old_stock' => $current->getOriginal('stock'),
+                    'stock' => $current->stock,
+                    'created_at' => now(),
+                ]);
+            }
             $current->save();
 
             return $current;

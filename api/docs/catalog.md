@@ -23,6 +23,7 @@ Use the existing first-party Sanctum cookie session, with CSRF on writes. Only v
 | `GET /admin/products` | Same browse parameters as public, plus optional `status=draft\|published\|archived`. |
 | `POST /admin/products` | Create a draft (201) and generate its permanent SKU and slug. An identifier collision returns 409; the existing product is unchanged. |
 | `GET /admin/products/{id}`, `PATCH /admin/products/{id}` | View or edit a product by numeric ID without changing its SKU, slug, or status. |
+| `GET /admin/products/{id}/history` | Newest-first, paginated price and stock adjustments for this product. |
 | `POST /admin/products/{id}/publish`, `POST /admin/products/{id}/archive` | Publish a draft or archived product, or archive a draft or published product. Repeating the current state returns 409. |
 | `GET /admin/categories`, `GET /admin/brands` | List active and inactive classifications. |
 | `POST /admin/categories`, `POST /admin/brands` | Create a classification (201). Send `name` and optionally `active` (defaults to true). |
@@ -31,6 +32,8 @@ Use the existing first-party Sanctum cookie session, with CSRF on writes. Only v
 Admin product responses include `status`; admin classification responses include `active`. Use real JSON integers for IDs, price, and stock: for example, `{"name":"Glass","price_cents":12050,"stock":4,"category_id":1,"brand_id":null}` sets the final price to UYU 120.50. Price must be positive, stock starts at zero and cannot be negative, and both values are capped at 2,147,483,647. Drafts can omit the name, price, and category. Publishing requires a name, a price, an active category, an active brand if assigned, and at least one image. Edits to published products must preserve the same requirements. Missing requirements return field-specific 422 errors.
 
 Classifications are flat. Deactivation returns 409 while any published product uses the classification. Reassign or explicitly archive those products first. Drafts and archives keep their original references. No product or classification removal is exposed.
+
+Price and stock edits record old/new values, actor ID, and timestamp in the same transaction. Rejected and no-op edits leave no audit rows. The history response has `data`, `current_page`, and `last_page`; `data` contains `old_price_cents`, `price_cents`, `old_stock`, `stock`, `actor_id`, and `created_at`.
 
 ### Gallery
 

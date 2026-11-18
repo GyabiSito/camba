@@ -214,6 +214,29 @@ class CatalogTest extends TestCase
         ];
     }
 
+    public function test_price_and_stock_audit_records_only_committed_changes_and_the_actor(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $this->signIn($admin);
+        $product = $this->draft(['price_cents' => 12000, 'stock' => 7]);
+        $url = '/api/v1/admin/products/'.$product['id'];
+        $this->patchJson($url, ['price_cents' => 12450, 'stock' => 4])->assertOk();
+        $this->patchJson($url, ['price_cents' => 12450, 'stock' => 4])->assertOk();
+        $this->patchJson($url, ['stock' => -1])->assertUnprocessable();
+
+        $this->getJson("$url/history")->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.actor_id', $admin->id)
+            ->assertJsonPath('data.0.old_price_cents', 12000)
+            ->assertJsonPath('data.0.price_cents', 12450)
+            ->assertJsonPath('data.0.old_stock', 7)
+            ->assertJsonPath('data.0.stock', 4);
+        $this->assertDatabaseCount('product_adjustments', 1);
+
+        $this->signIn(User::factory()->create());
+        $this->getJson("$url/history")->assertForbidden();
+    }
+
     private function signIn(User $user): void
     {
         $this->app['auth']->forgetGuards();

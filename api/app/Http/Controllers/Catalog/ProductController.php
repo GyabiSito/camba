@@ -9,7 +9,9 @@ use App\Http\Requests\Catalog\SaveProductRequest;
 use App\Http\Resources\Catalog\ProductResource;
 use App\Models\Product;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\DB;
 
 class ProductController
 {
@@ -68,7 +70,15 @@ class ProductController
 
     public function update(SaveProductRequest $request, string $product, SaveProductAction $save): ProductResource
     {
-        return new ProductResource($save->update($product, $request->validated())->load(self::RELATIONS));
+        return new ProductResource($save->update($product, $request->validated(), actorId: $request->user()->id)->load(self::RELATIONS));
+    }
+
+    public function history(string $product): JsonResponse
+    {
+        Product::query()->findOrFail($product, ['id']);
+
+        return response()->json(DB::table('product_adjustments')->where('product_id', $product)->orderByDesc('id')->paginate(25))
+            ->header('Cache-Control', 'private, no-store');
     }
 
     public function publish(string $product, SaveProductAction $save): ProductResource

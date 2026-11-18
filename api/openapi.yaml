@@ -325,6 +325,18 @@ paths:
         '404': { description: Product not found }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Invalid fields or published product prerequisites not met }
+  /api/v1/admin/products/{product}/history:
+    parameters:
+      - { name: product, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getProductAdjustments
+      description: Newest-first page of committed price and stock edits with previous/current values and actor.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Paginated adjustment history, not shared-cacheable }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '404': { description: Product not found }
   /api/v1/admin/products/{product}/publish:
     parameters:
       - { name: product, in: path, required: true, schema: { type: integer } }

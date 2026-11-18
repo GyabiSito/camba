@@ -21,6 +21,7 @@ Route::prefix('v1/admin')->name('admin.catalog.')->middleware(['auth:sanctum', '
     Route::post('products', [ProductController::class, 'store'])->name('products.store');
     Route::get('products/{product}', [ProductController::class, 'show'])->whereNumber('product')->name('products.show');
     Route::patch('products/{product}', [ProductController::class, 'update'])->whereNumber('product')->name('products.update');
+    Route::get('products/{product}/history', [ProductController::class, 'history'])->whereNumber('product')->name('products.history');
     Route::post('products/{product}/publish', [ProductController::class, 'publish'])->whereNumber('product')->name('products.publish');
     Route::post('products/{product}/archive', [ProductController::class, 'archive'])->whereNumber('product')->name('products.archive');
     Route::post('products/{product}/images', [ProductImagesController::class, 'store'])->whereNumber('product')->name('products.images.store');
