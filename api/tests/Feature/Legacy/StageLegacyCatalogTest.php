@@ -7,7 +7,6 @@ use App\Enums\ProductStatus;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Contracts\Console\Kernel;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -17,13 +16,14 @@ use Tests\TestCase;
 
 class StageLegacyCatalogTest extends TestCase
 {
-    use RefreshDatabase;
-
     private string $fixture;
 
     protected function setUp(): void
     {
         parent::setUp();
+        // The command intentionally refuses the shared MySQL test schema.
+        config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
+        $this->artisan('migrate')->assertSuccessful();
         $this->fixture = sys_get_temp_dir().'/camba-legacy-stage-'.bin2hex(random_bytes(8));
         mkdir($this->fixture.'/photos', 0700, true);
         mkdir($this->fixture.'/storage', 0700);
@@ -34,7 +34,9 @@ class StageLegacyCatalogTest extends TestCase
 
     protected function tearDown(): void
     {
-        File::deleteDirectory($this->fixture);
+        if (isset($this->fixture)) {
+            File::deleteDirectory($this->fixture);
+        }
         parent::tearDown();
     }
 
