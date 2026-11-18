@@ -161,5 +161,6 @@ export function summaryError(error: unknown, fallback: string): string {
 }
 
 export function disconnected(error: unknown): boolean {
-  return error instanceof HttpErrorResponse && (error.status === 0 || error.status === 502 || error.status === 504);
+  // A proxy or response failure can follow a committed write, even with an HTTP status.
+  return error instanceof HttpErrorResponse && (error.status === 0 || error.status >= 500);
 }

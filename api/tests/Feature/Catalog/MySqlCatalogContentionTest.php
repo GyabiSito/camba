@@ -1,0 +1,227 @@
+<?php
+
+namespace Tests\Feature\Catalog;
+
+use App\Models\Brand;
+use App\Models\Category;
+use App\Models\Product;
+use App\Models\User;
+use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Symfony\Component\Process\Process;
+use Tests\TestCase;
+
+class MySqlCatalogContentionTest extends TestCase
+{
+    use DatabaseMigrations;
+
+    private string $media;
+
+    private User $admin;
+
+    protected function beforeRefreshingDatabase(): void
+    {
+        if (config('database.default') !== 'mysql') {
+            $this->markTestSkipped('Independent InnoDB requests require the isolated MySQL runner.');
+        }
+
+        $db = DB::connection();
+        $this->assertTrue($this->app->environment('testing'));
+        $this->assertFalse($this->app->configurationIsCached());
+        $this->assertSame('camba_v2_test', $db->getDatabaseName());
+        $this->assertSame('127.0.0.1', $db->getConfig('host'));
+        $this->assertEmpty($db->getConfig('url'));
+        $this->assertEmpty($db->getConfig('unix_socket'));
+    }
+
+    protected function afterRefreshingDatabase(): void
+    {
+        $this->media = sys_get_temp_dir().DIRECTORY_SEPARATOR.'camba-catalog-race-'.Str::uuid();
+        $this->beforeApplicationDestroyed(fn () => File::deleteDirectory($this->media));
+        $this->admin = User::factory()->create(['role' => 'admin']);
+    }
+
+    public function test_category_deactivation_cannot_race_a_publication_into_inconsistency(): void
+    {
+        $this->assertClassificationRace('categories', $this->draft()->category);
+    }
+
+    public function test_brand_deactivation_cannot_race_a_publication_into_inconsistency(): void
+    {
+        $brand = Brand::query()->create(['name' => 'Brand for race', 'slug' => 'brand-for-race', 'active' => true]);
+        $this->assertClassificationRace('brands', $this->draft(['brand_id' => $brand->id])->brand);
+    }
+
+    public function test_publication_and_archive_serialize_and_preserve_the_product_identity(): void
+    {
+        $product = $this->draft();
+        $path = "/api/v1/admin/products/$product->id";
+        foreach (['publish' => 'published', 'archive' => 'archived'] as $verb => $state) {
+            $request = ['POST', "$path/$verb"];
+            $results = $this->race('products', $product->id, $request, $request);
+            $this->assertEqualsCanonicalizing([200, 409], array_column($results, 'status'));
+            foreach ($results as $response) {
+                if ($response['status'] === 200) {
+                    $this->assertSame($state, $response['body']['data']['status']);
+                    $this->assertSame($product->sku, $response['body']['data']['sku']);
+                }
+            }
+            $this->assertSame($state, $product->fresh()->status->value);
+            $this->getJson("/api/v1/products/$product->slug")->assertStatus($state === 'published' ? 200 : 404);
+        }
+
+        [$published, $archived] = $this->race('products', $product->id, ['POST', "$path/publish"], ['POST', "$path/archive"]);
+        $this->assertSame(200, $published['status']);
+        $this->assertContains($archived['status'], [200, 409]);
+        $this->assertSame($archived['status'] === 200 ? 'archived' : 'published', $product->fresh()->status->value);
+        $this->assertSame($product->sku, $product->fresh()->sku);
+    }
+
+    public function test_concurrent_appends_and_stale_reorder_preserve_rows_derivatives_and_cover(): void
+    {
+        $product = $this->draft();
+        $url = "/api/v1/admin/products/$product->id/images";
+        $cover = $product->images()->firstOrFail()->id;
+        $append = ['POST', $url, ['photo' => true]];
+        $results = $this->race('products', $product->id, $append, $append);
+        $this->assertSame([201, 201], array_column($results, 'status'));
+        $ids = $product->images()->pluck('id')->all();
+        $this->assertCount(3, $ids);
+        $this->assertSame($cover, $ids[0]);
+        $newOrder = array_reverse($ids);
+        [$uploaded, $reordered] = $this->race('products', $product->id, $append, ['PUT', "$url/order", ['ids' => $newOrder]]);
+        $this->assertSame(201, $uploaded['status']);
+        $final = $product->images()->get();
+        $this->assertCount(4, $final);
+        $this->assertSame([0, 1, 2, 3], $final->pluck('position')->all());
+        $this->assertCount(4, $final->pluck('path')->unique());
+        // Either the reorder runs first, or the newly appended row makes its old list invalid.
+        $this->assertContains($reordered['status'], [200, 422]);
+        if ($reordered['status'] === 422) {
+            $this->assertArrayHasKey('ids', $reordered['body']['errors']);
+        }
+        $this->assertSame($reordered['status'] === 200 ? $newOrder : $ids, $final->pluck('id')->slice(0, 3)->all());
+        $this->assertSame($final->pluck('id')->all(), array_column($uploaded['body']['data']['images'], 'id'));
+
+        $disk = $this->disk();
+        $expected = [];
+        foreach ($final->where('id', '!=', $cover) as $image) {
+            foreach ([$image->path, str_replace('.webp', '-thumb.webp', $image->path)] as $path) {
+                $expected[] = $path;
+                $this->assertSame('image/webp', getimagesizefromstring($disk->get($path))['mime']);
+            }
+        }
+        $this->assertEqualsCanonicalizing($expected, $disk->allFiles());
+    }
+
+    private function assertClassificationRace(string $table, Category|Brand $classification): void
+    {
+        $product = $classification->products()->firstOrFail();
+        [$published, $deactivated] = $this->race(
+            $table,
+            $classification->id,
+            ['POST', "/api/v1/admin/products/$product->id/publish"],
+            ['PATCH', "/api/v1/admin/$table/$classification->id", ['active' => false]],
+        );
+
+        if ($published['status'] === 200) {
+            $this->assertSame(409, $deactivated['status']);
+            $this->assertSame('published', $product->fresh()->status->value);
+            $this->assertTrue($classification->fresh()->active);
+            $this->getJson("/api/v1/products/$product->slug")->assertOk();
+        } else {
+            $this->assertSame(422, $published['status']);
+            $this->assertArrayHasKey($table === 'brands' ? 'brand_id' : 'category_id', $published['body']['errors']);
+            $this->assertSame(200, $deactivated['status']);
+            $this->assertSame('draft', $product->fresh()->status->value);
+            $this->assertFalse($classification->fresh()->active);
+            $this->getJson("/api/v1/products/$product->slug")->assertNotFound();
+        }
+    }
+
+    private function draft(array $fields = []): Product
+    {
+        $category = Category::query()->create(['name' => 'Category for race', 'slug' => 'category-for-race', 'active' => true]);
+        $product = Product::forceCreate([
+            'name' => 'Catalog contention garment', 'sku' => 'RACE-GARMENT', 'slug' => 'race-garment',
+            'price_cents' => 75000, 'category_id' => $category->id, ...$fields,
+        ]);
+        $product->images()->create(['path' => 'fixture-cover.webp', 'position' => 0]);
+
+        return $product;
+    }
+
+    private function race(string $table, int $id, array $a, array $b): array
+    {
+        DB::beginTransaction();
+        $workers = [];
+        try {
+            DB::table($table)->where('id', $id)->lockForUpdate()->first();
+            foreach ([$a, $b] as $request) {
+                $worker = $workers[] = $this->worker($request);
+                $worker->start();
+                $blocked = $this->waitForRowLocks($table, $workers);
+            }
+            DB::commit();
+
+            $responses = array_map(function (Process $worker): array {
+                $this->assertSame(0, $worker->wait(), $worker->getErrorOutput().$worker->getOutput());
+
+                return json_decode($worker->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+            }, $workers);
+            $this->assertEqualsCanonicalizing($blocked, array_column($responses, 'connection'));
+
+            return $responses;
+        } finally {
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
+            foreach ($workers as $worker) {
+                $worker->stop(0);
+            }
+        }
+    }
+
+    private function waitForRowLocks(string $table, array $workers): array
+    {
+        $deadline = microtime(true) + 8;
+        do {
+            foreach ($workers as $worker) {
+                if (! $worker->isRunning()) {
+                    $this->fail($worker->getErrorOutput().$worker->getOutput());
+                }
+            }
+            $locks = array_filter(DB::select('SHOW FULL PROCESSLIST'), fn ($row) => $row->db === 'camba_v2_test'
+                && preg_match("/from `$table` .* for update/i", $row->Info ?? ''));
+            if (count($locks) === count($workers)) {
+                return array_map('intval', array_column($locks, 'Id'));
+            }
+            usleep(20000);
+        } while (microtime(true) < $deadline);
+
+        $this->fail('Timed out observing '.count($workers)." independent $table row-lock waits.");
+    }
+
+    private function worker(array $request): Process
+    {
+        $db = DB::connection();
+
+        return new Process([PHP_BINARY, __DIR__.'/mysql-race-request.php', json_encode($request, JSON_THROW_ON_ERROR)], base_path(), [
+            'APP_ENV' => 'testing', 'APP_KEY' => config('app.key'), 'APP_DEBUG' => 'false',
+            'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'array', 'QUEUE_CONNECTION' => 'sync', 'MAIL_MAILER' => 'array',
+            'DB_CONNECTION' => 'mysql', 'DB_URL' => '', 'DB_HOST' => '127.0.0.1', 'DB_DATABASE' => 'camba_v2_test',
+            'DB_SOCKET' => '', 'DB_PORT' => (string) $db->getConfig('port'), 'DB_USERNAME' => $db->getConfig('username'),
+            'DB_PASSWORD' => (string) $db->getConfig('password'),
+            'CAMBA_CATALOG_TEST_ADMIN' => (string) $this->admin->id, 'CAMBA_CATALOG_TEST_MEDIA' => $this->media,
+        ], timeout: 20);
+    }
+
+    private function disk(): FilesystemAdapter
+    {
+        return Storage::build(['driver' => 'local', 'root' => $this->media]);
+    }
+}

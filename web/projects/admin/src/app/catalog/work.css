@@ -28,4 +28,5 @@
 @media (max-width: 590px) {
   .manage-row { grid-template-columns: minmax(0, 1fr) auto; }
   .manage-row > .actions { grid-column: 1 / -1; }
+  .batch-group .photo-grid--compare { grid-template-columns: repeat(auto-fill, minmax(min(100%, 96px), 1fr)); }
 }

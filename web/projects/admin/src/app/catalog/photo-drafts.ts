@@ -9,7 +9,7 @@ import { ProductFieldsForm } from './product-fields';
 
 type Group = {
   key: number; fields: ProductFields; photos: LocalPhoto[]; checked: boolean; product: Product | null;
-  done: boolean; uncertain: boolean; error: string;
+  done: boolean; uncertain: boolean; reviewed: boolean; error: string;
 };
 
 @Component({
@@ -57,7 +57,7 @@ export class PhotoDrafts {
 
   protected addGroup() {
     this.groups.update((groups) => [...groups, {
-      key: ++this.nextGroup, fields: fieldsFrom(), checked: true, photos: [], product: null, done: false, uncertain: false, error: '',
+      key: ++this.nextGroup, fields: fieldsFrom(), checked: true, photos: [], product: null, done: false, uncertain: false, reviewed: false, error: '',
     }]);
   }
 
@@ -119,6 +119,30 @@ export class PhotoDrafts {
     return cents === null ? 'Sin precio' : formatMoney(cents);
   }
 
+  protected checkGallery(group: Group) {
+    if (!group.product || !group.uncertain || this.running()) return;
+    this.running.set(true);
+    this.active.set(group.key);
+    this.update(group.key, { error: '' });
+    this.api.get<Data<Product>>(`${products}/${group.product.id}`).pipe(
+      takeUntilDestroyed(this.destroy),
+      finalize(() => {
+        this.active.set(null);
+        this.running.set(false);
+      }),
+    ).subscribe({
+      next: ({ data }) => this.update(group.key, { product: data, reviewed: true }),
+      error: () => this.update(group.key, { error: 'No se pudo consultar la galería guardada. Volvé a intentarlo antes de subir fotos.' }),
+    });
+  }
+
+  protected resolveReview(group: Group) {
+    if (!group.uncertain || !group.reviewed || this.running()) return;
+    // ponytail: compare manually; unattended retries would need durable photo identifiers.
+    this.preview.set(false);
+    this.update(group.key, { uncertain: false, reviewed: false, done: !group.photos.length, error: '' });
+  }
+
   protected async run() {
     if (!this.preview() || this.running()) return;
     const groups = this.pending().filter((group) => !this.validate(group));
@@ -147,7 +171,7 @@ export class PhotoDrafts {
             this.update(group.key, {
               uncertain: true,
               error: draft
-                ? 'La carga no devolvió una confirmación. Abrí el borrador y revisá su galería antes de subir las fotos que falten.'
+                ? 'No recibimos confirmación de la carga. Consultá la galería guardada antes de volver a subir fotos.'
                 : 'No recibimos confirmación de la creación. Buscá este nombre en Productos antes de volver a crearlo.',
             });
             continue;
