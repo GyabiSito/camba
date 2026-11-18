@@ -66,6 +66,47 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/UserEnvelope' }
         '401': { description: No authenticated session }
+  /api/v1/auth/forgot-password:
+    post:
+      operationId: requestPasswordReset
+      description: Requests a reset from a first-party session without indicating whether the email belongs to an account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+      responses:
+        '202': { description: Request accepted }
+        '400': { description: First-party session is unavailable }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid email format }
+        '429': { description: Too many requests }
+  /api/v1/auth/reset-password:
+    post:
+      operationId: resetPassword
+      description: Consumes a valid reset token and invalidates the account's prior sessions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, token, password, password_confirmation]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                token: { type: string, maxLength: 255 }
+                password: { type: string, format: password, minLength: 12, description: Maximum 72 UTF-8 bytes }
+                password_confirmation: { type: string, format: password }
+      responses:
+        '204': { description: Password changed }
+        '400': { description: First-party session is unavailable }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: 'Invalid fields, invalid token or expired token' }
+        '429': { description: Too many requests }
   /api/v1/auth/logout:
     post:
       operationId: signOut

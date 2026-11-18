@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\User;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
@@ -25,8 +27,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Sanctum::getAccessTokenFromRequestUsing(static fn () => null);
+        ResetPassword::createUrlUsing(fn (User $user, string $token): string => rtrim(config('app.url'), '/').'/cuenta/restablecer#token='.rawurlencode($token));
 
         RateLimiter::for('register', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
+        RateLimiter::for('password-reset', fn (Request $request) => Limit::perMinute(10)->by($request->ip()));
         RateLimiter::for('verification-notification', fn (Request $request) => Limit::perMinute(3)->by($request->user()->getAuthIdentifier()));
         RateLimiter::for('login', function (Request $request): array {
             $email = $request->input('email');

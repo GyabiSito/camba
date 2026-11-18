@@ -17,4 +17,4 @@ Registration returns `201` even if notification enqueue fails, with `meta.verifi
 
 Run `composer validate --strict --no-check-publish`, `php vendor/bin/pint --test`, and `php vendor/bin/phpunit`. With PDO SQLite available the tests default to `:memory:`. To verify on MySQL, set `DB_CONNECTION=mysql` and point `DB_HOST`, `DB_PORT`, `DB_USERNAME` and `DB_PASSWORD` to a dedicated test server with `DB_DATABASE=camba_v2_test`. The identity suite resets schema in that test database; use a dedicated instance.
 
-The current slice does not implement admin provisioning, password recovery, store/admin UI, Redis verification or deployment.
+The password recovery endpoints require first-party CSRF. Reset emails point to the configured `APP_URL` at `/cuenta/restablecer#token=…`; the store must read the fragment and collect email before submitting the reset. The token is short-lived and single-use. The current API does not implement admin provisioning, store/admin UI or deployment.
