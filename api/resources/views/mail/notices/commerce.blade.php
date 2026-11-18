@@ -1,7 +1,7 @@
 {{ $bodyText }}
 
 @if ($reference)
-Order reference: {{ $reference }}
+Referencia del pedido: {{ $reference }}
 
 @endif
-Store: {{ $storeUrl }}
+Tienda: {{ $storeUrl }}

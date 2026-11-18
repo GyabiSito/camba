@@ -216,6 +216,7 @@ class CommerceNoticeTest extends TestCase
         $messages = Mail::mailer('array')->getSymfonyTransport()->messages();
         $this->assertCount(1, $messages);
         $email = $messages->first()->getOriginalMessage();
+        $this->assertSame('Camba: enviamos tu pedido', $email->getSubject());
         $this->assertStringContainsString($shipped->reference, $email->getTextBody());
         $this->assertStringNotContainsString('Operator-only delivery note', $email->getTextBody());
         $this->assertStringStartsWith("camba-notice-$id@", $messages->first()->getMessageId());

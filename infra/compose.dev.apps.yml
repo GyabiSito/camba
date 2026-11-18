@@ -10,6 +10,7 @@ x-api: &api-runtime
     - api-storage:/var/www/html/storage
   environment:
     APP_ENV: local
+    APP_LOCALE: es
     APP_KEY: ${CAMBA_DEV_APP_KEY:?Generate a dedicated local Laravel APP_KEY}
     APP_URL: http://127.0.0.1:${CAMBA_DEV_STORE_PORT:-43812}
     SANCTUM_STATEFUL_DOMAINS: 127.0.0.1:${CAMBA_DEV_STORE_PORT:-43812},127.0.0.1:${CAMBA_DEV_ADMIN_PORT:-43813}

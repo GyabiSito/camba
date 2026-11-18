@@ -14,12 +14,12 @@ class CommerceNoticeMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(subject: match ($this->kind) {
-            'order_created' => 'Camba: Your order was received',
-            'order_paid' => 'Camba: Payment confirmed',
-            'payment_reminder' => 'Camba: Payment is still pending',
-            'cart_reminder' => 'Camba: You have items in your cart',
-            'order_ready_for_pickup' => 'Camba: Your order is ready for pickup',
-            'order_shipped' => 'Camba: Your order has shipped',
+            'order_created' => 'Camba: recibimos tu pedido',
+            'order_paid' => 'Camba: pago confirmado',
+            'payment_reminder' => 'Camba: tu pago sigue pendiente',
+            'cart_reminder' => 'Camba: tenés productos en el carrito',
+            'order_ready_for_pickup' => 'Camba: tu pedido está listo para retirar',
+            'order_shipped' => 'Camba: enviamos tu pedido',
         });
     }
 
@@ -34,12 +34,12 @@ class CommerceNoticeMail extends Mailable
     {
         return new Content(text: 'mail.notices.commerce', with: [
             'bodyText' => match ($this->kind) {
-                'order_created' => 'We received your order. Check the store for its current payment and fulfilment status.',
-                'order_paid' => 'Your payment was confirmed. Check the store for your order’s next steps.',
-                'payment_reminder' => 'Your order is awaiting payment. Check its current status before trying to pay.',
-                'cart_reminder' => 'Items are still in your cart. Prices and availability may have changed.',
-                'order_ready_for_pickup' => 'Your order is ready. Check the store for your pickup details.',
-                'order_shipped' => 'Your order has shipped. Check the store for the latest status.',
+                'order_created' => 'Recibimos tu pedido. Consultá en la tienda el estado del pago y de la entrega.',
+                'order_paid' => 'Confirmamos tu pago. Consultá en la tienda los próximos pasos de tu pedido.',
+                'payment_reminder' => 'Tu pedido está pendiente de pago. Revisá su estado antes de intentar pagar.',
+                'cart_reminder' => 'Todavía tenés productos en el carrito. Los precios y la disponibilidad pueden haber cambiado.',
+                'order_ready_for_pickup' => 'Tu pedido está listo. Consultá en la tienda los datos para retirarlo.',
+                'order_shipped' => 'Enviamos tu pedido. Consultá en la tienda el estado de la entrega.',
             },
             'storeUrl' => config('app.url'),
         ]);

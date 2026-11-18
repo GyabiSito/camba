@@ -9,6 +9,10 @@
 !database/
 !database/migrations/
 !database/migrations/**
+!lang/
+!lang/es.json
+!lang/es/
+!lang/es/**
 !public/
 !public/index.php
 !public/robots.txt
