@@ -14,7 +14,15 @@ Delivery: `auto-chain`, stacked-to-main local work units; no remote delivery. Fo
 - S7 — “Mantené PROGRESS.md actualizado con resultados reales, pendientes y el siguiente paso para retomar.” Keep separate local, simulated, provider-test and production evidence.
 - S8 — “Continuá hasta completar Camba v2 entera.” Adopt upstream `ef21594`, preserve both worktrees and local notes, apply supported hook/review recovery, and keep all UC01–UC30/T01–T06 evidence in PROGRESS.md.
 
+- S9 — “La captura del hero de Impeccable ya no es una condición para implementar el resto del frontend.” “Configurá pruebas y capturas de la aplicación con Playwright y Chromium.” “Conectá tienda y admin con las APIs existentes.” “Completá productos, galerías, carga masiva, pedidos, configuración, autenticación, carrito, checkout y todos los estados y recorridos del encargo.” “Mantené la dirección visual elegida y terminá el diseño.”
+
 ## Tasks
+
+- W1 — S9, Admin catalog, classifications, galleries and imports; delegated parallel writer on admin `catalog/**`; `5655822` and Windows fixture `4bf2775`. Local Chromium CRUD, visible uploads and CSV jobs pass; XLSX UI not exercised.
+- W2 — S9, Admin orders, fulfilment, notices and settings; delegated parallel writer on admin `operations/**`; `885d4c2` and `5655822`. Independent API gate/privacy and Chromium pass; native operational API candidate and sandbox verification pending. Risk: items 2 and 3.
+- W3 — S9, Store browse, search, detail/gallery, public SSR, 404 and 503; delegated parallel writer on store `catalog/**`; `75fccdf`. Screens inspected and real SSR/Chromium pass; mobile LCP remains above budget.
+- W4 — S9, Store auth/account, cart/checkout/purchases/payment return; delegated parallel writer on store `shopper/**`; `75fccdf`. Local buyer/guest flows and retry/fake callback proof pass; positive provider/email links remain pending. Risk: items 2 and 4.
+- W5 — S9, Shared shell/HTTP/design, Playwright, fixtures and CI; inline orchestrator-owned seams; `322f65d`, `5655822`, `75fccdf`, `4bf2775`. Integrated 17/17; builds, screenshots, actionlint, Compose render and local simulated release pass. Hosted CI/production and complete accessibility review pending. Risk: item 5.
 
 - T1 / S1, S7 — delegated read-only reference map (four distinct local checkouts); verified in `0308b42`; native assessment `passive`.
 - T2a / S3, S7, S8 — native successor approved and acknowledged `a6b2af6` in its original worktree; integrated as `e675301`. UC04 backend in `a121d43` / `8ac57fb`; local proof observed. Risk: item 2 (identity and credential reset).
@@ -131,3 +139,36 @@ T8a `9d7e52e` dry-run and T8b `0ef28f0` staging were independently exercised, in
 1
 
 The user granted the bound `f1d1b8a` review. Four native captures were admitted; provider approved without a correction transition and the exact acknowledgement burned authority in `review-db3a94b09493df63`. Scope is unchanged. Follow-up clarified the OpenAPI account request and response contract, added the already-admin/unverified-email regression, and documented that repeated address POSTs can duplicate a record. Scoped suite 13/154 (SQLite); integrated suite 98/1,258 (MySQL with explicitly isolated SQLite cases); Pint and OpenAPI syntax passed. No shipping or publish action.
+
+### L7 — Frontend continuity and isolated Chromium
+
+Retomá feat/camba-v2 desde su estado actual, último commit
+reportado c429f10. Conservá todo el trabajo y progreso local.
+
+Leé las instrucciones actualizadas de origin/main, commit a9e414d,
+especialmente AGENTS.md y la sección 8 de
+docs/AUTONOMOUS_EXECUTION.md. No sobrescribas PROGRESS.md local.
+
+La captura del hero de Impeccable ya no es una condición para
+implementar el resto del frontend.
+
+Configurá pruebas y capturas de la aplicación con Playwright y
+Chromium. Si tampoco pueden ejecutarse, dejá esa verificación
+pendiente y continuá implementando las interfaces completas.
+
+Conectá tienda y admin con las APIs existentes. Completá productos,
+galerías, carga masiva, pedidos, configuración, autenticación,
+carrito, checkout y todos los estados y recorridos del encargo.
+Mantené la dirección visual elegida y terminá el diseño.
+
+No reabras por defecto la revisión de cuentas ya cerrada ni
+repitas trabajo integrado. Corregí problemas reales y seguí con
+el siguiente caso de uso sin preguntarme.
+
+No cierres la tanda por falta de navegador mientras queden tareas
+de implementación, diseño, integración o pruebas ejecutables.
+No declares aprobada una validación que no se haya realizado.
+
+Applied the instruction-only update from `a9e414d` as `8de98df`; local progress history and prior worktrees were preserved. W1–W4 worked in disjoint places; W5 owns shared seams, browser fixture and checks. Native account approval was not reopened. The operations API addition `885d4c2` is a separate 145-line, high-risk scope with independent verification and a clean native preflight; no review verdict for it. Engram's host did not register a valid workspace session, so this task file is the durable record, with the mirror pending.
+
+Final isolated browser run passed 17/17 after fixing PHP's HTTP storage path and a 320 px layout overlap. Raw fixture thumbnail changed from HTTP 404 to a decoded WebP at 200. Dedicated login test users avoid colliding with the real five-per-minute account limiter. Separate compiled SSR wrapper verified 200/canonical and 503 on fixture shutdown. Lighthouse 13.6.0: 92/100/100, LCP 3.4 s (not at 2.5 s target), CLS 0, TBT 60 ms. See PROGRESS for builds, exact check types, real external dependencies and full acceptance limits. No push/deploy. Store and admin route seams and their browser scenarios form coherent app-level commits above the 400-line planning heuristic; publishing slices were not requested.

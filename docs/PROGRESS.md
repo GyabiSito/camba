@@ -12,20 +12,20 @@ No hay aplicación implementada, dependencias instaladas, contenedores de Camba 
 | --- | --- | --- |
 | Encargo e instrucciones | Preparado | AGENTS.md, IMPLEMENTATION_BRIEF.md, REFERENCES.md |
 | P0 — referencias locales, plugins y decisiones | Referencias revisadas; comp de admin elegida y placas aprobadas por Impeccable | PRODUCT.md; [evidencia local](REFERENCES.md#local-source-review--2026-11-18); falta captura del hero |
-| P1 — monorepo, Docker dev, CI base y acceso | Backend probado; interfaces de identidad pendientes | [API](../api/README.md) y [arranque aislado](DEVELOPMENT.md) |
-| P2 — catálogo/admin/carga masiva | En curso | Catálogo/galería API; faltan interfaz, importación y pruebas de navegador |
-| P3 — pedidos/pagos/webhook/conciliación | Backend y simulación verificados | Contención MySQL comprobada; falta entorno real de prueba de Mercado Pago, más UI |
-| P4 — notificaciones/recordatorios | Backend con cola y preferencias | Transporte sintético/array, falta SMTP real y controles UI |
-| P5 — tienda y diseño completo | Bloqueado en prueba visual de comp | App SSR inicial y reproducción de placas de admin compiladas; no son interfaces terminadas |
-| P6 — rendimiento/seguridad/integración | Parcial | Derivados WebP, una consulta de portadas por página y bundles medidos; falta QA en navegador |
-| P7 — imágenes y despliegue selectivo CI/CD | Infra local y flujo preparados | Arranque de producción aislado; sin publicación, SSH ni despliegue reales |
+| P1 — monorepo, Docker dev, CI base y acceso | API y pantallas integradas | Sesiones de comprador y administrador en Chromium; [arranque aislado](DEVELOPMENT.md) |
+| P2 — catálogo/admin/carga masiva | Interfaz y recorridos locales | Galerías, SKU, auditoría, lote por fotos y CSV ejecutado por worker; XLSX probado en API |
+| P3 — pedidos/pagos/webhook/conciliación | UI, backend y simulación verificados | Checkout idempotente en Chromium y contención MySQL; falta Checkout Pro con credenciales de prueba |
+| P4 — notificaciones/recordatorios | Preferencias y avisos conectados | Mailpit local y transporte sintético; SMTP real pendiente |
+| P5 — tienda y diseño | Aplicaciones conectadas y capturas revisadas | SSR público, compra/cuenta y admin a 1586 y 320 px; validación formal de Impeccable y accesibilidad integral pendientes |
+| P6 — rendimiento/seguridad/integración | Parcial | Derivados WebP, portadas sin N+1, builds y Lighthouse medidos; objetivo LCP móvil no alcanzado en laboratorio |
+| P7 — imágenes y despliegue selectivo CI/CD | Imágenes locales y flujo preparado | Chromium configurado en CI; no se ejecutaron Actions, publicación, SSH ni despliegue reales |
 | P8 — ensayo de migración y entrega | Staging sintético probado | Faltan copia real aislada, validación histórica, redirecciones y corte |
 
 ## Próximo paso
 
-Retomar `feat/camba-v2` con [el log de tareas](../odd/tasks/camba-v2.md). La dependencia local principal es una nueva sesión de Codex desde `C:\Users\Josec\camba` con navegador verificable: la sesión anterior perdió control del navegador al no poder confirmar su URL. En esa sesión, confirmar el SessionStart real de Engram y el dispatch de hooks; no simularlos ni reemplazar identificadores.
+Retomar `feat/camba-v2` con [el log de tareas](../odd/tasks/camba-v2.md). Ejecutar `npm run test:e2e` desde `web/` con los [requisitos de la fixture aislada](DEVELOPMENT.md#browser-checks-and-captures). La [sección 8 actualizada](AUTONOMOUS_EXECUTION.md#8-continuar-el-frontend-cuando-falla-el-acceso-al-navegador) ya no condiciona la implementación al hero; el estado de Impeccable en `hero` no certifica ni bloquea los recorridos que pasan en Chromium.
 
-Para admin, retomar Impeccable en `hero`. Servir la réplica de placas con `cd web; npm exec -- ng serve admin --host 127.0.0.1 --port 43804`, capturar a 1586×992 y ejecutar `build-phase record hero --build .impeccable/review/hero-repro.png`. Luego reproducir la capa semántica y validar el hero; no pasar a fases posteriores sin esa evidencia. Completar tienda, admin, formularios de acceso, compra y carga agrupada por fotos. Están disponibles [API](../api/openapi.yaml), [configuración de entornos](DEVELOPMENT.md) y [matriz de aceptación](#acceptance-matrix). No se habilitó el release ni se modifica Camba anterior.
+Retomar la verificación con las capturas de `web/test-results/`: evaluar con lector de pantalla, probar XLSX desde el selector y medir de nuevo LCP con el edge y catálogo de staging. Ejecutar los ejercicios de Mercado Pago, SMTP y migración cuando estén disponibles las dependencias de abajo. No se habilitó el release ni se modifica Camba anterior.
 
 ## Acceptance matrix
 
@@ -33,41 +33,41 @@ Para admin, retomar Impeccable en `hero`. Servir la réplica de placas con `cd w
 
 | ID | Status and evidence | Remaining acceptance |
 | --- | --- | --- |
-| UC01 | Partial: API validation, normalized email, no role escalation, persistence; PHPUnit | Store form and browser journey |
-| UC02 | Partial: signed expiry, queued notification, recovery after enqueue failure; PHPUnit and HTTP 401/204 | Rate-limit/notification delivery proof and UI |
-| UC03 | Partial: cookie login/session/logout and real CSRF rejection; PHPUnit and HTTP | Browser reload, expiry and account isolation journeys |
-| UC04 | Partial: secure broker and session revocation in `a121d43` / `8ac57fb`; PHPUnit and real loopback HTTP → worker → Mailpit → reset | Reset screen, browser and external delivery |
-| UC05 | Partial: profile/name, owner-scoped CRUD in `f1d1b8a`; PHPUnit and independent adversarial probes | Store UI and browser |
-| UC06 | Partial: `4fd6c80`/ `88e3060`; independent HTTP 67 checks and MySQL contention 44 checks | Cart/browser/auth-switch UI and shopping relay |
-| UC07 | Partial: verified admin gate and explicit CLI provisioning in `f1d1b8a`; unauthorized roles denied in independent probes | Admin UI and browser |
-| UC08 | Partial: published search/filters/sort/pagination API in `d2216a1`; automated | Live storefront and browser |
-| UC09 | Partial: product detail strips non-public products; images and availability serve through API | Store SSR metadata, storefront gallery and HTTP 404 |
-| UC10 | Partial: flat category management, deactivation guard; automated | Admin UI and true concurrent DB verification |
-| UC11 | Partial: brand optional, safe deactivation; automated | Admin UI and true concurrent DB verification |
-| UC12 | Partial: draft/publish/archive and persistent stable SKU; automated | Admin UI, actual concurrent lifecycle proof |
-| UC13 | Partial: price/stock and actor audit in `8fee1c4`; automated transactional checks | Admin list editor and browser |
-| UC14 | Partial: authenticated multi-upload, EXIF, WebP and stable cover order in `706cade`; focused tests and independent rollback probes | Admin UI/error flows, live media delivery and concurrent gallery requests |
-| UC15 | Pending: existing draft/gallery APIs cover individual operations only | Interactive grouped photo grid, selection, explicit publication and recovery |
-| UC16 | Partial: admin template/CSV/XLSX preview and row errors in `539d8f8`; automated | Browser preview and real workflow exercise |
-| UC17 | Partial: durable row ledger, resumable confirm and idempotency in `539d8f8`; independent MySQL contention 26 checks | Admin progress and correction UI |
-| UC18 | Partial: quote/pickup/delivery server totals in `9118f67`; automated | Guest/buyer checkout UI and actual business terms |
-| UC19 | Partial: immutable snapshots and reservation in `9118f67`; independent real MySQL last-unit and retry races | Full browser journey |
+| UC01 | Local: registration form and persistence in Chromium; PHPUnit proves normalization and no role escalation | External mail verification belongs to UC02 |
+| UC02 | Partial: signed link and expiry in API; Chromium unverified, resend and recheck states | Successful browser transition from a delivered link; external delivery |
+| UC03 | Local: login, session on browser reload, logout and CSRF guard; independent ownership probes | Browser exercise of natural session expiry |
+| UC04 | Partial: loopback HTTP → worker → Mailpit → successful reset; Chromium request, reset form, URL-fragment cleanup and invalid token | Successful browser reset from delivered link; external delivery |
+| UC05 | Local: owner-scoped profile and address CRUD; Chromium saves, reloads, edits and deletes | — |
+| UC06 | Partial: Chromium add/update/checkout and independent HTTP/MySQL contention; guest ownership notice | Browser test of cart merge on login and simultaneous tabs |
+| UC07 | Local: CLI provisioning and buyer/unverified-admin denial in API; verified admin login and buyer denial in Chromium | — |
+| UC08 | Partial: live SSR catalog, category/brand filters, search, sorting, empty and out-of-range recovery in Chromium | Forward/back over multiple seeded pages |
+| UC09 | Local: SSR title, absolute canonical, HTTP 404, HTTP 503 on isolated API outage, real gallery with keyboard in Chromium | Commercial photo assets |
+| UC10 | Partial: flat categories and in-use deactivation conflict in Chromium | MySQL contention proof for classification |
+| UC11 | Partial: optional brands and deactivation guard in API; wired admin views | Separate positive browser journey and contention proof |
+| UC12 | Partial: Chromium draft, publish and archive, persistent SKU in API | Concurrent lifecycle proof |
+| UC13 | Local: sales price to exact cents, stock and persisted audit shown in Chromium | — |
+| UC14 | Partial: browser multi-upload, cover change, publish guard and media decoding; API rollback/EXIF checks | Concurrent browser gallery writes |
+| UC15 | Local: grouped photo input creates draft; simulated upload response failure then retry uses same draft; publication explicit | Reconcile uncertain operations from the saved catalog before retry |
+| UC16 | Partial: browser CSV template, real preview and invalid rows; API covers XLSX | XLSX upload from Chromium |
+| UC17 | Local: confirm, durable worker completion, reload and same-file dedupe in Chromium; independent MySQL races | — |
+| UC18 | Partial: guest quote and pickup checkout in Chromium; delivery quote verified by API | In-person verification of real pickup address/rates; full browser delivery |
+| UC19 | Local: browser drops committed response and safely retries identical key/reference; real MySQL last-unit and retry races | — |
 | UC20 | Partial: preferences and owner restart/resume in `79045bb` / `0a35491`; fake provider | Actual Checkout Pro test account redirect and retry |
 | UC21 | Partial: signed durable inbox 200 before async processing; independent fake provider tests | Public TLS webhook and actual provider delivery/retry |
 | UC22 | Partial: minute scheduler and absent-webhook reconciliation observed against fakes | Real test-account consistency and closed-browser hosted exercise |
 | UC23 | Partial: duplicate/stale/late-payment logic; independent MySQL contention 27 checks with fake evidence | Live test-account fixture cases and inbox crash recovery test |
-| UC24 | Partial: encrypted owned snapshots and guest TTL; independent isolation | Browser history and provider return |
-| UC25 | Partial: paid preparation/shipment/pickup and private notes in `c0c7211`; automated | Admin UI, browser and operational walkthrough |
+| UC24 | Partial: encrypted owned snapshots and guest TTL; browser history and spoofed return do not change authoritative payment | Actual sandbox provider return |
+| UC25 | Local: authorization and operations API; Chromium real preparation and note persistence, shipping/pickup/control states exercised with mocked failure paths | Operational walkthrough with staged shipment/pickup |
 | UC26 | Partial: durable transactional notices and real local SMTP worker receipt in Mailpit; contention with synthetic transport | Production SMTP proof and customer flow |
-| UC27 | Partial: verified buyer opt-ins, send-time state and dedup; fake/array tests | Preference UI, live mail and end-to-end scheduler |
-| UC28 | Partial: verified-admin inbox and deduped stock, paid, import, payment and mail incidents | Views and real operating checks |
-| UC29 | Partial: public business settings and authenticated operational audit `3069dd0`; automated | Admin UI and live business configuration |
+| UC27 | Partial: Chromium persists verified buyer opt-ins; backend state/dedup tests | Live mail and external scheduling |
+| UC28 | Local: deduped admin inbox, protected linked order and Chromium state/filter handling | Real incident walkthrough |
+| UC29 | Partial: Chromium PATCH settings, public read and audit history | Live business configuration |
 | UC30 | Partial: dry-run `9d7e52e` and isolated apply `0ef28f0`; SQLite and independent MySQL interrupted-gallery replay | Actual isolated export/photos, accounts/history, redirections and cutover |
-| T01 | Partial: approved comp plates, compiled Angular shells | Real storefront, full admin, identities, checkout and all states |
-| T02 | Blocked in this session: Windows browser URL could not be confirmed | Actual browser at 320 px/desktop, keyboard, focus and WCAG review |
-| T03 | Partial: CSR/SSR compiled, API list loads one cover per product; WebP derivatives measured | Data hydration, SEO/product HTTP 404, mobile Lighthouse and measured UX budgets |
+| T01 | Partial: comp-first tokens in both apps; real desktop/mobile captures and browser journeys | Record formal Impeccable phase separately; no approval inferred |
+| T02 | Partial: Chromium at 320 px and 1586 px, overflow checks, focus/skip and gallery by keyboard, Lighthouse home | Screen reader, full contrast/reduced-motion review and cross-browser check |
+| T03 | Partial: SSR, hydrated interactions, HTTP 404, WebP/list queries and reproducible Lighthouse lab | Mobile LCP budget, real-user INP and production media validation |
 | T04 | Partial: full dev and production-style stacks healthy in isolation; dev roots/proxies 200, no prod-style published ports | Real edge/TLS and protected hosting configuration |
-| T05 | Partial: selective filters, required jobs, image builders and digest release script; fake rollout passed | Actual GitHub run, registry pull/push and protected production delivery |
+| T05 | Partial: CI scope and 60 gate cases, image builds and simulated release; Chromium added without publishing on E2E-only changes | Actual GitHub run, registry pull/push and protected production delivery |
 | T06 | Partial: readiness/outages locally; synthetic MySQL restore sampled | Full real-data/media/queue restoration drill and production operating checks |
 
 ## Registro de ejecución
@@ -155,6 +155,16 @@ Por cada entrega agregar: commit, funcionalidad, comandos ejecutados, resultado,
 - El usuario eligió revisar el candidato `40218ec..f1d1b8a`. Los cuatro revisores se admitieron y Gentle AI devolvió `approved`; la operación de acuse exacta consumió la autoridad del linaje `review-db3a94b09493df63`. No hubo corrección obligatoria. La aprobación no cubre otros commits ni autoriza despliegue.
 - Como trabajo separado, OpenAPI ahora rechaza los campos protegidos de perfil y las direcciones en blanco como lo hace Laravel, y documenta las respuestas de direcciones. Una regresión comprueba que un administrador ya asignado, pero con correo sin verificar, recibe 403. La creación de direcciones sigue sin ser idempotente; tras un timeout, refrescar la lista antes de reenviar.
 - Verificación: 13 pruebas / 154 aserciones de cuenta y acceso en SQLite; suite completa 98 / 1.258 en MySQL aislado con los casos SQLite ya documentados. Pasaron Pint de la prueba modificada y sintaxis OpenAPI. No hubo un nuevo recorrido visual ni despliegue.
+
+### 2026-11-18 — Frontend integrado y revisión con Chromium
+
+- **Implementación:** instrucciones `a9e414d` incorporadas en `8de98df`, sin reemplazar este archivo. API administrativa `885d4c2`; cliente y diseño compartidos `322f65d`; tienda SSR/compra `75fccdf`; administración `5655822`; Chromium aislado y CI `4bf2775`. Se conservaron las comps y los worktrees previos.
+- **Compilación y Docker:** store SSR **320,21 kB** iniciales / **88,94 kB** estimados de transferencia; admin CSR **342,14 kB** / **88,61 kB** en el build final de Docker. Compilaron las tres imágenes; se verificó `/healthz` de ambos frontends y extensiones PHP/sintaxis Nginx de la API. Ambos Compose renderizaron sin aplicarse.
+- **HTTP:** SSR compilado devolvió 200 con canonical absoluto y WebP; producto inexistente 404; API aislada detenida devolvió 503 con estado visible. Una miniatura recién subida dio 404 en Windows: se guardaba en el storage por defecto porque la SAPI HTTP no rellenaba las superglobales que Laravel usa para localizar el storage. La fixture ahora inyecta el mismo directorio temporal para lectura y escritura; Chromium comprueba 200, `image/webp` y decodificación. No fue una falla de producción.
+- **Automatización:** `CAMBA_E2E_CAPTURE=1 npm run test:e2e` (variable equivalente en PowerShell) pasó **17/17** con Chromium y Laravel/SQLite/worker aislados. Incluye importación CSV real hasta su aplicación, galería, dos roles de ingreso, registro, recuperación rechazada, carrito/checkout, caída de respuesta con mismo pedido, preparación y auditoría. Algunos estados de error usan interceptación; Mercado Pago quedó deshabilitado. Independiente: **99 pruebas / 1.284 aserciones** PHPUnit SQLite, **1/16** de accesos administrativos en copia aislada, Pint y sintaxis OpenAPI. `actionlint` 1.7.11, alcance CI y 60 combinaciones del gate pasaron. El ensayo de release Linux/Docker simuló publicación/rollback; Git Bash local no tiene `flock`. No se ejecutaron Actions ni despliegue real.
+- **Revisión visual:** `web/test-results/` conserva PNG del catálogo/admin y home a 1586×992, detalle/320 px y otras vistas de compra/configuración. Se inspeccionaron capturas reales, se corrigieron desborde de precio y superposición entre enlace y selector, y se comprobó foco/teclado. Impeccable ejecutó detector manual: seis avisos de `src` en plantillas Angular con binding; el detector no certifica el estado de ejecución. `hooks on` dejó la configuración habilitada, pero no encontró una instalación de skill del proveedor para reparar el manifiesto de Codex; no se acreditó dispatch automático. El estado del hero sigue sin aprobación formal.
+- **Rendimiento:** [prueba reproducible](DEVELOPMENT.md#reproduce-the-mobile-storefront-audit), Lighthouse 13.6.0 en SSR compilado: **92 rendimiento / 100 accesibilidad / 100 SEO**, **LCP 3,4 s** (objetivo 2,5 s no alcanzado), **CLS 0**, **TBT 60 ms**. Hero sintético **2.980 bytes**. La primera medición sobre Vite no representa producción; inyectaba cliente dev y mapas. Sin INP de campo ni catálogo/edge de producción.
+- **Revisión nativa:** no se reabrió la revisión de cuenta. `885d4c2` fue evaluado `high_risk` y se obtuvo `fresh_target_ready` en el worktree separado `camba-v2-review-operations-885d4c2`; falta consentimiento propio y no hay aprobación. El host no confirmó una sesión Engram del proyecto; este registro local conserva los resultados.
 
 ## Dependencias externas que deben resolverse para una entrega productiva
 
