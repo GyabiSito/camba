@@ -1,3 +1,5 @@
+.catalog-page { container-type: inline-size; }
+
 .selection { padding: clamp(1rem, 2.1vw, 2.15rem); padding-inline-end: 0; border-inline-start: 1px solid var(--line); min-width: 0; }
 .selection-head { display: grid; grid-template-columns: minmax(60px, 34%) minmax(0, 1fr); align-items: start; gap: clamp(.75rem, 1.3vw, 1.35rem); }
 .selection-photo { width: 100%; height: auto; aspect-ratio: 1; margin: 0; }
@@ -19,14 +21,14 @@
 .skeleton-thumb { width: 60px; height: 60px; }
 .skeleton-line { width: min(65%, 20rem); height: 1.25rem; margin-block: .6rem; }
 .skeleton-cover { width: 120px; aspect-ratio: 1; }
-@media (max-width: 1080px) {
+@container (inline-size <= 64em) {
   .catalog-filters { flex: 1 1 600px; }
   .inventory { grid-template-columns: minmax(0, 1fr) minmax(200px, .34fr); }
   .inventory .product-thumb:not(.selection-photo) { width: 44px; height: 44px; }
   .inventory th, .inventory td { padding-inline: .4rem; }
 }
 
-@media (max-width: 870px) {
+@container (inline-size <= 51em) {
   .inventory { grid-template-columns: minmax(0, 1fr); min-height: 0; }
   .inventory-list { padding-inline-end: 0; }
   .selection { border-inline-start: 0; border-top: 1px solid var(--line); padding: 1.2rem 0 0; }
@@ -35,7 +37,7 @@
   .skeleton-selection { display: none; }
 }
 
-@media (max-width: 590px) {
+@container (inline-size <= 35em) {
   .catalog-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .catalog-filters select { padding-inline: .55rem .25rem; }
   .catalog-search { grid-column: 1 / -1; }

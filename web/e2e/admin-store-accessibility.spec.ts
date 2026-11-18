@@ -58,7 +58,7 @@ test('visible keyboard focus, reduced motion, form errors, contrast and reflow',
     await expect(published).toBeVisible();
     expect(await contrast(published)).toBeGreaterThanOrEqual(4.5);
     await page.goto('/productos');
-    await expect(page.getByRole('heading', { name: 'Productos', exact: true })).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Inventario de productos' })).toBeVisible();
   } else {
     await page.goto('/tienda');
     await expect(page.getByRole('link', { name: 'Remera lisa', exact: true })).toBeVisible();
