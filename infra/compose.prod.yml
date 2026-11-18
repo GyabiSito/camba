@@ -1,0 +1,136 @@
+name: camba-v2
+
+x-backend: &backend
+  image: ${CAMBA_API_IMAGE:?Set the immutable API image reference}
+  init: true
+  env_file:
+    - path: ${CAMBA_API_ENV_FILE:-/etc/camba/api.env}
+      required: false
+  environment:
+    APP_NAME: Camba
+    APP_ENV: production
+    APP_DEBUG: 'false'
+    APP_KEY: ${CAMBA_APP_KEY:?Set the shared Laravel key}
+    APP_URL: ${CAMBA_APP_URL:?Set the public HTTPS origin}
+    APP_LOCALE: es
+    SANCTUM_STATEFUL_DOMAINS: ${CAMBA_SANCTUM_DOMAINS:?Set the first-party domains}
+    LOG_CHANNEL: stderr
+    LOG_LEVEL: warning
+    DB_CONNECTION: mysql
+    DB_URL: ''
+    DB_HOST: mysql
+    DB_PORT: '3306'
+    DB_DATABASE: camba_v2
+    DB_USERNAME: camba_v2
+    DB_PASSWORD: ${CAMBA_DB_PASSWORD:?Set the MySQL application password}
+    REDIS_CLIENT: phpredis
+    REDIS_URL: ''
+    REDIS_HOST: redis
+    REDIS_PASSWORD: 'null'
+    REDIS_PORT: '6379'
+    CACHE_STORE: redis
+    QUEUE_CONNECTION: redis
+    REDIS_QUEUE_RETRY_AFTER: '120'
+    SESSION_DRIVER: redis
+    SESSION_ENCRYPT: 'true'
+    SESSION_SECURE_COOKIE: 'true'
+  depends_on:
+    mysql:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  networks: [data, egress]
+  volumes:
+    - public-media:/var/www/html/storage/app/public
+    - private-files:/var/www/html/storage/app/private
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  restart: unless-stopped
+
+services:
+  api:
+    image: ${CAMBA_API_IMAGE:?Set the immutable API image reference}
+    command: [nginx, -e, stderr, -c, /etc/nginx/camba.conf, -g, 'daemon off;']
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    depends_on: [api-fpm]
+    networks: [backend]
+    volumes:
+      - public-media:/var/www/html/storage/app/public:ro
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --max-time, '6', 'http://127.0.0.1:8080/ready']
+      interval: 10s
+      timeout: 7s
+      retries: 6
+      start_period: 10s
+
+  api-fpm:
+    <<: *backend
+    networks: [backend, data, egress]
+
+  worker:
+    <<: *backend
+    command: [php, artisan, 'queue:work', redis, '--tries=3', '--timeout=90', '--sleep=3']
+    stop_signal: SIGTERM
+    stop_grace_period: 100s
+
+  scheduler:
+    <<: *backend
+    command: [php, artisan, 'schedule:work']
+    stop_signal: SIGTERM
+
+  migrate:
+    <<: *backend
+    profiles: [release]
+    command: [php, artisan, migrate, --force, --no-interaction, '--isolated=75']
+    networks: [data]
+    restart: 'no'
+
+  mysql:
+    image: mysql:8.4@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
+    environment:
+      MYSQL_DATABASE: camba_v2
+      MYSQL_USER: camba_v2
+      MYSQL_PASSWORD: ${CAMBA_DB_PASSWORD:?Set the MySQL application password}
+      MYSQL_ROOT_PASSWORD: ${CAMBA_DB_ROOT_PASSWORD:?Set the MySQL administrator password}
+    networks: [data]
+    volumes:
+      - mysql:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'mysql --connect-timeout=3 --protocol=TCP -h 127.0.0.1 -u"$$MYSQL_USER" -p"$$MYSQL_PASSWORD" "$$MYSQL_DATABASE" -e "SELECT 1" >/dev/null 2>&1'
+      interval: 5s
+      timeout: 4s
+      retries: 20
+
+  redis:
+    image: redis:7.2.16-alpine3.21@sha256:ee061d86c25773048211e99f00d63b47b9ecfe28560113e16cce2c962d5bec1c
+    command: [redis-server, --appendonly, 'yes', --maxmemory-policy, noeviction]
+    networks: [data]
+    volumes:
+      - redis:/data
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, 'test "$$(redis-cli ping)" = PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+networks:
+  backend:
+    internal: true
+  data:
+    internal: true
+  egress: {}
+
+volumes:
+  mysql:
+  redis:
+  public-media:
+  private-files:
