@@ -3,6 +3,7 @@
 namespace Tests\Feature\Catalog;
 
 use App\Models\Brand;
+use App\Models\Cart;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\User;
@@ -144,6 +145,35 @@ class MySqlCatalogContentionTest extends TestCase
         }
     }
 
+    public function test_simultaneous_cart_adds_persist_both_units_but_cannot_exceed_stock(): void
+    {
+        $buyer = User::factory()->create(['role' => 'buyer']);
+        $product = $this->draft(['status' => 'published', 'stock' => 4]);
+        $cart = Cart::query()->forceCreate(['user_id' => $buyer->id]);
+        $cart->setQuantity($product->id, 1);
+        $this->assertSame('InnoDB', DB::selectOne("SHOW TABLE STATUS WHERE Name = 'cart_items'")->Engine);
+        $add = ['POST', "/api/v1/cart/items/$product->id"];
+
+        foreach ([[[200, 200], [2, 3], 3], [[200, 422], [4], 4]] as [$statuses, $quantities, $stored]) {
+            $results = $this->race('carts', $cart->id, $add, $add, $buyer);
+            $this->assertEqualsCanonicalizing($statuses, array_column($results, 'status'));
+            $returned = [];
+            foreach ($results as $response) {
+                if ($response['status'] === 422) {
+                    $this->assertArrayHasKey('quantity', $response['body']['errors']);
+
+                    continue;
+                }
+                $item = $response['body']['data']['items'][0];
+                $this->assertSame($product->id, $item['product_id']);
+                $this->assertSame(75000, $item['product']['price_cents']);
+                $returned[] = $item['quantity'];
+            }
+            $this->assertEqualsCanonicalizing($quantities, $returned);
+            $this->assertSame([$stored], $cart->items()->pluck('quantity')->all());
+        }
+    }
+
     private function assertClassificationRace(string $table, Category|Brand $classification): void
     {
         $product = $classification->products()->firstOrFail();
@@ -181,14 +211,14 @@ class MySqlCatalogContentionTest extends TestCase
         return $product;
     }
 
-    private function race(string $table, int $id, array $a, array $b): array
+    private function race(string $table, int $id, array $a, array $b, ?User $actor = null): array
     {
         DB::beginTransaction();
         $workers = [];
         try {
             DB::table($table)->where('id', $id)->lockForUpdate()->first();
             foreach ([$a, $b] as $request) {
-                $worker = $workers[] = $this->worker($request);
+                $worker = $workers[] = $this->worker($request, $actor ?? $this->admin);
                 $worker->start();
                 $blocked = $this->waitForRowLocks($table, $workers);
             }
@@ -214,6 +244,8 @@ class MySqlCatalogContentionTest extends TestCase
 
     private function waitForRowLocks(string $table, array $workers): array
     {
+        // Cart::lockOwner acquires its write lock at the upsert, before the explicit locked read.
+        $statement = $table === 'carts' ? '/^insert into `carts` .* on duplicate key update /i' : "/from `$table` .* for update/i";
         $deadline = microtime(true) + 8;
         do {
             foreach ($workers as $worker) {
@@ -222,7 +254,7 @@ class MySqlCatalogContentionTest extends TestCase
                 }
             }
             $locks = array_filter(DB::select('SHOW FULL PROCESSLIST'), fn ($row) => $row->db === 'camba_v2_test'
-                && preg_match("/from `$table` .* for update/i", $row->Info ?? ''));
+                && preg_match($statement, $row->Info ?? ''));
             if (count($locks) === count($workers)) {
                 return array_map('intval', array_column($locks, 'Id'));
             }
@@ -232,7 +264,7 @@ class MySqlCatalogContentionTest extends TestCase
         $this->fail('Timed out observing '.count($workers)." independent $table row-lock waits.");
     }
 
-    private function worker(array $request): Process
+    private function worker(array $request, User $actor): Process
     {
         $db = DB::connection();
 
@@ -242,7 +274,7 @@ class MySqlCatalogContentionTest extends TestCase
             'DB_CONNECTION' => 'mysql', 'DB_URL' => '', 'DB_HOST' => '127.0.0.1', 'DB_DATABASE' => 'camba_v2_test',
             'DB_SOCKET' => '', 'DB_PORT' => (string) $db->getConfig('port'), 'DB_USERNAME' => $db->getConfig('username'),
             'DB_PASSWORD' => (string) $db->getConfig('password'),
-            'CAMBA_CATALOG_TEST_ADMIN' => (string) $this->admin->id, 'CAMBA_CATALOG_TEST_MEDIA' => $this->media,
+            'CAMBA_CATALOG_TEST_ACTOR' => (string) $actor->id, 'CAMBA_CATALOG_TEST_MEDIA' => $this->media,
         ], timeout: 20);
     }
 

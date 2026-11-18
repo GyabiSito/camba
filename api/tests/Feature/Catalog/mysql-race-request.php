@@ -7,7 +7,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-if (PHP_SAPI !== 'cli' || getenv('APP_ENV') !== 'testing' || ! getenv('CAMBA_CATALOG_TEST_ADMIN') || ! getenv('CAMBA_CATALOG_TEST_MEDIA')) {
+if (PHP_SAPI !== 'cli' || getenv('APP_ENV') !== 'testing' || ! getenv('CAMBA_CATALOG_TEST_ACTOR') || ! getenv('CAMBA_CATALOG_TEST_MEDIA')) {
     exit(2);
 }
 
@@ -28,10 +28,10 @@ $files = ($body['photo'] ?? false) ? ['photos' => [UploadedFile::fake()->image('
 $request = Request::create($uri, $method, [], [], $files, [
     'HTTP_ACCEPT' => 'application/json', 'HTTP_ORIGIN' => 'http://localhost',
     'CONTENT_TYPE' => $files ? 'multipart/form-data' : 'application/json',
-], $files ? null : json_encode($body, JSON_THROW_ON_ERROR));
+], $files || $body === [] ? null : json_encode($body, JSON_THROW_ON_ERROR));
 $request->headers->add($headers);
 $app->instance('request', $request);
-Auth::guard('web')->setUser(User::findOrFail(getenv('CAMBA_CATALOG_TEST_ADMIN')));
+Auth::guard('web')->setUser(User::findOrFail(getenv('CAMBA_CATALOG_TEST_ACTOR')));
 $connection = (int) DB::selectOne('SELECT CONNECTION_ID() AS id')->id;
 $response = $kernel->handle($request);
 echo json_encode([
