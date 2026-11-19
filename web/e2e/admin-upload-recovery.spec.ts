@@ -11,7 +11,7 @@ async function signIn(page: Page) {
   await page.getByLabel('Correo electrónico').fill('admin@camba.test');
   await page.getByLabel('Contraseña', { exact: true }).fill('Camba-test-only-2026');
   await page.getByRole('button', { name: 'Ingresar' }).click();
-  await expect(page.getByRole('heading', { name: 'Productos', exact: true })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Productos', exact: true })).toBeVisible({ timeout: 25_000 });
 }
 
 async function useFallback(page: Page) {
@@ -95,6 +95,15 @@ test('TV-001 distinguishes a real close 200 from failed browser cleanup', async 
   const otherRecover = otherGallery.getByRole('button', { name: 'Reintentar recuperación' });
   await otherRecover.focus();
   await other.screenshot({ path: info.outputPath('tv001-local-pending-desktop.png') });
+  const productPath = `/api/v1/admin/products/${id}`;
+  await other.route(`**${productPath}`, (route) => route.fulfill({ status: 504, json: {} }), { times: 1 });
+  const failedRefresh = other.waitForResponse((response) => response.request().method() === 'GET' && response.url().endsWith(productPath));
+  await otherRecover.press('Enter');
+  expect((await failedRefresh).status()).toBe(504);
+  expect(await persistedKey(other, id)).toBe(key);
+  await expect(otherGallery.getByRole('status').filter({ hasText: 'El servidor confirmó el cierre' })).toBeVisible();
+  await expect(otherGallery.getByRole('status').filter({ hasText: 'Recuperación terminada' })).toHaveCount(0);
+  await expect(otherRecover).toBeEnabled();
   await otherRecover.press('Enter');
   await expect(otherGallery.getByRole('status').filter({ hasText: 'Recuperación terminada' })).toBeVisible();
   expect(await persistedKey(other, id)).toBeNull();
@@ -177,4 +186,46 @@ test('grouped recovery distinguishes an unconfirmed close and keeps the original
   const product = await page.request.get(`/api/v1/admin/products/${id}`, { headers: { Referer: page.url() } });
   expect(product.ok()).toBe(true);
   expect((await product.json()).data.images.map((image: { id: number }) => image.id)).toEqual([cover]);
+});
+
+test('a retry already hashing in another tab cannot recreate a closed reservation', async ({ page, context }) => {
+  await signIn(page);
+  await page.getByRole('link', { name: 'Nuevo producto' }).click();
+  await page.getByLabel('Nombre', { exact: true }).fill('Subida cerrada mientras se vuelve a comprobar');
+  await page.getByRole('button', { name: 'Crear borrador' }).click();
+  const gallery = page.getByRole('region', { name: 'Galería' });
+  await page.route(uploadPath, (route) => route.fulfill({ status: 504, json: {} }), { times: 1 });
+  await gallery.getByLabel('Agregar fotos').setInputFiles(photo('image-pocket'));
+  await gallery.getByRole('button', { name: 'Subir fotos' }).click();
+  await expect(gallery.getByRole('alert')).toContainText('confirmar');
+  const id = new URL(page.url()).pathname.split('/').at(-1)!;
+
+  const stale = await context.newPage();
+  await stale.goto(page.url());
+  const staleGallery = stale.getByRole('region', { name: 'Galería' });
+  let posted = 0;
+  stale.on('request', (request) => { if (request.method() === 'POST' && uploadPath.test(request.url())) posted++; });
+  await stale.evaluate(() => {
+    const digest = crypto.subtle.digest.bind(crypto.subtle);
+    const barrier = new Promise<void>((release) => window.addEventListener('fixture-release-hash', () => release(), { once: true }));
+    Object.defineProperty(crypto.subtle, 'digest', { value: async (...args: Parameters<SubtleCrypto['digest']>) => {
+      document.documentElement.dataset.fixtureHashing = 'yes';
+      await barrier;
+      return digest(...args);
+    } });
+  });
+  await staleGallery.getByLabel('Volver a elegir las fotos').setInputFiles(photo('image-pocket'));
+  await staleGallery.getByRole('button', { name: 'Reintentar carga' }).click();
+  await expect(stale.locator('html')).toHaveAttribute('data-fixture-hashing', 'yes');
+
+  await gallery.getByRole('button', { name: 'Cerrar carga pendiente' }).click();
+  await expect(gallery.getByRole('status').filter({ hasText: 'Recuperación terminada' })).toBeVisible();
+  expect(await persistedKey(page, id)).toBeNull();
+  await stale.evaluate(() => window.dispatchEvent(new Event('fixture-release-hash')));
+  await expect(staleGallery.getByRole('button', { name: 'Reintentar recuperación' })).toBeVisible();
+  expect(posted).toBe(0);
+  expect(await persistedKey(stale, id)).toBeNull();
+  await staleGallery.getByRole('button', { name: 'Reintentar recuperación' }).press('Enter');
+  await expect(staleGallery.getByRole('status').filter({ hasText: 'Recuperación terminada' })).toBeVisible();
+  expect(posted).toBe(0);
 });

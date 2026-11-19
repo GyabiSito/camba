@@ -212,21 +212,22 @@ export async function closePhotoUpload(api: ApiClient, destroy: DestroyRef, id: 
     } catch {
       return { kind: 'unconfirmed' };
     }
-    // This per-operation marker never overwrites the product's slot, even without the cleanup lock.
-    try { localStorage.setItem(closeMarker(slot, key), '1'); }
-    catch { /* Keep the acknowledgement in memory; a reload can safely repeat the same close. */ }
   }
   state.closedKey = key;
-  if (!(await releaseUpload(slot, key, true))) return { kind: 'cleanup-pending', product };
-
-  try { localStorage.removeItem(closeMarker(slot, key)); }
-  catch { /* A stale marker cannot apply to a different operation. */ }
-  state.attempt = state.files = state.closedKey = undefined;
+  // ponytail: keep one small marker per explicit close; reclaiming it safely needs a server check for suspended tabs.
+  try {
+    if (!wasClosed(slot, key)) localStorage.setItem(closeMarker(slot, key), '1');
+  } catch {
+    return { kind: 'cleanup-pending', product };
+  }
   if (!product && !destroy.destroyed) {
     product = await firstValueFrom(api.get<Data<Product>>(`${products}/${id}`).pipe(
       takeUntilDestroyed(destroy),
     )).then(({ data }) => data?.id === id && Array.isArray(data.images) ? data : undefined, () => undefined);
   }
+  if (!product || !(await releaseUpload(slot, key, true))) return { kind: 'cleanup-pending', product };
+
+  state.attempt = state.files = state.closedKey = undefined;
   return { kind: 'ready', product };
 }
 

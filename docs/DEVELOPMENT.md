@@ -57,8 +57,8 @@ Both admin upload flows keep the operation key in the current browser. After an 
 The interface distinguishes three results:
 
 - **Close unconfirmed:** retry the same close. Do not clear the site's reservation or start a replacement upload.
-- **Server closed, browser cleanup pending:** restore site-storage access and select **Reintentar recuperación**. The acknowledgement is stored separately by operation key so another tab or a reload can resume cleanup without uploading files or repeating the close. If storage could not persist the acknowledgement at all, repeating the same close is safe.
-- **Recovery complete:** new photos can be selected, unless another tab already reserved a separate operation. Cleanup never removes that newer reservation.
+- **Server closed, browser cleanup pending:** restore site-storage access and select **Reintentar recuperación**. The acknowledgement is stored separately by operation key so another tab or a reload can resume without uploading files or repeating the close. If the gallery refresh fails, or storage cannot persist or release the reservation, recovery stays pending. After reload, if the acknowledgement could not be written, repeating the same close is safe.
+- **Recovery complete:** new photos can be selected, unless another tab already reserved a separate operation. Cleanup never removes that newer reservation. The small acknowledgement for the closed key is retained so a suspended tab cannot recreate the reservation after resuming.
 
 Site storage is required. IndexedDB serializes reservations when Web Locks is unavailable. Without SubtleCrypto, an exact retry needs the original files still open in memory; otherwise, close the pending upload first. No photo bytes or previews are persisted in browser storage. Use HTTPS in production. Lost confirmation while creating the product itself is separate: find the existing draft before creating it again.
 
