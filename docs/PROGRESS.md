@@ -1,5 +1,9 @@
 # Progreso de Camba v2
 
+## Entrega local
+
+Base `fcfd79a`. El proyecto Compose `camba-v2-local` quedó en loopback con red y volúmenes propios. [URLs, reanudación y comprobaciones externas](VALIDACION_ENTREGA.md) · [Guía de administración](GUIA_ADMIN.md). Esta instancia no es producción ni usa datos del Camba anterior.
+
 ## Estado inicial
 
 18/11/2026: se prepararon las instrucciones para Codex local después de revisar referencias remotas de GAM y Voltio. Se confirmó que el repositorio nuevo estaba vacío. Komorebi todavía requiere lectura de su checkout local.
@@ -23,7 +27,7 @@ No hay aplicación implementada, dependencias instaladas, contenedores de Camba 
 
 ## Próximo paso
 
-Retomar `feat/camba-v2` con [el log de tareas](../odd/tasks/camba-v2.md). Ejecutar `npm run test:e2e` desde `web/` con los [requisitos de la fixture aislada](DEVELOPMENT.md#browser-checks-and-captures). La [sección 8 actualizada](AUTONOMOUS_EXECUTION.md#8-continuar-el-frontend-cuando-falla-el-acceso-al-navegador) ya no condiciona la implementación al hero; el estado de Impeccable en `hero` no certifica ni bloquea los recorridos que pasan en Chromium.
+Usar la instancia local con la [guía de administración](GUIA_ADMIN.md) y retomar la aceptación externa desde [los requisitos y comandos](VALIDACION_ENTREGA.md#validaciones-que-requieren-otras-capacidades). La [sección 8](AUTONOMOUS_EXECUTION.md#8-continuar-el-frontend-cuando-falla-el-acceso-al-navegador) no condiciona los recorridos al hero de Impeccable; tampoco los certifica por sí sola.
 
 Retomar la matriz de abajo con la [medición LCP local](LOCAL_PERFORMANCE.md), la [recuperación local](LOCAL_RECOVERY.md) y las capturas en `web/performance-results/section9-051939b/`. Las validaciones reales de edge/catálogo, Mercado Pago, SMTP y migración requieren las dependencias indicadas al final. No se habilitó el release ni se modifica Camba anterior.
 
@@ -64,9 +68,9 @@ Retomar la matriz de abajo con la [medición LCP local](LOCAL_PERFORMANCE.md), l
 | UC29 | Partial: Chromium PATCH settings, public read and audit history | Live business configuration |
 | UC30 | Partial: dry-run `9d7e52e` and isolated apply `0ef28f0`; SQLite and independent MySQL interrupted-gallery replay | Actual isolated export/photos, accounts/history, redirections and cutover |
 | T01 | Apps and design checked visually; actual admin hero (1586×992) submitted to Impeccable | The formal hero did not advance: plate-source gate requires original static PNGs, while the working admin loads catalog WebP via API. No approval inferred |
-| T02 | Local: Chromium and Firefox, 320-px reflow, 200% text, contrast for rendered controls, errors and status, visible keyboard focus, reduced motion; shell fragment links fixed | Spoken-announcement walkthrough: NVDA absent, Windows Narrator available but no browser access host or observable speech in this session |
+| T02 | Local: Chromium and Firefox, 320-px reflow, 200% text, contrast for rendered controls, errors and status, visible keyboard focus, reduced motion; shell fragment links fixed | Spoken-announcement walkthrough: Narrator executable verified, NVDA not found at standard paths; no observed spoken output in this session |
 | T03 | Local: SSR, hydrated interactions, HTTP 404, WebP/list queries, unchanged five-run mobile lab trace; median LCP 2.11 s, CLS 0 | Real edge, catalogue images and field INP |
-| T04 | Partial: full dev and production-style stacks healthy in isolation; dev roots/proxies 200, no prod-style published ports | Real edge/TLS and protected hosting configuration |
+| T04 | Local: `camba-v2-local` runs MySQL, Redis, Mailpit, API, worker, scheduler, store and admin. HTTP 200 for both apps and API readiness; verified admin published a gallery and read back the order placed by the storefront | Real edge/TLS and protected hosting configuration |
 | T05 | Partial: CI scope and 60 gate cases, image builds and simulated release; Chromium added without publishing on E2E-only changes | Actual GitHub run, registry pull/push and protected production delivery |
 | T06 | Local: fresh MySQL/public/private volumes, 31 table counts and 15 migrations; media bytes verified; rebuilt jobs on fresh Redis and quarantined ambiguous notice | Real data/production recovery |
 
@@ -222,6 +226,28 @@ Por cada entrega agregar: commit, funcionalidad, comandos ejecutados, resultado,
 - **Seguimiento separado de avisos:** RED de `R4-001`: con una segunda pestaña pausada al calcular la huella, cerrar la carga y reanudar la pestaña recreaba la reserva y enviaba otro multipart (409 real). Se conserva el acuse pequeño de la clave cerrada para rechazar ese reintento antes del POST. RED de `R3-001`: un 504 al actualizar la galería había quitado la reserva demasiado pronto; ahora el estado sigue pendiente hasta obtener una galería vigente y confirmar la limpieza de esa clave. `R2-001`: el replay con la clave del lote publicado, aun después de un cierre, conserva exactamente la respuesta 201 y los derivados.
 - **Comprobaciones de seguimiento:** Chromium **3/3** y Firefox independiente **2/2**; no hubo POST de la pestaña desactualizada, ni reserva recreada, y la recuperación tras el 504 conservó la clave. Galería SQLite **9/121**; sonda específica de replay en MySQL 8.4.13/InnoDB **1/20**. Pint dirigido, build de admin y helper de imagen `camba-tv001-followup-admin:local` pasaron. El almacenamiento conserva un registro pequeño por cierre explícito; si no se puede persistir el acuse, no se libera prematuramente la reserva. Esta verificación no reitera ni sustituye el acuse nativo del candidato anterior.
 - **Alcance final:** `cb14343` fue evaluado por separado desde `9390152`: `medium / under_budget`, sin nueva revisión debida ni acuse heredado. La primera evaluación requirió declarar archivos sin seguimiento; se consultó el inventario canónico y se excluyeron del alcance solo los recursos locales de diseño. No se tocaron. Ya no hay un paso local pendiente en este alcance: siguen la prueba con lector de pantalla y las dependencias externas de la sección siguiente.
+
+## Cierre local desde `fcfd79a`
+
+- **Compilación y HTTP:** se construyó la imagen local de PHP y se compilaron admin y tienda con Angular en Compose. Salud y disponibilidad de API, catálogo, ambos frontends y Mailpit devolvieron 200. Las 16 migraciones figuran aplicadas en la base MySQL nueva; no se ejecutó una migración histórica. Docker había agotado sus pools automáticos: se asignó una subred a este proyecto, sin eliminar redes ajenas. En un arranque con base vacía hay que migrar antes de esperar la salud de la tienda SSR; el procedimiento queda en [Validación de entrega](VALIDACION_ENTREGA.md#instancia-local-entregada).
+- **Acceso:** la tienda registró la cuenta local, el worker Redis entregó el correo a Mailpit, Laravel aceptó el enlace firmado y `camba:grant-admin` activó el rol. El login en admin devolvió 204 y la sesión protegida 200. Contraseña fuera de Git, en archivo privado de esta máquina; la guía indica cómo abrirlo sin ponerla en el chat.
+- **Navegador contra Compose:** desde admin se crearon la categoría `Ropa demo` y `Remera demo local` como borrador, se subió una foto y se publicó. La ficha y su WebP devolvieron 200 desde tienda. Un invitado agregó la remera (200), confirmó retiro sin costo por UYU 750 (201) y quedó el pedido `3CDDDE76` pendiente de pago. Admin leyó esa misma referencia y producto. No se abrió Checkout Pro ni hubo cobro. La prueba dejó los datos de práctica en la instancia.
+- **Revisión visual puntual:** se abrieron las capturas del checkout real a 390 × 844 (`%LOCALAPPDATA%/Camba/local-preview/checkout-local.png`) y del inventario admin a 320 px (recheck Chromium). Se comprobaron la legibilidad de los campos, el foco y el total en checkout y el ajuste de tarjetas, filtros y paginador en admin. No es una revisión visual exhaustiva ni un ensayo con lector.
+- **Automatización:** primera corrida integrada en Chromium **33 pasaron, 1 falló y 3 omitidas opt-in** (entrega de enlace de verificación y restablecimiento en Mailpit, y vencimiento natural corto). El reporte inicial y la traza del fallo se conservan en `web/test-results/local-closure-fcfd79a-report/` y `web/test-results/local-closure-fcfd79a/`. La prueba de contraste admin suponía que había un «Publicado» en la primera página; los borradores de pruebas anteriores desplazaban esas filas. Se corrigió solo la prueba para seleccionar **Estado → Publicado** antes de medir. No se cambia código de aplicación, alcance ni autoridad de revisiones cerradas.
+- **Recheck del fallo:** `npm exec -- playwright test e2e/admin-catalog.spec.ts e2e/admin-store-accessibility.spec.ts --project=admin --output=test-results/local-closure-a11y-recheck` pasó **12/12**, sin omitidas, sobre una base descartable y con las mutaciones previas que antes disparaban el fallo. Reporte: `web/test-results/local-closure-a11y-recheck-report/`. No se repitieron las suites verdes ni se contabiliza como una segunda corrida integrada.
+
+## Defectos abiertos y validaciones pendientes
+
+| Tipo | Alcance | Qué falta |
+| --- | --- | --- |
+| Defectos de aplicación | Recorridos comprobados | Ninguno nuevo reproducido en este cierre. El defecto de automatización de contraste quedó corregido y revalidado; no cambia el producto. |
+| Evidencia de diseño | T01 | Registro formal del hero de Impeccable detenido por el requisito de placas PNG; no es aprobación ni un defecto funcional reproducido. |
+| Capacidad de prueba | T02 | Verificar anuncios hablados con un lector y salida observable. La comprobación de teclado/contraste no la reemplaza. |
+| Servicios reales | UC20–24, UC26–27 | Checkout Pro Uruguay en sandbox, webhooks HTTPS, conciliación y correo en buzón real. Mailpit y fakes no acreditan esto. |
+| Datos y negocio | UC18/25/28–30, T03/T06 | Export y fotos aislados, conciliación y corte; tarifas, retiro, pedido/aviso operativo, catálogo e INP de campo; recuperación con respaldo real. |
+| Destino y autorización | T04–05 | Corrida GitHub, GHCR, edge/TLS y entrega protegida; no se inspeccionaron credenciales o configuración remotas. |
+
+[Requisitos y comandos concretos](VALIDACION_ENTREGA.md#validaciones-que-requieren-otras-capacidades). Ninguno de estos renglones se presenta como una prueba aprobada.
 
 ## Dependencias externas que deben resolverse para una entrega productiva
 

@@ -23,6 +23,10 @@ Delivery: `auto-chain`, stacked-to-main local work units; no remote delivery. Fo
 - S14 — “Separá explícitamente: - cierre todavía no confirmado por el servidor; - cierre confirmado, con limpieza local pendiente; - recuperación terminada y nuevas subidas habilitadas.” “informá el resultado parcial sin anunciar éxito completo”; “conservá la misma clave de operación”; “ofrecé reintentar la recuperación sin volver a subir las fotos”; “eliminá únicamente la reserva correspondiente a esa operación.”
 - S15 — “Probá primero la reproducción exacta de TV-001 como regresión.” “Después verificá recuperación al restablecer el almacenamiento, recarga, otra pestaña y solicitudes atrasadas. Comprobá que no se dupliquen fotos, no cambie la portada y no se borre una reserva nueva.” “Reutilizá el manejo común en ambos flujos de subida.” “Conservá la cobertura de los cinco hallazgos originales y verificá Chromium, Firefox e InnoDB según corresponda.”
 - S16 — “Dejá el candidato probado y documentado antes de iniciar la resolución de revisión que permita el proveedor. Conservá trazabilidad con la escalación anterior; no la ocultes ni transfieras aprobaciones.” “Continuá después con los demás pendientes ejecutables del proyecto.”
+- S17 — “Verificá el conjunto integrado con las pruebas pertinentes que todavía no hayan corrido después de los últimos cambios.” “Conservá las revisiones cerradas y sus alcances. No repitas pruebas ya suficientes ni abras nuevas rondas sin cambios que lo justifiquen.”
+- S18 — “Levantá tienda, admin, API y servicios necesarios en el entorno aislado de Camba. Comprobá que funcionan juntos y dejalos disponibles.” “Entregá las URLs exactas y las instrucciones de acceso administrativo.”
+- S19 — “Prepará una guía breve para cargar productos individualmente, por fotos y por CSV/XLSX, y para gestionar pedidos.” “Actualizá la matriz distinguiendo defectos abiertos de validaciones pendientes por falta de servicios, datos o capacidades externas.”
+- S20 — “Continuá con lector de pantalla, Mercado Pago, SMTP, migración y CI/CD cuando exista configuración autorizada disponible. Si falta, dejá los requisitos y comandos de verificación concretos, sin imprimir secretos ni presentar simulaciones como validaciones reales.”
 
 ## Tasks
 
@@ -75,6 +79,9 @@ Delivery: `auto-chain`, stacked-to-main local work units; no remote delivery. Fo
 - A12 — S11/S12, Fail closed during API/admin version skew; inline `06e41c0`; independent runtime/contract/build confirmation, SQLite RED 404 → GREEN 9/110, final InnoDB 2/28 and Chromium 6/6; no legacy fallback. Risk: items 3 and 5 (consumer contract and rolling release compatibility).
 - A13 — S13–S16, Recover an acknowledged gallery close when browser cleanup fails; separate candidate `4c21245` (from `6fc1fc0`) + `7dae3a5`. Chromium RED exact TV-001 → GREEN 2 new and 7 inherited; Firefox 3/3; real InnoDB 111/1,513; packaged API/admin passed. Native `review-70edf905d4bc8582` approved and acknowledged, then exact application paths integrated as `8f5f78b` + `9390152`. The prior escalation was not reopened or inherited. Risk: item 4.
 - A14 — S14–S16, Separate follow-up to fresh gallery advisories; inline `cb14343`, independent Firefox and admin packaging. RED confirmed stale hashing emitted a 409 request and 504 refresh dropped the key; GREEN Chromium 3/3, Firefox 2/2, SQLite 9/121 and InnoDB exact replay 1/20. Native incremental assessment `medium / under_budget`, no standalone review due and no inherited approval. Risk: item 4 (late cross-tab work).
+- A15 — S17, Delegated integrated Chromium plus inline independent-environment smoke. Verified: 33 pass/1 fail/3 opt-ins skipped; corrected test with scoped GREEN 12/12 and actual Compose publication/order readback. This work unit; Risk: none (test expectation only, no app code).
+- A16 — S18, Inline isolated loopback setup with HTTP/browser proof. Verified: all 8 services running, signed Mailpit verification, supported `camba:grant-admin` and login 204/session 200. Handoff in this work unit; runtime not stored in Git. Risk: item 5 (isolated local runtime only).
+- A17 — S19/S20, Inline operator guide and acceptance matrix; delegated read-only map of external dependencies and supported commands. Local handoff verified in this work unit; spoken output and authorized external acceptance remain pending, not defects or approvals.
 
 ## Log
 
@@ -317,3 +324,30 @@ Fresh candidate base `f286b7e`; tracked correction `4c21245` has cherry-pick pro
 This ordinal granted only `7dae3a5`. Four results were admitted. Native review `review-70edf905d4bc8582` returned `approved` without a correction transition; exact acknowledgement returned `authority: burned`. The approved application paths were integrated as `8f5f78b` and `9390152` and matched the reviewed tree. Informational findings R2-001, R3-001 and R4-001 are separate follow-up work; they do not reopen the approval or transfer it to a changed candidate.
 
 A14 follow-up RED/GREEN independently corroborated: keep the small closure marker beyond cleanup to stop already-started hashing before an upload; refresh the gallery before releasing the matching reservation. No photo request from the stale tab, no recreated key, no false ready on the 504 path. Added explicit committed-key replay after close (201 and same images/files) with an InnoDB execution. Admin packaged and tested locally; neither closed lineage was reopened.
+
+### L16 — Local system closure
+
+Continuá desde el HEAD actual, posterior a fcfd79a.
+
+Realizá el cierre local del sistema:
+1. Verificá el conjunto integrado con las pruebas pertinentes que
+   todavía no hayan corrido después de los últimos cambios.
+2. Levantá tienda, admin, API y servicios necesarios en el entorno
+   aislado de Camba. Comprobá que funcionan juntos y dejalos disponibles.
+3. Entregá las URLs exactas y las instrucciones de acceso administrativo.
+4. Prepará una guía breve para cargar productos individualmente,
+   por fotos y por CSV/XLSX, y para gestionar pedidos.
+5. Actualizá la matriz distinguiendo defectos abiertos de validaciones
+   pendientes por falta de servicios, datos o capacidades externas.
+
+Continuá con lector de pantalla, Mercado Pago, SMTP, migración y
+CI/CD cuando exista configuración autorizada disponible. Si falta,
+dejá los requisitos y comandos de verificación concretos, sin
+imprimir secretos ni presentar simulaciones como validaciones reales.
+
+Conservá las revisiones cerradas y sus alcances. No repitas pruebas
+ya suficientes ni abras nuevas rondas sin cambios que lo justifiquen.
+
+Observed branch `feat/camba-v2` at `fcfd79a` with local design assets still untracked. Existing `camba-v2-dev` infrastructure and a separate rehearsal are not targets for modification; the live handoff will use a new project/volume/port namespace.
+
+The full Chromium run preserved RED: contrast expected a published badge on page one, where preceding cases had put only drafts. Selecting the existing Published filter is the only test change. The scoped 12-case sequence passed on a fresh fixture; the other 33 passing scenarios were not re-run as a full suite. The new `camba-v2-local` project uses a dedicated subnet and volumes. The real local journey was register → Redis worker/Mailpit → signed verification → promote → admin publish with media → guest pickup order → admin readback (`3CDDDE76`, unpaid). `docs/PROGRESS.md` records exact tests and separate visual evidence; `docs/VALIDACION_ENTREGA.md` records dependencies and commands. No redesign, native re-review, provider traffic or release. Engram mirror remains pending runtime registration; the repository log is the durable handoff.

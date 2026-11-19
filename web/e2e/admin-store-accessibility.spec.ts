@@ -54,6 +54,7 @@ test('visible keyboard focus, reduced motion, form errors, contrast and reflow',
     await page.getByLabel('Contraseña', { exact: true }).fill('Camba-test-only-2026');
     await submit.click();
     await expect(page.getByRole('heading', { name: 'Productos', exact: true })).toBeVisible();
+    await page.getByRole('combobox', { name: 'Estado', exact: true }).selectOption('published');
     const published = page.locator('.status-pill').filter({ hasText: 'Publicado' }).first();
     await expect(published).toBeVisible();
     expect(await contrast(published)).toBeGreaterThanOrEqual(4.5);
