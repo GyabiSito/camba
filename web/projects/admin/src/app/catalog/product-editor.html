@@ -16,7 +16,7 @@
     <p class="callout" role="alert">{{ loadError() }}</p>
     <button class="button button--quiet" type="button" (click)="load()">Reintentar</button>
   } @else {
-    <form class="work-section" (submit)="save($event)">
+    <form class="work-section product-editor-form" (submit)="save($event)">
       @if (!product()) { <p class="muted">El producto se crea como borrador. Podés añadir fotos antes de publicarlo.</p> }
       <fieldset [disabled]="saving() || galleryBusy()" class="plain-fieldset">
         <legend class="sr-only">Datos del producto</legend>
@@ -30,13 +30,18 @@
         </div>
       }
       @if (message()) { <p role="status">{{ message() }}</p> }
-      <div class="actions" style="margin-block-start:1rem">
+      <div class="editor-actions">
+        <div class="save-actions">
         <button class="button" type="submit" [disabled]="saving() || galleryBusy() || createUncertain()">
           {{ saving() ? 'Guardando…' : id ? 'Guardar cambios' : 'Crear borrador' }}
         </button>
+        </div>
         @if (product(); as item) {
           @if (item.status !== 'published') {
-            <button class="button button--quiet" type="button" [disabled]="saving() || galleryBusy()" (click)="transition('publish')">Publicar</button>
+            <div class="publish-actions">
+              <p class="muted">La publicación hace visible el producto en la tienda.</p>
+              <button class="button button--quiet" type="button" [disabled]="saving() || galleryBusy()" (click)="transition('publish')">Publicar</button>
+            </div>
           }
           @if (item.status !== 'archived') {
             <button class="button button--quiet" type="button" [disabled]="saving() || galleryBusy()" (click)="archivePrompt.set(!archivePrompt())" [attr.aria-expanded]="archivePrompt()">Archivar</button>

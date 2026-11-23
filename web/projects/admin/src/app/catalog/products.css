@@ -1,4 +1,6 @@
 .catalog-toolbar { display: flex; align-items: start; justify-content: space-between; flex-wrap: wrap; gap: .75rem 1.5rem; margin-bottom: clamp(1.15rem, 2.4vw, 2.4rem); }
+.catalog-primary-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .55rem; }
+.catalog-primary-actions .button { min-height: 2.85rem; }
 .catalog-filters { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: .85rem; width: min(100%, 66rem); min-width: 0; }
 .catalog-filters label { min-width: 0; }
 .catalog-filters input, .catalog-filters select {
@@ -27,8 +29,13 @@
 .select-product svg { width: 22px; height: 22px; display: block; margin: auto; }
 .select-product[aria-pressed='true'] svg { color: var(--surface); }
 .select-product[aria-pressed='true'] rect { fill: var(--forest); stroke: var(--forest); }
-.product-cell a { color: var(--ink); font-weight: 650; overflow-wrap: anywhere; text-decoration: none; }
+.product-identity { display: flex; align-items: center; gap: .65rem; min-width: 0; }
+.product-identity .product-thumb { flex: none; margin: 0; }
+.product-cell a { min-width: 0; color: var(--ink); font-weight: 650; overflow-wrap: anywhere; text-decoration: none; }
 .product-cell a:hover { text-decoration: underline; }
+.row-action { width: 5.5rem; text-align: right; white-space: nowrap; }
+.row-action a { display: inline-flex; min-height: 40px; align-items: center; padding-inline: .55rem; border-radius: 6px; color: var(--forest); font-weight: 650; text-decoration-thickness: 1px; text-underline-offset: .18em; }
+.row-action a:hover { background: var(--accent); }
 .product-thumb {
   display: inline-grid; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 8px;
   vertical-align: middle; margin-inline-end: clamp(.35rem, 1.1vw, 1rem);

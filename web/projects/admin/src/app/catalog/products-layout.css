@@ -26,6 +26,7 @@
   .inventory { grid-template-columns: minmax(0, 1fr) minmax(200px, .34fr); }
   .inventory .product-thumb:not(.selection-photo) { width: 44px; height: 44px; }
   .inventory th, .inventory td { padding-inline: .4rem; }
+  .row-action { width: 4rem; }
 }
 
 @container (inline-size <= 51em) {
@@ -38,6 +39,8 @@
 }
 
 @container (inline-size <= 35em) {
+  .catalog-primary-actions { width: 100%; justify-content: start; }
+  .catalog-primary-actions .button { flex: 1 1 auto; min-width: 0; }
   .catalog-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .catalog-filters select { padding-inline: .55rem .25rem; }
   .catalog-search { grid-column: 1 / -1; }
@@ -52,13 +55,14 @@
   .inventory tbody th, .inventory tbody td { border: 0; padding: 0; min-width: 0; }
   .inventory tr.is-selected td:first-child { box-shadow: none; }
   .inventory .product-select { grid-column: 2; grid-row: 1; width: auto; padding: 0; justify-self: end; align-self: center; z-index: 1; }
-  .inventory tbody .product-cell { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; gap: .5rem; padding-inline-end: 2.8rem; }
-  .product-cell .product-thumb { flex: 0 0 44px; margin: 0; }
-  .inventory .sku { grid-column: 1 / -1; max-width: unset; }
-  .inventory .category-cell { grid-column: 1 / -1; }
+  .inventory tbody .product-cell { grid-column: 1 / -1; grid-row: 1; padding-inline-end: 2.8rem; }
+  .inventory .sku { grid-column: 1; grid-row: 2; max-width: unset; }
+  .inventory .category-cell { grid-column: 2; grid-row: 2; overflow-wrap: anywhere; }
   .inventory .sku .mobile-label, .inventory .category-cell .mobile-label { display: inline; margin-right: .35rem; }
-  .inventory .status-cell { grid-column: 1 / -1; white-space: normal; }
+  .inventory .price { grid-column: 1; grid-row: 3; }
+  .inventory .stock { grid-column: 2; grid-row: 3; }
+  .inventory .status-cell { grid-column: 1; grid-row: 4; white-space: normal; }
+  .inventory .row-action { grid-column: 2; grid-row: 4; align-self: center; justify-self: end; width: auto; }
   .inventory .status-pill { padding-inline: .45rem; }
-  .price { white-space: nowrap; }
   .mobile-label { position: static; display: block; width: auto; height: auto; margin: 0; clip-path: none; font-size: .82rem; color: var(--muted); }
 }

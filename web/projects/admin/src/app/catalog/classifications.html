@@ -12,7 +12,7 @@
     @if (error()) { <p class="callout alert" role="alert">{{ error() }}</p> }
     @if (notice()) { <p class="callout" role="status">{{ notice() }}</p> }
     @for (group of groups; track group.key) {
-      <section class="work-section" [attr.aria-labelledby]="group.key">
+      <section class="work-section classification-section" [attr.aria-labelledby]="group.key">
         <header class="page-heading">
           <div>
             <h2 [id]="group.key">{{ group.label }}</h2>
@@ -34,7 +34,7 @@
           }
         }
         @for (item of items()[group.key]; track item.id) {
-          <div class="manage-row">
+          <div class="manage-row classification-row">
             <div><p><strong>{{ item.name }}</strong></p><p class="muted">Identificador: <code>{{ item.slug }}</code></p></div>
             <span class="status-pill" [attr.data-status]="item.active ? 'active' : 'inactive'">{{ item.active ? 'Activa' : 'Inactiva' }}</span>
             <div class="actions">

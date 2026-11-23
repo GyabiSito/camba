@@ -1,4 +1,8 @@
 .manage-row { display: grid; grid-template-columns: minmax(7rem, 1fr) minmax(7rem, .65fr) auto; gap: .65rem 1rem; align-items: center; padding-block: .7rem; border-bottom: 1px solid var(--line); }
+.classification-section { padding: clamp(1rem, 1.8vw, 1.5rem); margin-block: 1rem; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.classification-section > .page-heading { align-items: center; margin-bottom: .75rem; }
+.classification-row { padding: .8rem .35rem; }
+.classification-row .actions { justify-content: end; }
 .manage-row p { margin: 0; overflow-wrap: anywhere; }
 .manage-row .status-pill { justify-self: start; }
 .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 175px), 1fr)); gap: 1rem; margin: .75rem 0 1.15rem; padding: 0; list-style: none; }
@@ -29,5 +33,7 @@
 @media (max-width: 590px) {
   .manage-row { grid-template-columns: minmax(0, 1fr) auto; }
   .manage-row > .actions { grid-column: 1 / -1; }
+  .classification-row { gap: .45rem .65rem; }
+  .classification-row .actions { justify-content: start; }
   .photo-grid--pending, .batch-group .photo-grid--pending { grid-template-columns: repeat(auto-fill, minmax(min(100%, 96px), 1fr)); }
 }

@@ -36,6 +36,17 @@ h2, h3 { letter-spacing: -.02em; overflow-wrap: anywhere; }
 .alert { color: var(--danger); }
 .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem 1.1rem; }
 .field-grid .wide { grid-column: 1 / -1; }
+.product-fields { display: grid; gap: 1.2rem; }
+.product-field-section { min-width: 0; padding: clamp(.9rem, 1.5vw, 1.35rem); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.product-field-section h2 { margin: 0 0 1rem; font-size: 1.15rem; letter-spacing: -.02em; }
+.product-price-grid { max-width: 46rem; }
+.product-editor-form { display: grid; gap: 1rem; padding: 0; border: 0; background: transparent; }
+.product-editor-form > .plain-fieldset { min-width: 0; }
+.editor-actions { display: flex; align-items: end; flex-wrap: wrap; gap: 1rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+.save-actions { display: flex; align-items: center; min-height: 3rem; }
+.publish-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem; border-inline-start: 1px solid var(--line); padding-inline-start: 1rem; }
+.publish-actions p { max-width: 28ch; margin: 0; }
+.publish-actions .button { border-color: var(--line); }
 .plain-fieldset { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
 .plain-fieldset > .button { margin-block-start: .75rem; }
 .field { min-width: 0; }
@@ -45,4 +56,6 @@ h2, h3 { letter-spacing: -.02em; overflow-wrap: anywhere; }
 .field-error { color: var(--danger); }
 @media (max-width: 590px) {
   .field-grid { grid-template-columns: minmax(0, 1fr); }
+  .product-field-section { padding: .85rem; }
+  .publish-actions { border-inline-start: 0; border-top: 1px solid var(--line); padding: .85rem 0 0; }
 }

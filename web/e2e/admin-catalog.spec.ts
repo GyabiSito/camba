@@ -16,6 +16,7 @@ function photo(name: string) {
 
 test('busca por SKU, guarda centésimos, publica con galería y archiva a 320 px', async ({ page }, testInfo) => {
   await signIn(page);
+  await expect(page.getByRole('link', { name: 'Carga masiva' })).toBeVisible();
   await page.getByRole('button', { name: 'Seleccionar Remera lisa' }).click();
   await expect(page.getByRole('complementary', { name: 'Producto seleccionado' })).toContainText('REM-002');
   await page.screenshot({ path: testInfo.outputPath('admin-catalog-desktop.png'), fullPage: true });
@@ -62,7 +63,7 @@ test('busca por SKU, guarda centésimos, publica con galería y archiva a 320 px
   await expect(page.getByText('Producto archivado.')).toBeVisible();
   await page.goto('/productos');
   const row = page.getByRole('row', { name: /Remera de prueba edición/ });
-  const name = await row.getByRole('link', { name: 'Remera de prueba edición' }).boundingBox();
+  const name = await row.getByRole('link', { name: 'Remera de prueba edición', exact: true }).boundingBox();
   const select = await row.getByRole('button', { name: 'Seleccionar Remera de prueba edición' }).boundingBox();
   expect(name!.x + name!.width).toBeLessThanOrEqual(select!.x);
 });
