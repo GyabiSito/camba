@@ -27,6 +27,8 @@ class LocalDemoSeeder extends Seeder
 {
     private const PASSWORD = 'CambaDemo2026!';
 
+    private const BUYER_NAME = 'Lucía Rodríguez';
+
     private const PRODUCTS = [
         [
             'sku' => 'CAMBA-DEMO-001', 'slug' => 'camisa-clasica-marino', 'name' => 'Camisa clásica azul marino',
@@ -34,7 +36,7 @@ class LocalDemoSeeder extends Seeder
             'price_cents' => 189000, 'stock' => 12, 'status' => ProductStatus::Published,
             'category' => 'camisas', 'brand' => 'senda', 'images' => [
                 ['image-classic.webp', 'Camisa clásica azul marino, vista frontal'],
-                ['detail-photo.webp', 'Detalle de textura de la colección de prueba'],
+                ['detail-photo.webp', 'Detalle de la textura de la tela'],
             ],
         ],
         [
@@ -42,7 +44,7 @@ class LocalDemoSeeder extends Seeder
             'description' => 'Una prenda liviana de algodón con bolsillo al tono.',
             'price_cents' => 219000, 'stock' => 5, 'status' => ProductStatus::Published,
             'category' => 'remeras', 'brand' => 'senda', 'images' => [
-                ['image-pocket.webp', 'Remera con bolsillo'], ['image-cotton.webp', 'Camisa clara de la colección de prueba'],
+                ['image-pocket.webp', 'Remera con bolsillo'], ['image-cotton.webp', 'Camisa clara'],
             ],
         ],
         [
@@ -50,7 +52,7 @@ class LocalDemoSeeder extends Seeder
             'description' => 'Sarga de cuerpo medio y pierna recta.',
             'price_cents' => 245000, 'stock' => 4, 'status' => ProductStatus::Published,
             'category' => 'pantalones', 'brand' => 'orilla', 'images' => [
-                ['image-twill.webp', 'Pantalón de sarga negro'], ['image-plain.webp', 'Remera negra de la colección de prueba'],
+                ['image-twill.webp', 'Pantalón de sarga negro'], ['image-plain.webp', 'Remera negra'],
             ],
         ],
         [
@@ -58,7 +60,7 @@ class LocalDemoSeeder extends Seeder
             'description' => 'Cintura con pasadores y pierna recta.',
             'price_cents' => 199000, 'stock' => 3, 'status' => ProductStatus::Published,
             'category' => 'pantalones', 'brand' => null, 'images' => [
-                ['image-straight.webp', 'Pantalón con pinzas arena'], ['image-over.webp', 'Remera clara de la colección de prueba'],
+                ['image-straight.webp', 'Pantalón con pinzas arena'], ['image-over.webp', 'Remera clara'],
             ],
         ],
         [
@@ -84,7 +86,7 @@ class LocalDemoSeeder extends Seeder
             'description' => 'Camisa oscura de uso diario con galería de muestra.',
             'price_cents' => 239000, 'stock' => 9, 'status' => ProductStatus::Published,
             'category' => 'camisas', 'brand' => 'senda', 'images' => [
-                ['image-classic.webp', 'Camisa Puerto, frente'], ['image-pocket.webp', 'Remera de la colección de prueba'],
+                ['image-classic.webp', 'Camisa Puerto, frente'], ['image-pocket.webp', 'Remera con bolsillo'],
                 ['detail-photo.webp', 'Terminación de la tela'],
             ],
         ],
@@ -97,7 +99,7 @@ class LocalDemoSeeder extends Seeder
         DB::transaction(function (): void {
             $this->copyDemoImages();
 
-            $buyer = $this->user('Cliente de demostración', 'cliente.diseno@camba.test', 'buyer');
+            $buyer = $this->user(self::BUYER_NAME, 'cliente.diseno@camba.test', 'buyer');
             $admin = $this->user('Administración de demostración', 'admin.diseno@camba.test', 'admin');
             $categories = $this->classifications(Category::class, [
                 ['name' => 'Remeras', 'slug' => 'remeras'],
@@ -192,8 +194,8 @@ class LocalDemoSeeder extends Seeder
     private function addresses(User $buyer): void
     {
         foreach ([
-            ['recipient' => 'Lucía Demo', 'department' => 'Montevideo', 'locality' => 'Cordón', 'street' => 'Colonia', 'number' => '1234', 'details' => 'Apartamento 2', 'phone' => '099 000 001', 'postal_code' => '11200'],
-            ['recipient' => 'Lucía Demo', 'department' => 'Canelones', 'locality' => 'Ciudad de la Costa', 'street' => 'Giannattasio', 'number' => 'KM 21', 'details' => null, 'phone' => '099 000 001', 'postal_code' => '15000'],
+            ['recipient' => self::BUYER_NAME, 'department' => 'Montevideo', 'locality' => 'Cordón', 'street' => 'Colonia', 'number' => '1234', 'details' => 'Apartamento 2', 'phone' => '099 000 001', 'postal_code' => '11200'],
+            ['recipient' => self::BUYER_NAME, 'department' => 'Canelones', 'locality' => 'Ciudad de la Costa', 'street' => 'Giannattasio', 'number' => 'KM 21', 'details' => null, 'phone' => '099 000 001', 'postal_code' => '15000'],
         ] as $address) {
             $match = ['user_id' => $buyer->id, 'street' => $address['street'], 'number' => $address['number']];
             if (! Address::query()->where($match)->exists()) {
@@ -232,8 +234,8 @@ class LocalDemoSeeder extends Seeder
                     'total_cents' => $total,
                     'shipping_method' => $fixture['shipping'],
                     'pickup_address' => $fixture['shipping'] === 'pickup' ? 'Camba · 18 de Julio 1234, Montevideo' : null,
-                    'contact' => ['name' => 'Lucía Demo', 'email' => 'cliente.diseno@camba.test', 'phone' => '099 000 001'],
-                    'address' => $fixture['shipping'] === 'delivery' ? ['recipient' => 'Lucía Demo', 'department' => 'Montevideo', 'locality' => 'Cordón', 'street' => 'Colonia', 'number' => '1234', 'details' => null, 'postal_code' => '11200'] : null,
+                    'contact' => ['name' => self::BUYER_NAME, 'email' => 'cliente.diseno@camba.test', 'phone' => '099 000 001'],
+                    'address' => $fixture['shipping'] === 'delivery' ? ['recipient' => self::BUYER_NAME, 'department' => 'Montevideo', 'locality' => 'Cordón', 'street' => 'Colonia', 'number' => '1234', 'details' => null, 'postal_code' => '11200'] : null,
                     'reservation_expires_at' => $fixture['expires'],
                     'stock_released_at' => $fixture['status'] === OrderStatus::PaymentExpired ? $now : null,
                     'paid_provider_payment_id' => $fixture['paid_id'],
@@ -330,7 +332,7 @@ class LocalDemoSeeder extends Seeder
     {
         $settings = StoreSettings::query()->firstOrCreate(['id' => 1], ['values' => []]);
         $settings->values = array_replace([
-            'business_name' => 'Camba Demo',
+            'business_name' => 'Camba',
             'pickup_address' => 'Camba · 18 de Julio 1234, Montevideo',
             'delivery_cents' => 12000,
             'remind_payment' => false,

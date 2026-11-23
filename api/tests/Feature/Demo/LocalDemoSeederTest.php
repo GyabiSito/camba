@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\StoreSettings;
 use App\Models\User;
 use Database\Seeders\LocalDemoSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -34,6 +35,10 @@ class LocalDemoSeederTest extends TestCase
         $this->assertSame(2, $this->rowCount('brands'));
         $this->assertSame(3, Order::query()->count());
         $this->assertSame(1, Payment::query()->count());
+        $this->assertSame('Camba', StoreSettings::loadValues()['business_name']);
+        $this->assertSame('Camba · 18 de Julio 1234, Montevideo', StoreSettings::loadValues()['pickup_address']);
+        $this->assertDatabaseHas('addresses', ['recipient' => 'Lucía Rodríguez']);
+        $this->assertDatabaseMissing('product_images', ['alt' => 'Detalle de textura de la colección de prueba']);
         $this->assertDatabaseCount('addresses', 2);
         $this->assertDatabaseCount('order_items', 3);
         $this->assertDatabaseCount('payment_attempts', 2);
@@ -103,6 +108,7 @@ class LocalDemoSeederTest extends TestCase
 
         $buyer = User::query()->where('email', 'cliente.diseno@camba.test')->firstOrFail();
         $admin = User::query()->where('email', 'admin.diseno@camba.test')->firstOrFail();
+        $this->assertSame('Lucía Rodríguez', $buyer->name);
         $this->assertSame('buyer', $buyer->role);
         $this->assertSame('admin', $admin->role);
         $this->assertTrue(Hash::check('CambaDemo2026!', $buyer->password));
