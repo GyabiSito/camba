@@ -36,13 +36,18 @@ class SaveProductAction
         $product = new Product($input);
         $product->sku = $sku ?? 'CAM-'.strtoupper($id);
         $product->slug = (rtrim(substr($slug, 0, 120), '-') ?: 'product').'-'.strtolower($id);
-        try {
-            $product->save();
-        } catch (UniqueConstraintViolationException) {
-            throw new ConflictHttpException('Could not assign a unique SKU or slug. Retry creating the draft.');
-        }
 
-        return $product;
+        $persist = function () use ($product): Product {
+            try {
+                $product->save();
+            } catch (UniqueConstraintViolationException) {
+                throw new ConflictHttpException('Could not assign a unique SKU or slug. Retry creating the draft.');
+            }
+
+            return $product;
+        };
+
+        return DB::connection()->getDriverName() === 'pgsql' ? DB::transaction($persist) : $persist();
     }
 
     public function update(string $productId, array $input, ?ProductStatus $transition = null, ?int $actorId = null): Product

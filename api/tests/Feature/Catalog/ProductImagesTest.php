@@ -22,7 +22,18 @@ class ProductImagesTest extends TestCase
 
     protected function beforeRefreshingDatabase(): void
     {
-        $this->assertContains(config('database.connections.'.config('database.default').'.database'), [':memory:', 'camba_v2_test']);
+        $connection = config('database.default');
+        $database = config("database.connections.$connection.database");
+        $isolatedPostgres = $connection === 'pgsql'
+            && $database === 'camba_v2_demo_test'
+            && $this->app->environment('testing')
+            && config('database.connections.pgsql.host') === 'postgres'
+            && empty(config('database.connections.pgsql.url'));
+
+        $this->assertTrue(
+            ($connection === 'sqlite' && $database === ':memory:') || ($connection === 'mysql' && $database === 'camba_v2_test') || $isolatedPostgres,
+            'The image suite may only reset an in-memory database or a dedicated Camba v2 test database.',
+        );
     }
 
     public function test_admin_upload_optimizes_photos_and_can_choose_cover_by_order(): void

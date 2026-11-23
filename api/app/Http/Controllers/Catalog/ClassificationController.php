@@ -33,7 +33,13 @@ class ClassificationController
         $input = $request->validated();
         $item = new $model(['active' => true, ...$input]);
         $item->slug = rtrim(substr(Str::slug($item->name), 0, 160), '-') ?: 'classification-'.strtolower((string) Str::ulid());
-        $this->save($item);
+        $save = fn () => $this->save($item);
+
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::transaction($save);
+        } else {
+            $save();
+        }
 
         return new ClassificationResource($item);
     }
