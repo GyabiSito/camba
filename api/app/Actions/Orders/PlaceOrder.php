@@ -33,7 +33,7 @@ class PlaceOrder
         ] : null;
         $fingerprint = QuoteCheckout::fingerprint('order', [$lines, $input['shipping_method'], $input['quote_token'], $contact, $address]);
 
-        return DB::transaction(function () use ($userId, $sessionId, $input, $contact, $address, $fingerprint): Order {
+        return DB::transaction(function () use ($userId, $sessionId, $input, $contact, $address, $fingerprint, $lines): Order {
             // The existing cart lock serializes orders for an owner before any product is locked.
             $cart = Cart::lockOwner(Cart::ownerKey($userId, $sessionId));
             abort_if($cart->claimed_at !== null, 409, 'The guest session has changed. Refresh checkout.');
@@ -75,6 +75,14 @@ class PlaceOrder
             $order->items()->forceCreateMany($quote['items']);
             foreach ($quote['items'] as $index => $line) {
                 $products[$index]->decrement('stock', $line['quantity']);
+            }
+            foreach ($cart->items()->whereIn('product_id', array_keys($lines))->get() as $item) {
+                $remaining = $item->quantity - $lines[$item->product_id];
+                if ($remaining > 0) {
+                    $item->forceFill(['quantity' => $remaining])->save();
+                } else {
+                    $item->delete();
+                }
             }
 
             return $order;
