@@ -48,6 +48,20 @@ node e2e/postgres-local-demo.mjs
 
 The browser smoke test opens both local ports against the actual stack and leaves the prepared cart intact. The feature suite covers stock, retry, and simulated provider payments. The six MySQL-specific contention cases are skipped on PostgreSQL; their existing MySQL runner remains available. Never run PHPUnit against the running demo database.
 
+### Live store, admin and Mailpit journeys
+
+Run these from `web/` with the seeded Docker stack already up. They use the current Laravel API and create clearly named QA records; they do not use or clear the seeded buyer's cart. Use the same Store hostname as the local `APP_URL` when following a signed verification link.
+
+```powershell
+$env:CAMBA_DEMO_PASSWORD = 'CambaDemo2026!'
+node e2e/storefront-docker-customer.mjs
+node e2e/storefront-docker-commerce.mjs
+```
+
+The customer check creates separate accounts and reads only their Mailpit messages. The commerce check publishes a QA product, creates one pending order under a QA buyer and verifies that a retry does not reserve stock twice. It keeps the order and uses `test-results/storefront-docker-api/commerce-state.json` to resume the same check; keep that file to reuse the records. Reports and captures stay under the ignored `web/test-results/` directory. Neither check sends mail outside Mailpit or initiates a provider payment.
+
+Docker uses the explicit local DSN `smtp://mailpit:1025`. A blank `MAIL_URL` is not equivalent to omitting it: Laravel can accept the registration but fail the queued notification with `Unsupported mail transport []`.
+
 ## Native checks
 
 - **API:** from `api/`, install locked Composer dependencies, then run `php vendor/bin/pint --test`, `php vendor/bin/phpunit` with a disposable `APP_KEY` and the PDO driver(s), and `postman spec lint openapi.yaml --issueType syntax --no-report-events`.
