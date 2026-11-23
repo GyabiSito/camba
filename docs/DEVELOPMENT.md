@@ -2,29 +2,51 @@
 
 Use Docker Desktop or Docker Engine with Compose V2. Limit commands to the new Camba worktree and its Compose project; do not start the previous application.
 
+## Offline frontend fixtures
+
+For the current shared demo, use the [complete Docker stack](#complete-development-stack). These optional, separate frontend fixtures are for offline UI work only. Run the two commands below from `web/` in separate terminals. Install the locked dependencies with `npm ci --ignore-scripts` if needed. Do not pass a proxy configuration or leave these standalone processes running alongside the shared demo.
+
+| App | Command | URL | Demo email |
+| --- | --- | --- | --- |
+| Store | `npm run start:demo:store` | [Store](http://127.0.0.1:44822/tienda) · [Sign in](http://127.0.0.1:44822/cuenta) | `cliente.diseno@camba.test` |
+| Admin | `npm run start:demo:admin` | [Sign in](http://127.0.0.1:44823/ingresar) | `admin.diseno@camba.test` |
+
+Both demo passwords are `CambaDemo2026!`. These credentials are public fixtures and work only in their respective demo apps. Guests can browse the read-only catalog; sign in as the demo buyer to review the saved addresses, preloaded cart, checkout, mock payment, and orders. The local demo server shares the synthetic buyer state between browser contexts until it restarts. Signing out clears only the session. For the review launch and reset commands, see [Demo local](../README.md#demo-local). Registration, catalog writes and emails are not simulated.
+
+To return to API mode, stop using the demo URLs and start the [complete development stack](#complete-development-stack). The normal `development` and `production` Angular configurations do not include the demo data or accounts. With both demo apps running, run `node --test e2e/frontend-demo.mjs` from `web/` for the browser smoke check.
+
 ## Complete development stack
 
-Set `CAMBA_DEV_APP_KEY` in your local shell (or an ignored private environment file) to a dedicated generated Laravel key. Do not reuse the production key. For example, from the host with PHP installed:
-
-```powershell
-$env:CAMBA_DEV_APP_KEY = 'base64:' + (php -r "echo base64_encode(random_bytes(32));")
-docker compose -f infra/compose.dev.yml -f infra/compose.dev.apps.yml up -d --build --wait
-docker compose -f infra/compose.dev.yml -f infra/compose.dev.apps.yml exec api php artisan migrate
-```
-
-Install no commercial seed by default. The development stack includes PHP and Composer, a Redis queue worker and scheduler, MySQL, both Angular development servers and Mailpit. Admin, cart, orders and payment simulation need isolated synthetic data/tests; external credentials are not needed to boot.
+Use the [local demo commands and fixture logins](../README.md#demo-local) to launch `camba-v2-demo-pg`. Its ignored `infra/dev/demo.env.local` holds a dedicated Laravel key. It must not use a production key. The application starts after PostgreSQL and Redis, with migrations applied before the API exposes readiness. The explicit demo seeder manages synthetic content only; the normal default seeder stays empty.
 
 | Local URL or address | Role |
 | --- | --- |
-| `http://127.0.0.1:43812` | Store (SSR development server) |
-| `http://127.0.0.1:43813` | Admin (CSR development server) |
-| `http://127.0.0.1:43811/up` | Laravel process liveness |
+| `http://127.0.0.1:4200` | Store (SSR development server) |
+| `http://127.0.0.1:4300` | Admin (CSR development server) |
 | `http://127.0.0.1:48025` | Mailpit messages from local work only |
-| `127.0.0.1:43306`, `127.0.0.1:46379` | MySQL and Redis for local tools |
+| `http://api:8000/ready`, `postgres:5432`, `redis:6379` | Internal API readiness, PostgreSQL and Redis |
 
-The frontends proxy Laravel paths on their own origins. Do not mix `localhost` and `127.0.0.1` in the same cookie journey. Override the documented `CAMBA_DEV_*_PORT` values if a port is taken, and use a different project name for a rehearsal. MySQL stores commerce state in `camba_v2`; an explicit dedicated test account/run can target `camba_v2_test`. Never use a test runner against any other schema.
+The frontends proxy Laravel on their own origins. Do not mix `localhost` and `127.0.0.1` in a single cookie journey. Separate browser profiles keep the demo buyer and admin sessions independent. PostgreSQL 18.7 is pinned by image digest and joins only an internal Docker network with no published port. The three Laravel roles share that network and the database; this demo does not reuse MySQL or any existing application volume.
 
-To stop development without deleting data, run the same Compose file pair with `stop`. Do not run `down -v` on a non-disposable schema.
+To stop development without deleting data, run the same Compose file pair with `stop`. Do not run `down -v`.
+
+### PostgreSQL checks
+
+Use the same `$camba` array from the README. Test databases are created at volume initialization and are separate from `camba_v2_demo`.
+
+```powershell
+docker compose @camba ps
+docker compose @camba exec -T postgres psql -U camba_v2 -d camba_v2_demo -c 'select version(), current_database()'
+$testEnv = @('-e', 'APP_ENV=testing', '-e', 'APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+    '-e', 'SANCTUM_STATEFUL_DOMAINS=localhost', '-e', 'CACHE_STORE=array',
+    '-e', 'SESSION_DRIVER=array', '-e', 'MAIL_MAILER=array', '-e', 'QUEUE_CONNECTION=sync')
+docker compose @camba run --rm --no-deps @testEnv -e DB_DATABASE=camba_v2_demo_test api php vendor/bin/phpunit --do-not-cache-result tests/Feature/Catalog tests/Feature/Cart tests/Feature/Orders tests/Feature/Payments
+docker compose @camba run --rm --no-deps @testEnv -e DB_DATABASE=camba_v2_demo_seed_test api php vendor/bin/phpunit --do-not-cache-result tests/Feature/Demo
+cd web
+node e2e/postgres-local-demo.mjs
+```
+
+The browser smoke test opens both local ports against the actual stack and leaves the prepared cart intact. The feature suite covers stock, retry, and simulated provider payments. The six MySQL-specific contention cases are skipped on PostgreSQL; their existing MySQL runner remains available. Never run PHPUnit against the running demo database.
 
 ## Native checks
 
