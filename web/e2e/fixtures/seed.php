@@ -1,9 +1,12 @@
 <?php
 
 use App\Models\Brand;
+use App\Models\BuyerReminderPreference;
+use App\Models\Cart;
 use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\StoreSettings;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
@@ -91,3 +94,34 @@ DB::table('commerce_notices')->insert([
     'dedup_key' => 'browser-order-paid', 'channel' => 'panel', 'kind' => 'order_paid',
     'subject_type' => 'order', 'subject_id' => $order->id, 'state' => 'active', 'created_at' => now(), 'updated_at' => now(),
 ]);
+
+$mailRun = getenv('CAMBA_E2E_MAIL_RUN');
+if (is_string($mailRun) && preg_match('/^[a-f0-9]{32}$/D', $mailRun)) {
+    // Represent committed payment/fulfilment and reminder eligibility without a payment provider.
+    $qaBuyer = $buyer->replicate()->forceFill(['email' => "orders-$mailRun@camba.test"]);
+    $qaBuyer->save();
+    $qaCartBuyer = $buyer->replicate()->forceFill(['email' => "cart-$mailRun@camba.test"]);
+    $qaCartBuyer->save();
+    foreach (['ready_for_pickup', 'shipped', 'unstarted'] as $state) {
+        $paid = $state !== 'unstarted';
+        $qaOrder = $order->replicate()->forceFill([
+            'reference' => Str::uuid(), 'idempotency_key' => Str::uuid(),
+            'user_id' => $qaBuyer->id, 'owner_key' => "buyer:{$qaBuyer->id}",
+            'status' => $paid ? 'paid' : 'pending_payment', 'paid_at' => $paid ? now() : null,
+            'shipping_method' => $state === 'shipped' ? 'delivery' : 'pickup',
+            'fulfilment_status' => $state, 'reservation_expires_at' => now()->addMinutes(8),
+        ]);
+        $qaOrder->save();
+        if ($paid) {
+            DB::table('order_fulfilment_events')->insert([
+                'order_id' => $qaOrder->id, 'to_status' => $state, 'created_at' => now(),
+            ]);
+        }
+    }
+    BuyerReminderPreference::query()->forceCreate(['user_id' => $qaBuyer->id, 'payment_reminders' => true]);
+    BuyerReminderPreference::query()->forceCreate(['user_id' => $qaCartBuyer->id, 'cart_reminders' => true]);
+    $cart = Cart::query()->forceCreate(['user_id' => $qaCartBuyer->id, 'updated_at' => now()->subDays(2)]);
+    $cart->items()->forceCreate(['product_id' => $shirt->id, 'quantity' => 1]);
+    $settings = StoreSettings::query()->findOrFail(1);
+    $settings->forceFill(['values' => ['remind_cart' => true, 'remind_payment' => true] + $settings->values])->save();
+}

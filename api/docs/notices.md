@@ -13,6 +13,8 @@ Use the first-party Sanctum session and CSRF for writes. The feed reports `kind`
 
 ## What gets noticed
 
+See [Camba transactional mail](../../docs/CORREOS_TRANSACCIONALES.md) for the shared template, complete inventory and local SMTP capture procedure.
+
 - **Transactional mail:** order received, payment confirmed, ready for pickup, and shipped. Fulfilment email requires a committed event and a matching current state. Buyer email uses the currently verified account address; guest transactional email uses the order’s stored checkout address. No guest cart email is collected or used.
 - **Payment reminder:** one per order, only in the configured window before the reservation expires, while payment remains pending and unambiguous. Both the store switch and a verified buyer’s opt-in must be enabled. Default lead: 10 minutes; off by default.
 - **Cart reminder:** a nonempty cart with purchasable stock, unchanged for the configured inactivity window, for a verified and opted-in buyer. No message after a newer checkout for that revision; no cart messages more than once in seven days, including after uncertain sends. Default inactivity: 24 hours; off by default. Carts older than 30 days are not contacted.

@@ -219,6 +219,11 @@ class CommerceNoticeTest extends TestCase
         $email = $messages->first()->getOriginalMessage();
         $this->assertSame('Camba: enviamos tu pedido', $email->getSubject());
         $this->assertStringContainsString($shipped->reference, $email->getTextBody());
+        $this->assertStringContainsString('UYU 5,00', $email->getTextBody());
+        $this->assertStringContainsString('Enviado', $email->getTextBody());
+        $this->assertStringContainsString($shipped->reference, $email->getHtmlBody());
+        $this->assertStringNotContainsString('Ver pedido', $email->getHtmlBody());
+        $this->assertStringNotContainsString('Ayuda:', $email->getTextBody());
         $this->assertStringNotContainsString('Operator-only delivery note', $email->getTextBody());
         $this->assertStringStartsWith("camba-notice-$id@", $messages->first()->getMessageId());
     }

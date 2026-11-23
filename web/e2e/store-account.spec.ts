@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
+import { mkdir } from 'node:fs/promises';
 import { setTimeout } from 'node:timers/promises';
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 const password = 'Camba-account-test-2026';
 const mailPort = process.env['CAMBA_E2E_MAILPIT_HTTP_PORT'];
+if (process.env['CAMBA_E2E_MAIL_RUN']) test.use({ trace: 'off', screenshot: 'off' });
 
 async function register(page: Page, email: string) {
   await page.goto('/cuenta');
@@ -142,6 +144,122 @@ test('a delivered Mailpit reset link replaces the buyer password', async ({ base
   expect(await login(page, email, newPassword)).toBe(204);
   await expect(page.getByRole('heading', { name: 'Datos personales' })).toBeVisible();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
+});
+
+test.describe('Camba transactional mail', () => {
+  test('delivers and captures real transactional mail', async ({ baseURL, browser, page, request }) => {
+    const run = process.env['CAMBA_E2E_MAIL_RUN'];
+    test.skip(!mailPort || !run || !/^[a-f0-9]{32}$/.test(run), 'Requires isolated Mailpit and CAMBA_E2E_MAIL_RUN.');
+    test.setTimeout(100_000);
+    const inbox = `http://127.0.0.1:${mailPort}`;
+    const email = `mail-${run}@camba.test`;
+    const output = 'test-results/transactional-mail';
+    await mkdir(output, { recursive: true });
+
+    async function received(to: string, subject: string, action: string) {
+      let id: string | undefined;
+      await expect.poll(async () => {
+        const result = await request.get(inbox + '/api/v1/messages', { maxRedirects: 0 });
+        expect(result.ok()).toBe(true);
+        const { messages } = await result.json() as {
+          messages: { ID: string; To: { Address: string }[]; From: { Address: string; Name: string }; Subject: string }[];
+        };
+        const item = messages.find(m => m.Subject === subject && m.To.some(t => t.Address === to));
+        if (!item) return false;
+        expect(item.From).toMatchObject({ Name: 'Camba', Address: 'notificaciones@camba.test' });
+        id = item.ID;
+        return true;
+      }, { timeout: 35_000, message: `Mailpit received: ${subject}` }).toBe(true);
+      const view = `${inbox}/view/${encodeURIComponent(id!)}`;
+      const [htmlResponse, textResponse] = await Promise.all([
+        request.get(view + '.html', { maxRedirects: 0 }), request.get(view + '.txt', { maxRedirects: 0 }),
+      ]);
+      expect(htmlResponse.ok() && textResponse.ok()).toBe(true);
+      const [html, plain] = await Promise.all([htmlResponse.text(), textResponse.text()]);
+      expect(html.includes(action) && plain.includes(action) && !html.includes('Laravel')).toBe(true);
+      expect(html.includes('mailto:hola@camba.test') && plain.includes('Ayuda: hola@camba.test')).toBe(true);
+      const link = plain.match(/https?:\/\/[^\s<>]+/)?.[0] ?? '';
+      expect(link.startsWith(baseURL!) && !link.includes('&amp;')).toBe(true);
+      expect(html.includes(`href="${link.replaceAll('&', '&amp;')}"`)).toBe(true);
+      return { html, plain, link };
+    }
+
+    async function captures(name: string, html: string, action: string) {
+      const src = html.match(/<img[^>]+src="([^"]+)"/i)?.[1];
+      if (!src) throw new Error('Missing embedded bow');
+      const asset = new URL(src, inbox);
+      expect(asset.origin === inbox && asset.pathname.startsWith('/api/v1/message/')).toBe(true);
+      const response = await request.get(asset.href, { maxRedirects: 0 });
+      expect(response.ok()).toBe(true);
+      const data = 'data:image/png;base64,' + (await response.body()).toString('base64');
+      // Do not write message source, token, signed parameters, or real action URLs to artifacts.
+      const safe = html.replace(src, data).replace(/https?:\/\/[^\s<>"']+/gi, '[enlace oculto]');
+      const ctx = await browser.newContext({ javaScriptEnabled: false });
+      try {
+        await ctx.route('**/*', route => route.abort());
+        const preview = await ctx.newPage();
+        for (const [width, blocked] of [[600, false], [390, false], [390, true]] as const) {
+          await preview.setViewportSize({ width, height: 560 });
+          await preview.setContent(blocked ? safe.replace(data, 'about:blank') : safe);
+          await expect(preview.getByText('Camba', { exact: true }).first()).toBeVisible();
+          await expect(preview.getByRole('link', { name: action })).toBeVisible();
+          expect(await preview.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+          if (!blocked) expect(await preview.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+          await preview.screenshot({ path: `${output}/${name}-${width}${blocked ? '-sin-imagenes' : ''}.png`, fullPage: true });
+        }
+      } finally {
+        await ctx.close();
+      }
+    }
+
+    await register(page, email);
+    const verification = await received(email, 'Verificá tu correo', 'Verificar mi correo');
+    expect(new URL(verification.link).pathname.startsWith('/email/verify/')).toBe(true);
+    await captures('verificacion', verification.html, 'Verificar mi correo');
+    const verified = await request.get(verification.link, { maxRedirects: 0 });
+    expect(verified.status()).toBe(204);
+
+    await page.getByRole('button', { name: 'Olvidé mi contraseña' }).click();
+    await page.getByLabel('Correo electrónico').fill(email);
+    await page.getByRole('button', { name: 'Solicitar enlace' }).click();
+    const reset = await received(email, 'Restablecé tu contraseña', 'Restablecer contraseña');
+    expect(new URL(reset.link).pathname).toBe('/cuenta/restablecer');
+    expect(reset.plain.includes('60 minutos') && reset.html.includes('copiá y pegá')).toBe(true);
+    await captures('recuperacion', reset.html, 'Restablecer contraseña');
+    await page.goto(reset.link);
+    await page.getByLabel('Correo electrónico').fill(email);
+    const replacement = 'Camba-new-account-test-2026';
+    await page.getByLabel('Nueva contraseña').fill(replacement);
+    await page.getByLabel('Confirmá la contraseña').fill(replacement);
+    await page.getByRole('button', { name: 'Guardar contraseña' }).click();
+    await expect(page.getByRole('status')).toContainText('Contraseña actualizada.');
+    await page.getByRole('link', { name: 'Ir al ingreso' }).click();
+    expect(await login(page, email, replacement)).toBe(204);
+    await expect(page.getByRole('heading', { name: 'Datos personales' })).toBeVisible();
+
+    await page.goto('/producto/remera-lisa');
+    await page.getByRole('button', { name: /agregar al carrito/i }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Seguir comprando' }).click();
+    await page.goto('/carrito');
+    await page.getByRole('link', { name: 'Continuar la compra' }).click();
+    await page.getByRole('radio', { name: /Retiro/ }).check();
+    const orderResponse = page.waitForResponse(r => r.url().endsWith('/api/v1/orders') && r.request().method() === 'POST');
+    await page.getByRole('button', { name: 'Confirmar pedido' }).click();
+    const placed = await orderResponse;
+    expect(placed.status()).toBe(201);
+    const { reference } = (await placed.json()).data;
+    const order = await received(email, 'Camba: recibimos tu pedido', 'Ver pedido');
+    expect(order.plain.includes(reference) && order.plain.includes('Pendiente de pago') && order.plain.includes('UYU')).toBe(true);
+    expect(new URL(order.link).pathname).toBe(`/pedidos/${reference}`);
+    await captures('pedido', order.html, 'Ver pedido');
+
+    for (const subject of ['pago confirmado', 'tu pago sigue pendiente', 'tu pedido está listo para retirar', 'enviamos tu pedido']) {
+      const mail = await received(`orders-${run}@camba.test`, 'Camba: ' + subject, 'Ver pedido');
+      expect(mail.plain.includes('Referencia:') && mail.plain.includes('Estado:') && mail.plain.includes('UYU 890,00')).toBe(true);
+    }
+    const cart = await received(`cart-${run}@camba.test`, 'Camba: tenés productos en el carrito', 'Ver carrito');
+    expect(new URL(cart.link).pathname).toBe('/carrito');
+  });
 });
 
 test('a naturally expired session requires the buyer to sign in again', async ({ baseURL, context, page, request }) => {

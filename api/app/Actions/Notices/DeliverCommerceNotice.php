@@ -3,7 +3,9 @@
 namespace App\Actions\Notices;
 
 use App\Mail\CommerceNoticeMail;
+use App\Mail\TransactionalEmail;
 use App\Models\CommerceNotice;
+use App\Models\Order;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use RuntimeException;
@@ -35,7 +37,8 @@ class DeliverCommerceNotice
                     throw new RuntimeException('Commerce notices require a single delivery transport.');
                 }
                 $pendingMail = Mail::mailer()->to($recipient[0]);
-                $message = new CommerceNoticeMail($notice->id, $notice->kind, $recipient[1]);
+                $order = $recipient[1] === null ? null : Order::query()->find($notice->subject_id);
+                $message = new CommerceNoticeMail($notice->id, $notice->kind, $recipient[1], $order, TransactionalEmail::support());
             } catch (Throwable) {
                 $notice->forceFill($this->preparationFailure($notice->attempts))->save();
 

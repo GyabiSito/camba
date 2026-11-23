@@ -26,6 +26,7 @@ const angular = (app: string, port: string) => ({
 
 export default defineConfig({
   testDir: './e2e',
+  ...(process.env['CAMBA_E2E_MAIL_RUN'] && { outputDir: 'test-results/transactional-mail-run' }),
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env['CI'],

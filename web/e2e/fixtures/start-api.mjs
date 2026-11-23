@@ -45,7 +45,7 @@ const env = {
   ...(mailEnabled && {
     MAIL_MAILER: 'smtp', MAIL_HOST: '127.0.0.1', MAIL_PORT: mailPorts[0],
     MAIL_URL: 'null', MAIL_USERNAME: 'null', MAIL_PASSWORD: 'null', MAIL_SCHEME: 'smtp',
-    MAIL_FROM_ADDRESS: 'browser@camba.test', MAIL_FROM_NAME: 'Camba Browser Fixture',
+    MAIL_FROM_ADDRESS: 'notificaciones@camba.test', MAIL_FROM_NAME: 'Camba',
   }),
 };
 const loaded = spawnSync('php', ['-m'], { encoding: 'utf8' });
@@ -75,8 +75,19 @@ const server = spawn('php', [...extensions, '-S', `127.0.0.1:${apiPort}`, '-t', 
 const worker = spawn('php', [...extensions, 'artisan', 'queue:work', 'database', '--sleep=1', '--tries=1'], {
   cwd: api, env, stdio: 'inherit', windowsHide: true,
 });
+let projector;
+if (mailEnabled && env.CAMBA_E2E_MAIL_RUN) {
+  // Run the same command as the scheduler, with the fixture's SQLite extension and environment.
+  setInterval(() => {
+    if (projector) return;
+    projector = spawn('php', [...extensions, 'artisan', 'camba:notices', '--quiet'], {
+      cwd: api, env, stdio: 'inherit', windowsHide: true,
+    });
+    projector.once('exit', () => { projector = undefined; });
+  }, 5000).unref();
+}
 for (const [child, sibling] of [[server, worker], [worker, server]]) {
   child.on('error', (error) => { console.error(error.message); sibling.kill(); process.exitCode = 1; });
   child.on('exit', (code) => { sibling.kill(); process.exitCode ||= code ?? 0; });
 }
-for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { server.kill(); worker.kill(); });
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { server.kill(); worker.kill(); projector?.kill(); });

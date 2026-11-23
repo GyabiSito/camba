@@ -2,6 +2,8 @@
 
 namespace App\Mail;
 
+use App\Enums\OrderStatus;
+use App\Models\Order;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -9,18 +11,17 @@ use Illuminate\Mail\Mailables\Headers;
 
 class CommerceNoticeMail extends Mailable
 {
-    public function __construct(public int $noticeId, public string $kind, public ?string $reference) {}
+    public function __construct(
+        public int $noticeId,
+        public string $kind,
+        public ?string $reference,
+        private ?Order $order = null,
+        private array $support = [],
+    ) {}
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: match ($this->kind) {
-            'order_created' => 'Camba: recibimos tu pedido',
-            'order_paid' => 'Camba: pago confirmado',
-            'payment_reminder' => 'Camba: tu pago sigue pendiente',
-            'cart_reminder' => 'Camba: tenés productos en el carrito',
-            'order_ready_for_pickup' => 'Camba: tu pedido está listo para retirar',
-            'order_shipped' => 'Camba: enviamos tu pedido',
-        });
+        return new Envelope(subject: 'Camba: '.mb_lcfirst($this->title()));
     }
 
     public function headers(): Headers
@@ -32,16 +33,53 @@ class CommerceNoticeMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(text: 'mail.notices.commerce', with: [
-            'bodyText' => match ($this->kind) {
-                'order_created' => 'Recibimos tu pedido. Consultá en la tienda el estado del pago y de la entrega.',
-                'order_paid' => 'Confirmamos tu pago. Consultá en la tienda los próximos pasos de tu pedido.',
-                'payment_reminder' => 'Tu pedido está pendiente de pago. Revisá su estado antes de intentar pagar.',
-                'cart_reminder' => 'Todavía tenés productos en el carrito. Los precios y la disponibilidad pueden haber cambiado.',
-                'order_ready_for_pickup' => 'Tu pedido está listo. Consultá en la tienda los datos para retirarlo.',
-                'order_shipped' => 'Enviamos tu pedido. Consultá en la tienda el estado de la entrega.',
+        $store = rtrim(config('app.url'), '/');
+        [$actionLabel, $actionUrl] = match (true) {
+            $this->kind === 'cart_reminder' => ['Ver carrito', $store.'/carrito'],
+            $this->order?->user_id !== null => ['Ver pedido', $store.'/pedidos/'.rawurlencode($this->reference)],
+            default => ['Ir a la tienda', $store],
+        };
+
+        return new Content(view: TransactionalEmail::HTML, text: TransactionalEmail::TEXT, with: [
+            'title' => $this->title(),
+            'intro' => match ($this->kind) {
+                'order_created' => 'Consultá el estado del pago y de la entrega en la tienda.',
+                'order_paid' => 'Confirmamos tu pago. Consultá los próximos pasos en la tienda.',
+                'payment_reminder' => 'Revisá el estado de tu pedido antes de intentar pagar.',
+                'cart_reminder' => 'Si querés retomarlo, revisá los precios y la disponibilidad antes de comprar.',
+                'order_ready_for_pickup' => 'Consultá en la tienda los datos para retirar tu pedido.',
+                'order_shipped' => 'Consultá en la tienda el estado de la entrega.',
             },
-            'storeUrl' => config('app.url'),
-        ]);
+            'details' => $this->order ? [
+                'Referencia' => $this->reference,
+                'Estado' => match ($this->kind) {
+                    'order_ready_for_pickup' => 'Listo para retirar',
+                    'order_shipped' => 'Enviado',
+                    default => match ($this->order->status) {
+                        OrderStatus::PendingPayment => 'Pendiente de pago',
+                        OrderStatus::Paid => 'Pago confirmado',
+                        OrderStatus::PaymentReview => 'Pago en revisión',
+                        OrderStatus::PaymentExpired => 'Pago vencido',
+                        OrderStatus::Refunded => 'Reembolsado',
+                        OrderStatus::ChargedBack => 'Pago contracargado',
+                    },
+                },
+                'Total' => 'UYU '.number_format($this->order->total_cents / 100, 2, ',', '.'),
+            ] : [],
+            'actionLabel' => $actionLabel,
+            'actionUrl' => $actionUrl,
+        ] + $this->support);
+    }
+
+    private function title(): string
+    {
+        return match ($this->kind) {
+            'order_created' => 'Recibimos tu pedido',
+            'order_paid' => 'Pago confirmado',
+            'payment_reminder' => 'Tu pago sigue pendiente',
+            'cart_reminder' => 'Tenés productos en el carrito',
+            'order_ready_for_pickup' => 'Tu pedido está listo para retirar',
+            'order_shipped' => 'Enviamos tu pedido',
+        };
     }
 }
