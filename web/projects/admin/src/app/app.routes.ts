@@ -8,6 +8,8 @@ export const routes: Routes = [
   { path: '', component: AdminShell, canActivate: [requireAdmin], children: [
     { path: '', redirectTo: 'productos', pathMatch: 'full' },
     ...adminCatalogRoutes, ...adminOperationsRoutes,
+    { path: 'portada', title: 'Portada | Camba Admin', loadComponent: () =>
+      import('./homepage/homepage-editor').then(module => module.HomepageEditor) },
     { path: '**', redirectTo: 'productos' },
   ] },
 ];

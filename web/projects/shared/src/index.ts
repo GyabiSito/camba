@@ -3,6 +3,8 @@ import { isPlatformServer } from '@angular/common';
 import { Injectable, InjectionToken, PLATFORM_ID, TransferState, inject, makeStateKey } from '@angular/core';
 import { Observable, catchError, defer, finalize, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
 
+export * from './homepage';
+
 export const CAMBA_API_ORIGIN = new InjectionToken<string>('Internal Camba API origin', {
   factory: () => '',
 });
@@ -33,7 +35,7 @@ export class ApiClient {
   }
 
   publicGet<T>(path: string, query?: Query): Observable<T> {
-    if (!/^\/api\/v1\/(?:products(?:\/[^/?#\\]+)?|categories|brands|store-info)$/.test(path)) {
+    if (!/^\/api\/v1\/(?:products(?:\/[^/?#\\]+)?|categories|brands|store-info|homepage)$/.test(path)) {
       return throwError(() => new Error('Only the public catalog can be transferred.'));
     }
     const params = this.params(query);

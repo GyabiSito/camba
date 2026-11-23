@@ -40,6 +40,14 @@ El arranque de la API también aplica las migraciones pendientes. El seeder expl
 
 El historial incluye un pago confirmado simulado, uno pendiente y una reserva vencida. El stack no tiene credenciales de Mercado Pago: las pruebas de pago simulan el proveedor y la demo no realiza cobros. Los dominios `.test` y las direcciones son sintéticos.
 
+### Editar y publicar la portada
+
+1. Entrá al [Admin → Portada](http://127.0.0.1:4300/portada) con la cuenta administradora. Abrí una sección para editar sus textos, fotos o enlaces. Desde la lista podés cambiar su posición u ocultarla.
+2. Elegí **Guardar borrador**. **Vista previa** abre la portada con esos cambios en otra pestaña; mantené abierta la sesión de Admin en el mismo perfil del navegador. Para ver lo que ve el público, abrí la [Tienda](http://127.0.0.1:4200/) en otro perfil.
+3. Elegí **Publicar** cuando esté pronta. La Tienda muestra el cambio al recargar, sin editar archivos ni reconstruir Docker. **Descartar borrador** vuelve a lo publicado sin cambiar la Tienda.
+
+Podés subir fotos JPEG, PNG o WebP de hasta 10 MiB y 4096 px por lado, o volver a usar una de la biblioteca. Los nombres, enlaces, precios y stock de las prendas se actualizan desde el catálogo. Un producto o categoría que ya no se muestra en el catálogo deja de aparecer en la portada; en el mosaico se conserva la foto, pero se quita el enlace.
+
 ### Detener y conservar los datos
 
 ```powershell
