@@ -1,13 +1,20 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
+let sessionCookies: Awaited<ReturnType<BrowserContext['cookies']>> | undefined;
+
 async function signIn(page: Page) {
+  if (sessionCookies) await page.context().addCookies(sessionCookies);
   await page.goto('/productos');
-  await page.getByLabel('Correo electrónico').fill('admin@camba.test');
-  await page.getByLabel('Contraseña', { exact: true }).fill('Camba-test-only-2026');
-  await page.getByRole('button', { name: 'Ingresar' }).click();
+  if (!sessionCookies) {
+    await page.getByLabel('Correo electrónico').fill('admin@camba.test');
+    await page.getByLabel('Contraseña', { exact: true }).fill('Camba-test-only-2026');
+    await page.getByRole('button', { name: 'Ingresar' }).click();
+  }
   await expect(page.getByRole('heading', { name: 'Productos', exact: true })).toBeVisible({ timeout: 15_000 });
+  // Reuse one real login per worker; each test still gets a fresh browser context.
+  sessionCookies = await page.context().cookies();
 }
 
 function photo(name: string) {
