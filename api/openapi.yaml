@@ -536,6 +536,129 @@ paths:
                   links: { type: object }
         '401': { description: No authenticated session }
         '403': { description: Verified administrator required }
+  /api/v1/homepage:
+    get:
+      operationId: getPublishedHomepage
+      description: Reads only the last published homepage, plus current public catalog destinations and the assets referenced by that version.
+      responses:
+        '200': { $ref: '#/components/responses/HomepagePublication' }
+  /api/v1/homepage/media/{key}/{variant}:
+    get:
+      operationId: getPublishedHomepageImage
+      parameters:
+        - $ref: '#/components/parameters/HomepageImageKey'
+        - $ref: '#/components/parameters/HomepageImageVariant'
+      responses:
+        '200': { $ref: '#/components/responses/HomepageImage' }
+        '404': { description: Unknown image or image has never been published }
+  /api/v1/admin/homepage:
+    get:
+      operationId: getHomepageEditor
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/HomepageEditor' }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+    put:
+      operationId: saveHomepageDraft
+      description: Replaces the draft, never the published document. Send the latest editor revision with the full document.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision, document]
+              properties:
+                revision: { type: integer, minimum: 1 }
+                document: { $ref: '#/components/schemas/HomepageDocument' }
+      responses:
+        '200': { $ref: '#/components/responses/HomepageEditor' }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '409': { description: The editor revision is stale; fetch the current state }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid homepage configuration }
+  /api/v1/admin/homepage/preview:
+    get:
+      operationId: previewHomepageDraft
+      description: Returns the saved draft, or the published document when there is no draft. This response must not be cached or transferred into public SSR.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/HomepagePublication' }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+  /api/v1/admin/homepage/publish:
+    post:
+      operationId: publishHomepageDraft
+      description: Atomically publishes the saved draft and makes its referenced image URLs public. Existing public renditions are kept.
+      security: [{ sessionCookie: [] }]
+      requestBody: { $ref: '#/components/requestBodies/HomepageRevision' }
+      responses:
+        '200': { $ref: '#/components/responses/HomepageEditor' }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '409': { description: The editor revision is stale }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid revision or no draft to publish }
+  /api/v1/admin/homepage/discard:
+    post:
+      operationId: discardHomepageDraft
+      description: Removes the draft without modifying the live publication or the image library.
+      security: [{ sessionCookie: [] }]
+      requestBody: { $ref: '#/components/requestBodies/HomepageRevision' }
+      responses:
+        '200': { $ref: '#/components/responses/HomepageEditor' }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '409': { description: The editor revision is stale }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid revision }
+  /api/v1/admin/homepage/media:
+    post:
+      operationId: uploadHomepageImage
+      description: Normalize JPEG, PNG or WebP into WebP display and thumbnail renditions. Maximum 10 MiB and 4096 pixels per side. Uploaded media is private until referenced by a successful publication.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photo]
+              properties:
+                photo: { type: string, format: binary }
+      responses:
+        '201':
+          description: Image added to the library
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [key, asset]
+                    properties:
+                      key: { type: string, format: uuid }
+                      asset: { $ref: '#/components/schemas/HomepageAsset' }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: 'Invalid file type, size, dimensions, or image data' }
+  /api/v1/admin/homepage/media/{key}/{variant}:
+    get:
+      operationId: getHomepageLibraryImage
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/HomepageImageKey'
+        - $ref: '#/components/parameters/HomepageImageVariant'
+      responses:
+        '200': { $ref: '#/components/responses/HomepageImage' }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '404': { description: Unknown image }
   /api/v1/store-info:
     get:
       operationId: getStoreInfo
@@ -868,6 +991,115 @@ paths:
         '429': { description: Too many requests }
 components:
   schemas:
+    HomepageBlock:
+      type: string
+      enum: [hero, categories, selection, look, story, mosaic]
+    HomepageImagePlacement:
+      type: [object, 'null']
+      required: [key, alt]
+      properties:
+        key: { type: string, description: An existing key from the image library }
+        alt: { type: string, description: Empty for a decorative image }
+        x: { type: [number, 'null'], minimum: 0, maximum: 100 }
+        y: { type: [number, 'null'], minimum: 0, maximum: 100 }
+    HomepageLink:
+      type: [object, 'null']
+      description: Catalog destination, current product/category by ID, or a homepage section. Arbitrary URLs are not accepted.
+      required: [type, label]
+      properties:
+        type: { type: string, enum: [catalog, category, product, section] }
+        label: { type: string }
+        id: { type: integer, minimum: 1, description: Required for category or product }
+        section: { $ref: '#/components/schemas/HomepageBlock', description: Required for section }
+    HomepageDocument:
+      type: object
+      required: [order, hidden, hero, categories, selection, look, story, mosaic]
+      properties:
+        order:
+          type: array
+          minItems: 6
+          maxItems: 6
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/HomepageBlock' }
+        hidden:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/HomepageBlock' }
+        hero:
+          type: object
+          required: [desktop, mobile, title, text, primary, secondary]
+          properties:
+            desktop: { $ref: '#/components/schemas/HomepageImagePlacement' }
+            mobile: { $ref: '#/components/schemas/HomepageImagePlacement' }
+            title: { type: string }
+            text: { type: string }
+            primary: { $ref: '#/components/schemas/HomepageLink' }
+            secondary: { $ref: '#/components/schemas/HomepageLink' }
+        categories:
+          type: object
+          required: [mode, cards]
+          properties:
+            mode: { type: string, enum: [automatic, manual] }
+            cards:
+              type: array
+              items:
+                type: object
+                required: [categoryId, image, label]
+                properties:
+                  categoryId: { type: integer, minimum: 1 }
+                  image: { $ref: '#/components/schemas/HomepageImagePlacement' }
+                  label: { type: string, description: Empty uses the current category name }
+        selection:
+          type: object
+          required: [title, action, mode, categoryId, productIds]
+          properties:
+            title: { type: string }
+            action: { $ref: '#/components/schemas/HomepageLink' }
+            mode: { type: string, enum: [automatic, manual] }
+            categoryId: { type: [integer, 'null'], minimum: 1, description: Null keeps the current automatic catalog sample }
+            productIds: { type: array, items: { type: integer, minimum: 1 }, uniqueItems: true }
+        look:
+          type: object
+          required: [title, text, image, mode, productIds]
+          properties:
+            title: { type: string }
+            text: { type: string }
+            image: { $ref: '#/components/schemas/HomepageImagePlacement' }
+            mode: { type: string, enum: [automatic, manual] }
+            productIds: { type: array, items: { type: integer, minimum: 1 }, uniqueItems: true }
+        story:
+          type: object
+          required: [title, text, image, details, action]
+          properties:
+            title: { type: string }
+            text: { type: string }
+            image: { $ref: '#/components/schemas/HomepageImagePlacement' }
+            details: { type: array, maxItems: 2, items: { $ref: '#/components/schemas/HomepageImagePlacement' } }
+            action: { $ref: '#/components/schemas/HomepageLink' }
+        mosaic:
+          type: object
+          required: [image, action, tiles]
+          properties:
+            image: { $ref: '#/components/schemas/HomepageImagePlacement' }
+            action: { $ref: '#/components/schemas/HomepageLink' }
+            tiles:
+              type: array
+              maxItems: 6
+              items:
+                type: object
+                required: [image, action]
+                properties:
+                  image: { $ref: '#/components/schemas/HomepageImagePlacement' }
+                  action: { $ref: '#/components/schemas/HomepageLink' }
+    HomepageAsset:
+      type: object
+      required: [url, thumbnail_url, width, height]
+      properties:
+        url: { type: string }
+        thumbnail_url: { type: string }
+        width: { type: integer, minimum: 1 }
+        height: { type: integer, minimum: 1 }
+        small_width: { type: integer, minimum: 1 }
     CheckoutItems:
       type: array
       minItems: 1
@@ -943,6 +1175,15 @@ components:
           '419': { description: Missing or invalid CSRF token }
           '422': { description: Invalid fields or duplicate name }
   requestBodies:
+    HomepageRevision:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [revision]
+            properties:
+              revision: { type: integer, minimum: 1 }
     ProductPhotos:
       required: true
       content:
@@ -971,9 +1212,63 @@ components:
               stock: { type: integer, minimum: 0, maximum: 2147483647 }
               category_id: { type: [integer, 'null'] }
               brand_id: { type: [integer, 'null'] }
+  parameters:
+    HomepageImageKey:
+      name: key
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    HomepageImageVariant:
+      name: variant
+      in: path
+      required: true
+      schema: { type: string, enum: [display, thumbnail] }
   securitySchemes:
     sessionCookie: { type: apiKey, in: cookie, name: camba_session }
   responses:
+    HomepagePublication:
+      description: Rendering data; catalog rows use the existing public product and category shapes, and unavailable references are omitted from these rows.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                type: object
+                required: [document, version, assets, categories, products]
+                properties:
+                  document: { $ref: '#/components/schemas/HomepageDocument' }
+                  version: { type: integer, minimum: 1 }
+                  assets: { type: object, additionalProperties: { $ref: '#/components/schemas/HomepageAsset' } }
+                  categories: { type: array, items: { type: object } }
+                  products: { type: array, items: { type: object } }
+    HomepageEditor:
+      description: Editor state including the latest revision and only Admin-visible draft.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                type: object
+                required: [revision, published_version, published, draft, assets, store_url]
+                properties:
+                  revision: { type: integer, minimum: 1 }
+                  published_version: { type: integer, minimum: 1 }
+                  published: { $ref: '#/components/schemas/HomepageDocument' }
+                  draft:
+                    anyOf:
+                      - $ref: '#/components/schemas/HomepageDocument'
+                      - { type: 'null' }
+                  assets: { type: object, additionalProperties: { $ref: '#/components/schemas/HomepageAsset' } }
+                  store_url: { type: string, format: uri }
+    HomepageImage:
+      description: The normalized WebP rendition
+      content:
+        image/webp:
+          schema: { type: string, format: binary }
     AddressEnvelope:
       description: Saved address owned by the current account
       content:
