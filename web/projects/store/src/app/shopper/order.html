@@ -1,4 +1,4 @@
-<section class="shop-workspace">
+<section class="shop-workspace members">
   <header class="page-header">
     <p><a routerLink="/pedidos">Ver compras</a></p>
     <h1>Tu pedido</h1>
@@ -13,9 +13,16 @@
   } @else if (order(); as current) {
     <div class="shop-columns">
       <div class="stack">
-        <section class="shop-panel" aria-labelledby="payment-title">
-          <h2 id="payment-title">Pago</h2>
-          <p class="state-chip">{{ states[current.status] || 'Estado no disponible' }}</p>
+        <section class="shop-panel payment-panel" aria-labelledby="payment-title">
+          <div class="payment-heading">
+            <h2 id="payment-title">Estado del pago</h2>
+            <p class="state-chip" [attr.data-status]="current.status" aria-live="polite">
+              {{ states[current.status] || 'Estado no disponible' }}
+            </p>
+          </div>
+          @if (current.status === 'paid') {
+            <p>El pago figura confirmado. Podés consultar abajo el estado de preparación o entrega.</p>
+          }
           @if (current.status === 'pending_payment') {
             <p class="muted">
               La reserva vence el {{ date(current.reservation_expires_at) }}. Si ya intentaste
@@ -32,6 +39,10 @@
             <p class="muted">
               La tienda está verificando el pago. No hagas otro pago por este pedido.
             </p>
+          } @else if (current.status === 'refunded') {
+            <p class="muted">El sistema informa que este pago fue reembolsado. Consultá a la tienda si necesitás más información.</p>
+          } @else if (current.status === 'charged_back') {
+            <p class="muted">El sistema informa una contracarga de este pago. Consultá a la tienda si necesitás más información.</p>
           }
           @if (error()) {
             <p role="alert" class="notice problem">{{ error() }}</p>
@@ -76,7 +87,7 @@
             {{ current.shipping_method === 'pickup' ? 'Retiro' : 'Entrega a domicilio' }}
           </h2>
           @if (fulfilment[current.fulfilment_status]; as status) {
-            <p class="state-chip">{{ status }}</p>
+            <p class="state-chip" [attr.data-status]="current.fulfilment_status">{{ status }}</p>
           }
           @if (current.pickup_address) {
             <p>{{ current.pickup_address }}</p>

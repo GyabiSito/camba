@@ -8,7 +8,7 @@ import { api, Data, fulfilmentStatus, httpStatus, Order, orderStatus, Page } fro
 @Component({
   imports: [RouterLink],
   templateUrl: './orders-history.html',
-  styleUrl: './shopper.css',
+  styleUrls: ['./shopper.css', './members-design.css'],
 })
 export class OrderHistoryPage {
   private readonly client = inject(ApiClient);
@@ -46,7 +46,7 @@ export class OrderHistoryPage {
 @Component({
   imports: [RouterLink],
   templateUrl: './order.html',
-  styleUrl: './shopper.css',
+  styleUrls: ['./shopper.css', './members-design.css'],
 })
 export class OrderPage {
   private readonly route = inject(ActivatedRoute);

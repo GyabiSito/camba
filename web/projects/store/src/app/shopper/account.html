@@ -1,12 +1,12 @@
 @if (loading()) {
-  <section class="shop-workspace narrow">
+  <section class="shop-workspace narrow members">
     <header class="page-header"><h1>Tu cuenta</h1></header>
     <div role="status" class="shop-skeleton" aria-label="Cargando tu cuenta">
       <i aria-hidden="true"></i><i aria-hidden="true"></i>
     </div>
   </section>
 } @else if (buyer(); as current) {
-  <section class="shop-workspace">
+  <section class="shop-workspace members">
     <header class="page-header">
       <h1>Tu cuenta</h1>
       <p class="muted">{{ current.email }}</p>
@@ -56,12 +56,17 @@
           @if (profileMessage()) {
             <p role="status">{{ profileMessage() }}</p>
           }
-          <form [formGroup]="profile" (ngSubmit)="saveProfile()" ngNativeValidate>
+          <form [formGroup]="profile" (ngSubmit)="saveProfile()" novalidate>
             <fieldset class="stack" [disabled]="profileBusy()">
               <label class="field"
                 >Nombre completo
-                <input formControlName="name" autocomplete="name" required maxlength="120"
+                <input id="profile-name" formControlName="name" autocomplete="name" required maxlength="120"
+                  [attr.aria-invalid]="profile.controls.name.touched && profile.controls.name.invalid ? 'true' : null"
+                  [attr.aria-describedby]="profile.controls.name.touched && profile.controls.name.invalid ? 'profile-name-error' : null"
               /></label>
+              @if (profile.controls.name.touched && profile.controls.name.hasError('required')) {
+                <p id="profile-name-error" class="field-error">Ingresá tu nombre.</p>
+              }
               <div class="actions">
                 <button type="submit" class="button">
                   {{ profileBusy() ? 'Un momento…' : 'Guardar nombre' }}
@@ -145,7 +150,10 @@
                       }
                     </li>
                   } @empty {
-                    <li class="muted">Aún no guardaste direcciones.</li>
+                    <li class="address-empty">
+                      <strong>Todavía no guardaste direcciones</strong>
+                      <p class="muted">Agregá una para encontrarla más rápido en tu próxima compra.</p>
+                    </li>
                   }
                 </ul>
                 @if (editingAddress() !== null) {
@@ -274,7 +282,7 @@
     </div>
   </section>
 } @else if (error()) {
-  <section class="shop-workspace narrow stack">
+  <section class="shop-workspace narrow stack members">
     <header class="page-header"><h1>Tu cuenta</h1></header>
     <p role="alert" class="notice problem">{{ error() }}</p>
     <div class="actions">

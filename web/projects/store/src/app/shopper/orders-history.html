@@ -1,4 +1,4 @@
-<section class="shop-workspace narrow">
+<section class="shop-workspace members">
   <header class="page-header">
     <p><a routerLink="/cuenta">Mi cuenta</a></p>
     <h1>Tus compras</h1>
@@ -16,13 +16,14 @@
       </div>
     </div>
   } @else if (orders().length) {
-    <div class="stack">
+    <div class="orders-list">
       <ul class="line-list">
         @for (order of orders(); track order.reference) {
-          <li class="stack">
+          <li class="order-row">
             <div class="line-head">
               <div>
                 <h2>Pedido del {{ date(order.created_at) }}</h2>
+                <p class="muted small">Referencia · {{ order.reference.slice(0, 8) }}</p>
                 <p class="muted">
                   {{ order.shipping_method === 'pickup' ? 'Retiro' : 'Entrega a domicilio' }}
                 </p>
@@ -30,7 +31,7 @@
               <strong class="money">{{ money(order.total_cents) }}</strong>
             </div>
             <div class="actions">
-              <span class="state-chip">{{ states[order.status] || 'Estado no disponible' }}</span>
+              <span class="state-chip" [attr.data-status]="order.status">{{ states[order.status] || 'Estado no disponible' }}</span>
               <a
                 [routerLink]="['/pedidos', order.reference]"
                 [attr.aria-label]="'Ver pedido ' + order.reference.slice(0, 8)"
@@ -64,7 +65,7 @@
     </div>
   } @else {
     <div class="shop-panel">
-      <h2>Aún no hay compras</h2>
+      <h2>Todavía no hay compras</h2>
       <p class="muted">
         Si hiciste un pedido como invitado, consultalo en el mismo navegador y sesión.
       </p>

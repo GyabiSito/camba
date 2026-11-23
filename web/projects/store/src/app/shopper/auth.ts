@@ -12,9 +12,9 @@ type AuthMode = 'login' | 'register' | 'forgot';
 @Component({
   selector: 'camba-shopper-auth',
   imports: [ReactiveFormsModule, RouterLink],
-  styleUrl: './shopper.css',
+  styleUrls: ['./shopper.css', './members-design.css'],
   template: `
-    <section class="shop-workspace narrow" aria-labelledby="access-title">
+    <section class="shop-workspace narrow members" aria-labelledby="access-title">
       <header class="page-header">
         <h1 id="access-title">{{ titles[mode()] }}</h1>
         <p class="muted">{{ introductions[mode()] }}</p>
@@ -26,51 +26,65 @@ type AuthMode = 'login' | 'register' | 'forgot';
         @if (error()) {
           <p class="notice problem" role="alert">{{ error() }}</p>
         }
-        <form [formGroup]="form" (ngSubmit)="submit()" ngNativeValidate>
+        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
           <fieldset class="stack" [disabled]="busy()">
             @if (mode() === 'register') {
               <label class="field"
                 >Nombre completo
-                <input formControlName="name" autocomplete="name" required maxlength="120"
+                <input id="auth-name" formControlName="name" autocomplete="name" required maxlength="120"
+                  [attr.aria-invalid]="fieldError('name') ? 'true' : null"
+                  [attr.aria-describedby]="fieldError('name') ? 'auth-name-error' : null"
               /></label>
+              @if (fieldError('name'); as validation) { <p id="auth-name-error" class="field-error">{{ validation }}</p> }
             }
             <label class="field"
               >Correo electrónico
               <input
+                id="auth-email"
                 formControlName="email"
                 type="email"
                 autocomplete="username"
                 maxlength="254"
                 required
+                [attr.aria-invalid]="fieldError('email') ? 'true' : null"
+                [attr.aria-describedby]="fieldError('email') ? 'auth-email-error' : null"
               />
             </label>
+            @if (fieldError('email'); as validation) { <p id="auth-email-error" class="field-error">{{ validation }}</p> }
             @if (mode() !== 'forgot') {
               <label class="field"
                 >Contraseña
                 <input
+                  id="auth-password"
                   formControlName="password"
                   type="password"
                   [autocomplete]="mode() === 'login' ? 'current-password' : 'new-password'"
                   [attr.minlength]="mode() === 'register' ? 12 : null"
-                  [attr.aria-describedby]="mode() === 'register' ? 'minimum-password' : null"
+                  [attr.aria-describedby]="fieldError('password') ? 'auth-password-error' : (mode() === 'register' ? 'minimum-password' : null)"
                   required
                   maxlength="1024"
+                  [attr.aria-invalid]="fieldError('password') ? 'true' : null"
                 />
               </label>
+              @if (fieldError('password'); as validation) { <p id="auth-password-error" class="field-error">{{ validation }}</p> }
             }
             @if (mode() === 'register') {
               <p id="minimum-password" class="muted small">Usá al menos 12 caracteres.</p>
               <label class="field"
                 >Confirmá la contraseña
                 <input
+                  id="auth-password-confirmation"
                   formControlName="password_confirmation"
                   type="password"
                   autocomplete="new-password"
                   required
                   minlength="12"
                   maxlength="1024"
+                  [attr.aria-invalid]="fieldError('password_confirmation') ? 'true' : null"
+                  [attr.aria-describedby]="fieldError('password_confirmation') ? 'auth-password-confirmation-error' : null"
                 />
               </label>
+              @if (fieldError('password_confirmation'); as validation) { <p id="auth-password-confirmation-error" class="field-error">{{ validation }}</p> }
             }
             <div class="actions">
               <button class="button" type="submit">
@@ -120,6 +134,7 @@ export class ShopperAuth {
   readonly signedIn = output<void>();
   protected readonly mode = signal<AuthMode>('login');
   protected readonly busy = signal(false);
+  protected readonly submitted = signal(false);
   protected readonly message = signal('');
   protected readonly error = signal('');
   protected readonly titles = {
@@ -128,7 +143,7 @@ export class ShopperAuth {
     forgot: 'Recuperá tu contraseña',
   };
   protected readonly introductions = {
-    login: 'Consultá tus compras y guardá tus direcciones.',
+    login: 'Ingresá para gestionar tus datos, direcciones y compras. Si tu sesión venció, podés volver a iniciar sesión.',
     register: 'Podés comprar con una cuenta o seguir como invitado.',
     forgot: 'Indicá el correo que usaste para registrarte.',
   };
@@ -138,14 +153,33 @@ export class ShopperAuth {
     forgot: 'Solicitar enlace',
   };
   protected readonly form = this.fb.nonNullable.group({
-    name: '',
-    email: '',
-    password: '',
-    password_confirmation: '',
+    name: ['', [Validators.maxLength(120)]],
+    email: ['', [Validators.required, Validators.email, Validators.maxLength(254)]],
+    password: ['', [Validators.maxLength(1024)]],
+    password_confirmation: ['', [Validators.maxLength(1024)]],
   });
+
+  protected fieldError(field: 'name' | 'email' | 'password' | 'password_confirmation') {
+    if (!this.submitted()) return '';
+    if (field === 'name' && this.mode() === 'register' && !this.form.controls.name.value.trim()) return 'Ingresá tu nombre.';
+    if (field === 'email' && !this.form.controls.email.value.trim()) return 'Ingresá tu correo electrónico.';
+    if (field === 'password' && this.mode() !== 'forgot' && !this.form.controls.password.value) return 'Ingresá tu contraseña.';
+    if (field === 'password' && this.mode() === 'register' && this.form.controls.password.value.length < 12) return 'Usá al menos 12 caracteres.';
+    if (field === 'password_confirmation' && this.mode() === 'register') {
+      if (!this.form.controls.password_confirmation.value) return 'Confirmá tu contraseña.';
+      if (this.form.controls.password.value !== this.form.controls.password_confirmation.value)
+        return 'Las contraseñas no coinciden.';
+    }
+    const control = this.form.controls[field];
+    if (control.hasError('required')) return 'Completá este campo.';
+    if (control.hasError('email')) return 'Ingresá un correo electrónico válido.';
+    if (control.hasError('maxlength')) return 'El texto supera el largo permitido.';
+    return '';
+  }
 
   protected switchTo(mode: AuthMode) {
     this.mode.set(mode);
+    this.submitted.set(false);
     this.form.controls.password.reset();
     this.form.controls.password_confirmation.reset();
     this.error.set('');
@@ -158,8 +192,11 @@ export class ShopperAuth {
     const mode = this.mode();
     this.error.set('');
     this.message.set('');
-    if (mode === 'register' && password !== password_confirmation) {
-      this.error.set('Las contraseñas no coinciden. Revisá la confirmación.');
+    this.submitted.set(true);
+    const invalid = this.form.controls.email.invalid ||
+      (mode === 'register' && (!name.trim() || this.form.controls.name.invalid || password.length < 12 || password_confirmation.length < 12 || this.form.controls.password_confirmation.invalid || password !== password_confirmation)) ||
+      (mode === 'login' && (!password || this.form.controls.password.invalid));
+    if (invalid) {
       return;
     }
     this.busy.set(true);
@@ -200,9 +237,9 @@ export class ShopperAuth {
 
 @Component({
   imports: [ReactiveFormsModule, RouterLink],
-  styleUrl: './shopper.css',
+  styleUrls: ['./shopper.css', './members-design.css'],
   template: `
-    <section class="shop-workspace narrow">
+    <section class="shop-workspace narrow members">
       <header class="page-header"><h1>Restablecé tu contraseña</h1></header>
       <div class="shop-panel">
         @if (saved()) {
@@ -217,41 +254,52 @@ export class ShopperAuth {
           @if (error()) {
             <p class="notice problem" role="alert">{{ error() }}</p>
           }
-          <form [formGroup]="form" (ngSubmit)="submit()" ngNativeValidate>
+          <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
             <fieldset class="stack" [disabled]="busy()">
               <label class="field"
                 >Correo electrónico
                 <input
+                  id="reset-email"
                   type="email"
                   autocomplete="username"
                   formControlName="email"
                   maxlength="254"
                   required
+                  [attr.aria-invalid]="fieldError('email') ? 'true' : null"
+                  [attr.aria-describedby]="fieldError('email') ? 'reset-email-error' : null"
               /></label>
+              @if (fieldError('email'); as validation) { <p id="reset-email-error" class="field-error">{{ validation }}</p> }
               <label class="field"
                 >Nueva contraseña
                 <input
+                  id="reset-password"
                   type="password"
                   autocomplete="new-password"
                   formControlName="password"
                   minlength="12"
                   maxlength="1024"
-                  aria-describedby="reset-password-length"
+                  [attr.aria-describedby]="fieldError('password') ? 'reset-password-error' : 'reset-password-length'"
                   required
+                  [attr.aria-invalid]="fieldError('password') ? 'true' : null"
                 />
               </label>
+              @if (fieldError('password'); as validation) { <p id="reset-password-error" class="field-error">{{ validation }}</p> }
               <p id="reset-password-length" class="muted small">Usá al menos 12 caracteres.</p>
               <label class="field"
                 >Confirmá la contraseña
                 <input
+                  id="reset-password-confirmation"
                   type="password"
                   autocomplete="new-password"
                   formControlName="password_confirmation"
                   minlength="12"
                   maxlength="1024"
                   required
+                  [attr.aria-invalid]="fieldError('password_confirmation') ? 'true' : null"
+                  [attr.aria-describedby]="fieldError('password_confirmation') ? 'reset-confirmation-error' : null"
                 />
               </label>
+              @if (fieldError('password_confirmation'); as validation) { <p id="reset-confirmation-error" class="field-error">{{ validation }}</p> }
               <div class="actions">
                 <button class="button" type="submit">
                   {{ busy() ? 'Guardando…' : 'Guardar contraseña' }}
@@ -272,12 +320,25 @@ export class ResetPage {
   protected readonly busy = signal(false);
   protected readonly saved = signal(false);
   protected readonly error = signal('');
+  protected readonly submitted = signal(false);
   protected readonly form = inject(FormBuilder).nonNullable.group({
-    email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(12)]],
-    password_confirmation: ['', [Validators.required, Validators.minLength(12)]],
+    email: ['', [Validators.required, Validators.email, Validators.maxLength(254)]],
+    password: ['', [Validators.required, Validators.minLength(12), Validators.maxLength(1024)]],
+    password_confirmation: ['', [Validators.required, Validators.minLength(12), Validators.maxLength(1024)]],
   });
   protected token = this.readToken();
+
+  protected fieldError(field: 'email' | 'password' | 'password_confirmation') {
+    if (!this.submitted()) return '';
+    const control = this.form.controls[field];
+    if (field === 'password_confirmation' && control.value !== this.form.controls.password.value)
+      return control.hasError('required') ? 'Confirmá tu contraseña.' : 'Las contraseñas no coinciden.';
+    if (control.hasError('required')) return field === 'email' ? 'Ingresá tu correo electrónico.' : 'Ingresá tu contraseña.';
+    if (control.hasError('email')) return 'Ingresá un correo electrónico válido.';
+    if (control.hasError('minlength')) return 'Usá al menos 12 caracteres.';
+    if (control.hasError('maxlength')) return 'El texto supera el largo permitido.';
+    return '';
+  }
 
   private readToken() {
     if (!isPlatformBrowser(this.platform) || !this.browser) return null;
@@ -288,13 +349,11 @@ export class ResetPage {
   }
 
   protected async submit() {
-    if (this.busy() || this.form.invalid || !this.token) return;
+    if (this.busy() || !this.token) return;
     this.error.set('');
     const form = this.form.getRawValue();
-    if (form.password !== form.password_confirmation) {
-      this.error.set('Las contraseñas no coinciden. Revisá la confirmación.');
-      return;
-    }
+    this.submitted.set(true);
+    if (this.form.invalid || form.password !== form.password_confirmation) return;
     this.busy.set(true);
     try {
       await firstValueFrom(

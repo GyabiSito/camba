@@ -1,0 +1,170 @@
+:host {
+  --members-accent: var(--home-action, #821f40);
+  --members-ink: var(--ink, #24201e);
+  --members-muted: var(--muted, #635956);
+  --members-paper: var(--paper, #fcfaf6);
+  --members-surface: var(--surface, #fff);
+  --members-line: var(--line, #e8deda);
+  --members-danger: var(--danger, #932d21);
+}
+
+.members {
+  color: var(--members-ink);
+  background: var(--members-paper);
+  accent-color: var(--members-accent);
+}
+
+.members h1,
+.members h2 {
+  color: var(--members-ink);
+}
+
+.members h1 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+
+.members .muted {
+  color: var(--members-muted);
+}
+
+.members .shop-panel {
+  border-color: var(--members-line);
+  border-radius: 0.7rem;
+  background: var(--members-surface);
+  box-shadow: 0 10px 28px rgb(45 30 29 / 5%);
+}
+
+.members .button:not(.button--quiet) {
+  background: var(--members-accent);
+  border-color: var(--members-accent);
+}
+
+.members .button--quiet {
+  color: var(--members-accent);
+  border-color: var(--members-line);
+}
+
+.members :is(button, a, summary, input):focus-visible {
+  outline: 3px solid var(--members-accent);
+  outline-offset: 3px;
+}
+
+.members input:not([type='checkbox']):not([type='radio']) {
+  min-height: 2.85rem;
+  border-color: var(--members-line);
+  background: var(--members-surface);
+}
+
+.members input[aria-invalid='true'] {
+  border-color: var(--members-danger);
+}
+
+.members .field-error {
+  margin-block: -0.65rem 0;
+  color: var(--members-danger);
+  font-size: 0.9rem;
+}
+
+.members .notice.problem,
+.members [role='alert'] {
+  color: var(--members-danger);
+}
+
+.members .listed {
+  border-color: var(--members-line);
+}
+
+.members .line-list > li {
+  border-color: var(--members-line);
+}
+
+.members .address-empty {
+  padding: 1.2rem 0.4rem;
+}
+
+.members .address-empty p {
+  margin-top: 0.45rem;
+}
+
+.members .orders-list {
+  max-width: 58rem;
+}
+
+.members .order-row {
+  display: grid;
+  gap: 1rem;
+  padding: 1.2rem 0.25rem;
+}
+
+.members .order-row h2 {
+  font-size: 1.15rem;
+}
+
+.members .order-row .state-chip,
+.members .payment-panel .state-chip {
+  border: 1px solid var(--members-line);
+  background: var(--members-paper);
+  color: var(--members-ink);
+}
+
+.members .state-chip[data-status='paid'],
+.members .state-chip[data-status='completed'],
+.members .state-chip[data-status='ready_for_pickup'] {
+  border-color: #b4c7b7;
+  background: #edf4ed;
+  color: #204936;
+}
+
+.members .state-chip[data-status='pending_payment'],
+.members .state-chip[data-status='payment_review'],
+.members .state-chip[data-status='preparing'] {
+  border-color: #d9c89b;
+  background: #fbf5e5;
+  color: #654d16;
+}
+
+.members .state-chip[data-status='payment_expired'],
+.members .state-chip[data-status='refunded'],
+.members .state-chip[data-status='charged_back'] {
+  border-color: #d9b2ac;
+  background: #fbefed;
+  color: #81251f;
+}
+
+.members .payment-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.members .payment-heading .state-chip {
+  margin: 0;
+}
+
+@media (max-width: 44rem) {
+  .members .page-header {
+    margin-block-end: 1.4rem;
+  }
+
+  .members .actions > * {
+    max-width: 100%;
+  }
+
+  .members .actions .button {
+    min-height: 2.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .members *,
+  .members *::before,
+  .members *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

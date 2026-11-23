@@ -12,7 +12,7 @@ type Preferences = { payment_reminders: boolean; cart_reminders: boolean };
 @Component({
   imports: [AddressFields, ShopperAuth, ReactiveFormsModule, RouterLink],
   templateUrl: './account.html',
-  styleUrl: './shopper.css',
+  styleUrls: ['./shopper.css', './members-design.css'],
 })
 export class AccountPage {
   private readonly client = inject(ApiClient);
@@ -110,7 +110,11 @@ export class AccountPage {
   }
 
   protected async saveProfile() {
-    if (this.profileBusy() || this.profile.invalid) return;
+    if (this.profileBusy()) return;
+    if (this.profile.invalid) {
+      this.profile.markAllAsTouched();
+      return;
+    }
     this.error.set('');
     this.profileMessage.set('');
     this.profileBusy.set(true);
