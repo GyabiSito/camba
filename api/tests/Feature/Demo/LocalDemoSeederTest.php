@@ -28,7 +28,7 @@ class LocalDemoSeederTest extends TestCase
         $seeder = new LocalDemoSeeder;
         $seeder->run();
 
-        $this->assertSame(8, Product::query()->count());
+        $this->assertSame(9, Product::query()->count());
         $this->assertSame(3, $this->rowCount('categories'));
         $this->assertSame(3, Product::query()->where('status', 'published')->distinct()->count('category_id'));
         $this->assertSame(2, $this->rowCount('brands'));
@@ -44,6 +44,21 @@ class LocalDemoSeederTest extends TestCase
         $this->assertDatabaseHas('products', ['sku' => 'CAMBA-DEMO-006', 'status' => 'archived']);
         $this->assertDatabaseHas('products', ['sku' => 'CAMBA-DEMO-007', 'status' => 'published', 'stock' => 0]);
         $this->assertDatabaseHas('product_images', ['path' => 'demo/image-classic.webp']);
+        $this->assertDatabaseHas('products', [
+            'sku' => 'CAMBA-DEMO-009',
+            'slug' => 'camisa-liviana-blanca',
+            'name' => 'Camisa liviana blanca',
+            'status' => 'published',
+            'category_id' => DB::table('categories')->where('slug', 'camisas')->value('id'),
+            'brand_id' => null,
+        ]);
+        $whiteBlouse = Product::query()->where('sku', 'CAMBA-DEMO-009')->firstOrFail();
+        $this->assertSame(5, $whiteBlouse->stock);
+        $this->assertDatabaseHas('product_images', [
+            'product_id' => $whiteBlouse->id,
+            'path' => 'demo/image-cotton.webp',
+            'position' => 0,
+        ]);
         $this->assertDatabaseHas('payments', ['provider_payment_id' => 'DEMO-PAY-0001', 'status' => 'approved']);
         $this->assertDatabaseHas('orders', ['shipping_method' => 'delivery', 'status' => OrderStatus::Paid->value]);
         $this->assertDatabaseHas('orders', ['shipping_method' => 'pickup', 'status' => OrderStatus::PendingPayment->value]);
@@ -55,6 +70,7 @@ class LocalDemoSeederTest extends TestCase
         $paid->save();
         $cartId = DB::table('carts')->where('user_id', $paid->user_id)->value('id');
         DB::table('cart_items')->where('cart_id', $cartId)->where('product_id', Product::query()->where('sku', 'CAMBA-DEMO-008')->value('id'))->delete();
+        Product::query()->where('sku', 'CAMBA-DEMO-009')->update(['stock' => 2]);
 
         $counts = [
             'users' => User::query()->count(),
@@ -82,6 +98,7 @@ class LocalDemoSeederTest extends TestCase
             'import_rows' => $this->rowCount('catalog_import_rows'),
         ]);
         $this->assertDatabaseHas('orders', ['reference' => $paid->reference, 'status' => OrderStatus::PaymentReview->value]);
+        $this->assertDatabaseHas('products', ['sku' => 'CAMBA-DEMO-009', 'stock' => 2]);
         $this->assertSame(2, DB::table('cart_items')->where('cart_id', $cartId)->count());
 
         $buyer = User::query()->where('email', 'cliente.diseno@camba.test')->firstOrFail();

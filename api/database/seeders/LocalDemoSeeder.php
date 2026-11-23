@@ -109,6 +109,7 @@ class LocalDemoSeeder extends Seeder
                 ['name' => 'Orilla', 'slug' => 'orilla'],
             ]);
             $products = $this->products($categories, $brands);
+            (new LocalEditorialCatalogSeeder)->run();
 
             $this->addresses($buyer);
             $this->orders($buyer, $products);
