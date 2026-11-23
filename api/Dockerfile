@@ -24,6 +24,12 @@ RUN mkdir -p bootstrap/cache \
     && composer dump-autoload --no-dev --optimize --no-interaction \
     && composer check-platform-reqs --no-dev
 
+FROM application AS development
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpq-dev \
+    && docker-php-ext-install -j"$(nproc)" pdo_pgsql \
+    && rm -rf /var/lib/apt/lists/*
+
 FROM ${PHP_IMAGE} AS runtime
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl libjpeg62-turbo libpng16-16 libwebp7 libzip4 nginx-light \

@@ -1,22 +1,30 @@
 x-api: &api-runtime
-  image: camba-v2-dev-php
+  image: camba-v2-dev-php-pg
   build:
     context: ../api
-    target: application
+    target: development
   working_dir: /var/www/html
+  networks:
+    - default
+    - postgres-private
   volumes:
     - ../api:/var/www/html
     - api-vendor:/var/www/html/vendor
     - api-storage:/var/www/html/storage
+    - api-bootstrap-cache:/var/www/html/bootstrap/cache
+    - ../web/projects/admin/public/demo:/demo-assets:ro
+    - ./dev/postgres/role-health.php:/camba-dev/role-health.php:ro
   environment:
     APP_ENV: local
     APP_LOCALE: es
     APP_KEY: ${CAMBA_DEV_APP_KEY:?Generate a dedicated local Laravel APP_KEY}
-    APP_URL: http://127.0.0.1:${CAMBA_DEV_STORE_PORT:-43812}
-    SANCTUM_STATEFUL_DOMAINS: 127.0.0.1:${CAMBA_DEV_STORE_PORT:-43812},127.0.0.1:${CAMBA_DEV_ADMIN_PORT:-43813}
-    DB_CONNECTION: mysql
-    DB_HOST: mysql
-    DB_DATABASE: camba_v2
+    APP_URL: http://127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200}
+    SANCTUM_STATEFUL_DOMAINS: 127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200},127.0.0.1:${CAMBA_DEV_ADMIN_PORT:-4300}
+    DB_CONNECTION: pgsql
+    DB_URL: ''
+    DB_HOST: postgres
+    DB_PORT: '5432'
+    DB_DATABASE: camba_v2_demo
     DB_USERNAME: camba_v2
     DB_PASSWORD: ${CAMBA_DEV_DB_PASSWORD:-camba-local-db}
     REDIS_HOST: redis
@@ -26,8 +34,13 @@ x-api: &api-runtime
     SESSION_DRIVER: redis
     SESSION_SECURE_COOKIE: 'false'
     MAIL_MAILER: smtp
+    MAIL_URL: ''
     MAIL_HOST: mailpit
     MAIL_PORT: '1025'
+    CAMBA_MP_ACCESS_TOKEN: ''
+    CAMBA_MP_COLLECTOR_ID: ''
+    CAMBA_MP_WEBHOOK_SECRET: ''
+    CAMBA_MP_LIVE: 'false'
 
 x-web: &web-runtime
   image: node:24.20.0-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e
@@ -55,18 +68,17 @@ services:
         mkdir -p storage/app/private storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
         && composer install --no-interaction --prefer-dist
         && php artisan storage:link --quiet
+        && php artisan migrate --force
         && exec php artisan serve --host=0.0.0.0 --port=8000
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       mailpit:
         condition: service_started
-    ports:
-      - '127.0.0.1:${CAMBA_DEV_API_PORT:-43811}:8000'
     healthcheck:
-      test: [CMD, php, -r, "exit(@file_get_contents('http://127.0.0.1:8000/up') === false ? 1 : 0);"]
+      test: [CMD, php, -r, "exit(@file_get_contents('http://127.0.0.1:8000/ready') === false ? 1 : 0);"]
       interval: 5s
       timeout: 4s
       retries: 20
@@ -78,6 +90,11 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    healthcheck:
+      test: [CMD, php, /camba-dev/role-health.php, 'queue:work']
+      interval: 15s
+      timeout: 5s
+      retries: 8
 
   scheduler:
     <<: *api-runtime
@@ -85,12 +102,17 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    healthcheck:
+      test: [CMD, php, /camba-dev/role-health.php, 'schedule:work']
+      interval: 15s
+      timeout: 5s
+      retries: 8
 
   store:
     <<: *web-runtime
     command: [sh, -ec, 'npm ci --ignore-scripts && npm exec -- ng serve store --host 0.0.0.0 --port 4200 --proxy-config proxy.conf.cjs --poll 1500']
     ports:
-      - '127.0.0.1:${CAMBA_DEV_STORE_PORT:-43812}:4200'
+      - '127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200}:4200'
     volumes:
       - ../web:/workspace
       - store-node:/workspace/node_modules
@@ -100,7 +122,7 @@ services:
     <<: *web-runtime
     command: [sh, -ec, 'npm ci --ignore-scripts && npm exec -- ng serve admin --host 0.0.0.0 --port 4200 --proxy-config proxy.conf.cjs --poll 1500']
     ports:
-      - '127.0.0.1:${CAMBA_DEV_ADMIN_PORT:-43813}:4200'
+      - '127.0.0.1:${CAMBA_DEV_ADMIN_PORT:-4300}:4200'
     volumes:
       - ../web:/workspace
       - admin-node:/workspace/node_modules
@@ -109,6 +131,7 @@ services:
 volumes:
   api-vendor:
   api-storage:
+  api-bootstrap-cache:
   store-node:
   admin-node:
   store-cache:
