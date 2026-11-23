@@ -1,12 +1,15 @@
-<section class="shop-workspace">
-  <header class="page-header"><h1>Tu carrito</h1></header>
+<section class="shop-workspace purchase-page">
+  <header class="page-header purchase-heading">
+    <h1>Tu carrito</h1>
+    <p class="muted">Revisá tus productos antes de confirmar.</p>
+  </header>
   @if (loading()) {
     <div role="status" class="shop-skeleton" aria-label="Cargando carrito">
       <i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i>
     </div>
   } @else {
-    <div class="shop-columns">
-      <div class="stack">
+    <div class="shop-columns purchase-layout">
+      <div class="stack purchase-items">
         @if (error()) {
           <p class="notice problem" role="alert">{{ error() }}</p>
         }
@@ -14,15 +17,20 @@
           <p class="notice" role="status" aria-label="Carrito actualizado">Carrito actualizado.</p>
         }
         @if (items().length) {
-          <ul class="line-list" aria-label="Productos">
+          <ul class="line-list purchase-lines" aria-label="Productos">
             @for (item of items(); track item.product_id) {
-              <li class="stack">
-                <div class="line-head">
+              <li class="stack purchase-line">
+                <div class="line-head purchase-line-heading">
                   @if (item.product; as product) {
                     <h2>
                       <a [routerLink]="['/producto', product.slug]">{{ product.name }}</a>
                     </h2>
-                    <strong class="money">{{ money(product.price_cents * item.quantity) }}</strong>
+                    <p class="purchase-line-price">
+                      <span>Subtotal</span>
+                      <strong class="money">{{
+                        money(product.price_cents * item.quantity)
+                      }}</strong>
+                    </p>
                   } @else {
                     <h2>Producto no disponible</h2>
                   }
@@ -38,7 +46,11 @@
                     }}
                   </p>
                 }
-                <form (ngSubmit)="save(item, false)" ngNativeValidate class="actions">
+                <form
+                  (ngSubmit)="save(item, false)"
+                  ngNativeValidate
+                  class="actions purchase-line-actions"
+                >
                   @if (maxQuantity(item); as max) {
                     <label class="field quantity"
                       >Cantidad
@@ -94,7 +106,7 @@
           </section>
         }
       </div>
-      <aside class="shop-panel" aria-labelledby="cart-summary-title">
+      <aside class="shop-panel purchase-summary" aria-labelledby="cart-summary-title">
         @if (items().length) {
           <h2 id="cart-summary-title">Resumen del carrito</h2>
           <dl class="totals">

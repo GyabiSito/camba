@@ -28,7 +28,7 @@ type OrderInput = {
 @Component({
   imports: [AddressFields, ReactiveFormsModule, RouterLink],
   templateUrl: './checkout.html',
-  styleUrl: './shopper.css',
+  styleUrls: ['./shopper.css', './purchase-design.css'],
 })
 export class CheckoutPage {
   private readonly client = inject(ApiClient);

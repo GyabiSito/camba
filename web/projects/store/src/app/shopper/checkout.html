@@ -1,5 +1,5 @@
-<section class="shop-workspace">
-  <header class="page-header">
+<section class="shop-workspace purchase-page">
+  <header class="page-header purchase-heading">
     <p><a routerLink="/carrito">Volver al carrito</a></p>
     <h1>Confirmá tu compra</h1>
     <p class="muted">Revisá cómo recibir tu pedido y el total antes de pagar.</p>
@@ -10,8 +10,8 @@
     </div>
   } @else if (quote(); as currentQuote) {
     @if (currentQuote.shipping_options.length) {
-      <form (submit)="$event.preventDefault(); placeOrder()" class="shop-columns">
-        <div class="stack">
+      <form (submit)="$event.preventDefault(); placeOrder()" class="shop-columns purchase-layout">
+        <div class="stack purchase-details">
           @if (buyer() === null) {
             <p class="notice">
               Podés comprar como invitado. Si preferís usar tu cuenta, iniciá sesión antes de
@@ -21,7 +21,7 @@
               >
             </p>
           }
-          <section class="shop-panel">
+          <section class="shop-panel purchase-panel">
             <fieldset [formGroup]="contact" [disabled]="busy() || uncertain()" class="pair">
               <legend>Datos de contacto</legend>
               <label class="field span-row"
@@ -43,7 +43,7 @@
               /></label>
             </fieldset>
           </section>
-          <section class="shop-panel">
+          <section class="shop-panel purchase-panel">
             <fieldset [disabled]="busy() || uncertain()" class="stack">
               <legend>¿Cómo querés recibir tu pedido?</legend>
               @for (option of currentQuote.shipping_options; track option.method) {
@@ -69,7 +69,7 @@
             </fieldset>
           </section>
           @if (method() === 'delivery') {
-            <section class="shop-panel">
+            <section class="shop-panel purchase-panel">
               <fieldset [disabled]="busy() || uncertain()" class="stack">
                 <legend>Dirección de entrega</legend>
                 @if (addresses().length) {
@@ -90,7 +90,7 @@
             </section>
           }
         </div>
-        <aside class="shop-panel" aria-labelledby="quote-title">
+        <aside class="shop-panel purchase-summary" aria-labelledby="quote-title">
           <h2 id="quote-title">Resumen de la compra</h2>
           <ul class="line-list">
             @for (item of currentQuote.items; track item.product_id) {
@@ -139,18 +139,18 @@
         </aside>
       </form>
     } @else {
-      <div class="shop-panel">
+      <div class="shop-panel purchase-panel">
         <h2>No hay opciones de entrega disponibles</h2>
         <p>Por ahora no podemos recibir pedidos. No se hizo ningún cobro.</p>
       </div>
     }
   } @else if (empty()) {
-    <div class="shop-panel">
+    <div class="shop-panel purchase-panel">
       <h2>Tu carrito está vacío</h2>
       <div class="actions"><a routerLink="/tienda" class="button">Ir a la tienda</a></div>
     </div>
   } @else {
-    <div class="shop-panel">
+    <div class="shop-panel purchase-panel">
       <p class="notice problem" role="alert">{{ quoteError() || orderError() }}</p>
       <div class="actions">
         <button class="button" type="button" (click)="getQuote()">Cotizar de nuevo</button>

@@ -1,0 +1,178 @@
+:host {
+  --purchase-paper: var(--paper, #fcfaf6);
+  --purchase-surface: var(--surface, #fff);
+  --purchase-ink: var(--ink, #24201e);
+  --purchase-muted: var(--muted, #635956);
+  --purchase-line: var(--line, #e8deda);
+  --purchase-action: var(--home-action, #821f40);
+  display: block;
+}
+
+.purchase-page {
+  color: var(--purchase-ink);
+}
+
+.purchase-heading {
+  gap: 0.7rem;
+  margin-block-end: clamp(1.5rem, 4vw, 2.6rem);
+}
+
+.purchase-heading h1 {
+  font-family: var(--display, Georgia, serif);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+}
+
+.purchase-heading > p:not(:first-child) {
+  color: var(--purchase-muted);
+}
+
+.purchase-layout {
+  grid-template-columns: minmax(0, 1.55fr) minmax(17rem, 0.82fr);
+  gap: clamp(1.5rem, 5vw, 4.5rem);
+}
+
+.purchase-items,
+.purchase-details {
+  min-width: 0;
+}
+
+.purchase-lines {
+  margin: 0;
+}
+
+.purchase-line {
+  gap: 0.9rem;
+  padding-block: 1.15rem;
+}
+
+.purchase-line-heading {
+  align-items: flex-start;
+  gap: 0.6rem 1rem;
+}
+
+.purchase-line-heading h2 {
+  font-size: clamp(1.08rem, 1.5vw, 1.3rem);
+  font-weight: 600;
+}
+
+.purchase-line-price {
+  display: grid;
+  gap: 0.15rem;
+  justify-items: end;
+  color: var(--purchase-muted);
+  font-size: 0.83rem;
+  white-space: nowrap;
+}
+
+.purchase-line-price strong {
+  color: var(--purchase-ink);
+  font-size: 1rem;
+}
+
+.purchase-line-actions {
+  align-items: end;
+}
+
+.purchase-line-actions .quantity {
+  max-width: 7rem;
+}
+
+.purchase-summary {
+  position: sticky;
+  inset-block-start: 1rem;
+  gap: 1.2rem;
+  padding: clamp(1.15rem, 2.4vw, 1.8rem);
+  border-color: var(--purchase-line);
+  border-radius: 0.75rem;
+  background: var(--purchase-surface);
+  box-shadow: 0 14px 36px rgb(48 31 32 / 6%);
+}
+
+.purchase-summary h2 {
+  font-family: var(--display, Georgia, serif);
+  font-size: 1.5rem;
+  font-weight: 500;
+}
+
+.purchase-summary .totals {
+  gap: 0.8rem;
+}
+
+.purchase-summary .total {
+  font-size: 1.12rem;
+}
+
+.purchase-summary .actions .button {
+  width: 100%;
+  justify-content: center;
+  background: var(--purchase-action);
+  border-color: var(--purchase-action);
+}
+
+.purchase-details {
+  gap: 1.25rem;
+}
+
+.purchase-panel {
+  border-radius: 0.75rem;
+  background: var(--purchase-surface);
+}
+
+.purchase-panel legend {
+  font-family: var(--display, Georgia, serif);
+  font-size: 1.3rem;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+
+.purchase-summary :is(a, button):focus-visible,
+.purchase-page :is(a, button, input, select):focus-visible {
+  outline: 3px solid var(--purchase-action);
+  outline-offset: 3px;
+}
+
+@media (max-width: 44rem) {
+  .purchase-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.25rem;
+  }
+
+  .purchase-summary {
+    position: static;
+    order: -1;
+  }
+}
+
+@media (max-width: 32rem) {
+  .purchase-line-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+  }
+
+  .purchase-line-price {
+    justify-items: end;
+    font-size: 0.75rem;
+  }
+
+  .purchase-line-actions {
+    align-items: end;
+    gap: 0.6rem;
+  }
+
+  .purchase-line-actions .quantity {
+    flex: 1 1 6rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .purchase-page *,
+  .purchase-page *::before,
+  .purchase-page *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

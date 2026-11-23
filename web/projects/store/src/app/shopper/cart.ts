@@ -8,7 +8,7 @@ import { api, Cart, CartItem, Data } from './shopper';
 @Component({
   imports: [RouterLink, FormsModule],
   templateUrl: './cart.html',
-  styleUrl: './shopper.css',
+  styleUrls: ['./shopper.css', './purchase-design.css'],
 })
 export class CartPage {
   private readonly client = inject(ApiClient);
