@@ -34,7 +34,7 @@ x-api: &api-runtime
     SESSION_DRIVER: redis
     SESSION_SECURE_COOKIE: 'false'
     MAIL_MAILER: smtp
-    MAIL_URL: ''
+    MAIL_URL: smtp://mailpit:1025
     MAIL_HOST: mailpit
     MAIL_PORT: '1025'
     CAMBA_MP_ACCESS_TOKEN: ''
