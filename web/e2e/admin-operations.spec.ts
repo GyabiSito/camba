@@ -111,6 +111,9 @@ test('filters and pages orders, retains notes on conflict, then completes a pick
   });
 
   await page.goto('/pedidos');
+  await expect(page.getByRole('group', { name: 'Pago del pedido' })).toHaveCount(1);
+  await expect(page.getByRole('group', { name: 'Preparación del pedido' })).toHaveCount(1);
+  await expect(page.getByRole('link', { name: 'Ver pedido 736f6415-76b0-40ca-b201-f252f20def12' })).toBeVisible();
   await page.getByLabel('Estado del pago').selectOption('pending_payment');
   await expect(page).toHaveURL(/status=pending_payment/);
   await expect(page.getByRole('heading', { name: 'No hay pedidos para mostrar' })).toBeVisible();
@@ -121,6 +124,9 @@ test('filters and pages orders, retains notes on conflict, then completes a pick
   await expect(page).toHaveURL(/page=2/);
   await page.getByRole('link', { name: `Ver pedido ${reference}` }).click();
   await expect(page.getByRole('heading', { name: 'Pedido 83E8D374' })).toBeVisible();
+  await expect(page.locator('.order-identity')).toContainText(reference);
+  await expect(page.getByRole('group', { name: 'Pago del pedido' })).toContainText('Pagado');
+  await expect(page.getByRole('group', { name: 'Preparación del pedido' })).toContainText('Sin preparar');
   await expect(page.getByText('Mostrador de prueba')).toBeVisible();
   await expect(page.getByText('Producto de prueba')).toBeVisible();
   await expect(page.getByRole('list', { name: 'Pagos registrados' })).toContainText('Aprobado');

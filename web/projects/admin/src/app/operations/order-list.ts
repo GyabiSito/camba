@@ -80,11 +80,11 @@ import { OperationLoading, OperationPager } from './operation-ui';
                   [queryParams]="params()"
                   [attr.aria-label]="'Ver pedido ' + order.reference"
                 >
-                  {{ order.reference.slice(0, 8).toUpperCase() }}
+                  {{ order.reference }}
                 </a>
                 <span>{{ date(order.created_at) }}</span>
               </div>
-              <div class="order-cell">
+              <div class="order-cell order-status-band order-status-band--payment" role="group" aria-label="Pago del pedido">
                 <span class="mobile-label">Pago</span>
                 <span
                   class="ops-state"
@@ -96,7 +96,7 @@ import { OperationLoading, OperationPager } from './operation-ui';
                   {{ orderStatus[order.status] }}
                 </span>
               </div>
-              <div class="order-cell">
+              <div class="order-cell order-status-band order-status-band--fulfilment" role="group" aria-label="Preparación del pedido">
                 <span class="mobile-label">Preparación y entrega</span
                 >{{ fulfilmentStatus[order.fulfilment_status] }}
               </div>

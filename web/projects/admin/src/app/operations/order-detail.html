@@ -10,10 +10,11 @@
       }}
     </h1>
     @if (detail) {
-      <p>
-        {{ date(detail.data.created_at) }} · Ref.
-        <span class="order-id">{{ detail.data.reference }}</span>
-      </p>
+      <p>{{ date(detail.data.created_at) }}</p>
+      <div class="order-identity" aria-label="Referencia completa del pedido">
+        <span>Referencia</span>
+        <strong class="order-id">{{ detail.data.reference }}</strong>
+      </div>
     }
   </div>
   @if (detail) {
@@ -54,14 +55,17 @@
     <section class="ops-section order-main order-summary" aria-labelledby="order-lines-heading">
       <div class="ops-section-heading">
         <h2 id="order-lines-heading">Productos del pedido</h2>
-        <span
-          class="ops-state"
-          [class.ops-state--good]="order.status === 'paid'"
-          [class.ops-state--attention]="
-            order.status === 'payment_review' || order.status === 'charged_back'
-          "
-          >{{ orderStatus[order.status] }}</span
-        >
+        <div class="order-status-band order-status-band--payment" role="group" aria-label="Pago del pedido">
+          <span class="order-band-label">Pago</span>
+          <span
+            class="ops-state"
+            [class.ops-state--good]="order.status === 'paid'"
+            [class.ops-state--attention]="
+              order.status === 'payment_review' || order.status === 'charged_back'
+            "
+            >{{ orderStatus[order.status] }}</span
+          >
+        </div>
       </div>
       <ul class="ops-list" role="list" aria-label="Líneas de pedido">
         @for (item of order.items; track item.product_id) {
@@ -110,11 +114,14 @@
           <h2 id="order-fulfilment-heading">
             {{ order.shipping_method === 'pickup' ? 'Retiro' : 'Envío' }}
           </h2>
-          <span
-            class="ops-state"
-            [class.ops-state--good]="order.fulfilment_status === 'completed'"
-            >{{ fulfilmentStatus[order.fulfilment_status] }}</span
-          >
+          <div class="order-status-band order-status-band--fulfilment" role="group" aria-label="Preparación del pedido">
+            <span class="order-band-label">Preparación y entrega</span>
+            <span
+              class="ops-state"
+              [class.ops-state--good]="order.fulfilment_status === 'completed'"
+              >{{ fulfilmentStatus[order.fulfilment_status] }}</span
+            >
+          </div>
         </div>
         @if (order.shipping_method === 'pickup') {
           <p>{{ order.pickup_address || 'No hay lugar de retiro registrado.' }}</p>

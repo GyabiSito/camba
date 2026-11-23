@@ -6,11 +6,11 @@
 }
 .settings-section {
   display: grid;
-  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.25fr);
+  grid-template-columns: minmax(10rem, 0.72fr) minmax(0, 1.28fr);
   align-items: start;
   gap: 0.75rem 2rem;
   border-block-start: 1px solid var(--line);
-  padding-block: 1.5rem;
+  padding-block: 1.35rem;
   max-inline-size: 64rem;
 }
 .settings-section p {
@@ -23,6 +23,7 @@
 .settings-controls {
   display: grid;
   gap: 0.75rem;
+  min-inline-size: 0;
 }
 .settings-controls input[type='number'] {
   max-inline-size: 12rem;
@@ -58,7 +59,13 @@
 }
 .history-entry summary {
   cursor: pointer;
-  padding-block: 0.85rem;
+  min-block-size: 3.25rem;
+  padding-block: 0.95rem;
+  font-weight: 650;
+}
+.history-entry summary:focus-visible {
+  outline: 3px solid var(--action, var(--forest));
+  outline-offset: 3px;
 }
 .history-entry summary span {
   margin-inline-start: 0.7rem;
@@ -80,6 +87,8 @@
 .history-change dd {
   display: grid;
   margin: 0;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 46rem) {

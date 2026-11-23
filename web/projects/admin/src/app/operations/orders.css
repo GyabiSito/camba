@@ -1,6 +1,6 @@
 .order-row {
   display: grid;
-  grid-template-columns: 1.35fr 1.1fr 1.25fr 0.8fr minmax(6.5rem, 0.75fr);
+  grid-template-columns: minmax(9rem, 1.35fr) minmax(8rem, 1fr) minmax(9rem, 1.2fr) minmax(5.75rem, 0.8fr) minmax(6.5rem, 0.75fr);
   gap: 0.65rem 1.2rem;
   align-items: center;
   padding: 0.7rem 0.7rem;
@@ -15,6 +15,9 @@
   gap: 0.05rem;
   justify-items: start;
 }
+.order-reference a {
+  overflow-wrap: anywhere;
+}
 .order-reference > span,
 .mobile-label,
 .notice-date {
@@ -24,6 +27,48 @@
 .order-cell,
 .order-reference {
   min-inline-size: 0;
+}
+.order-status-band {
+  display: grid;
+  justify-items: start;
+  align-content: start;
+  gap: 0.35rem;
+  min-inline-size: 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: var(--surface);
+}
+.order-status-band--payment {
+  border-block-start: 2px solid var(--action, var(--forest));
+}
+.order-status-band--fulfilment {
+  border-block-start: 2px solid var(--warning-ink, var(--muted));
+}
+.order-band-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.order-identity {
+  display: grid;
+  justify-items: start;
+  gap: 0.2rem;
+  max-inline-size: 42rem;
+  margin-block-start: 0.55rem;
+  padding: 0.65rem 0.8rem;
+  border-block: 1px solid var(--line);
+  background: var(--surface);
+}
+.order-identity > span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.order-identity .order-id {
+  font-size: 1.05rem;
+  line-height: 1.45;
 }
 .mobile-label {
   position: absolute;
@@ -159,7 +204,7 @@
     display: none;
   }
   .order-row {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 0.42rem 1rem;
     padding-inline: 0;
   }
@@ -178,5 +223,18 @@
     overflow: visible;
     clip-path: none;
     white-space: normal;
+  }
+}
+
+@media (max-width: 30rem) {
+  .order-status-band {
+    padding: 0.45rem;
+  }
+  .order-identity {
+    max-inline-size: 100%;
+    padding-inline: 0;
+  }
+  .order-identity .order-id {
+    font-size: 0.95rem;
   }
 }
