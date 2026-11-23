@@ -4,6 +4,8 @@ namespace Tests\Feature\Payments;
 
 use App\Models\Category;
 use App\Models\Order;
+use App\Models\Payment;
+use App\Models\PaymentAttempt;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -11,6 +13,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class PaymentLifecycleTest extends TestCase
@@ -143,6 +146,79 @@ class PaymentLifecycleTest extends TestCase
         $this->assertDatabaseHas('payments', ['provider_payment_id' => '159', 'status' => 'approved']);
         $this->assertSame(1, $this->stock($order));
         $this->assertNull($order->fresh()->stock_reacquired_at);
+    }
+
+    public function test_unstarted_order_with_disabled_provider_releases_stock_once_after_expiry_grace(): void
+    {
+        $order = $this->reservedOrder();
+        config(['mercadopago.access_token' => '']);
+        Http::fake([]);
+        $this->start($order, (string) Str::uuid())->assertServiceUnavailable();
+        $this->assertDatabaseCount('payment_attempts', 0);
+        $this->travelTo($order->reservation_expires_at->copy()->addSeconds(59));
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertSame('pending_payment', $order->fresh()->status->value);
+        $this->assertNull($order->fresh()->stock_released_at);
+        $this->assertSame(1, $this->stock($order));
+
+        $this->travel(1)->seconds();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $released = $order->fresh();
+        $this->assertSame('payment_expired', $released->status->value);
+        $this->assertNotNull($released->stock_released_at);
+        $this->assertSame('verified', $released->payment_reconcile_result);
+        $this->assertNull($released->payment_reconcile_token);
+        $this->assertNull($released->payment_reconcile_at);
+        $this->assertSame(3, $this->stock($order));
+        $this->travel(10)->minutes();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertEquals($released->stock_released_at, $order->fresh()->stock_released_at);
+        $this->assertSame(3, $this->stock($order));
+        $this->assertDatabaseCount('payments', 0);
+        Http::assertNothingSent();
+    }
+
+    #[DataProvider('existingPaymentEvidence')]
+    public function test_disabled_provider_never_releases_orders_with_payment_history(string $history): void
+    {
+        $order = $this->reservedOrder(expired: true);
+        config(['mercadopago.access_token' => '']);
+        Http::fake([]);
+        if ($history === 'payment') {
+            Payment::query()->forceCreate([
+                'order_id' => $order->id, 'provider_payment_id' => '159', 'amount_cents' => 2400,
+                'status' => 'rejected', 'provider_updated_at' => '2026-05-10T10:00:00.000Z',
+            ]);
+        } else {
+            PaymentAttempt::query()->forceCreate([
+                'order_id' => $order->id, 'idempotency_key' => (string) Str::uuid(),
+                'status' => $history, 'expires_at' => $order->reservation_expires_at,
+            ]);
+        }
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertSame('pending_payment', $order->fresh()->status->value);
+        $this->assertSame('provider_incomplete', $order->fresh()->payment_reconcile_result);
+        $this->assertNull($order->fresh()->stock_released_at);
+        $this->assertSame(1, $this->stock($order));
+        Http::assertNothingSent();
+    }
+
+    public static function existingPaymentEvidence(): array
+    {
+        return [['initiating'], ['uncertain'], ['ready'], ['payment']];
+    }
+
+    public function test_local_expiry_preserves_payment_issue_guards(): void
+    {
+        $order = $this->reservedOrder(expired: true);
+        $order->forceFill(['payment_issues' => ['provider_evidence_mismatch']])->save();
+        config(['mercadopago.access_token' => '']);
+        Http::fake([]);
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertSame('pending_payment', $order->fresh()->status->value);
+        $this->assertNull($order->fresh()->stock_released_at);
+        $this->assertSame(1, $this->stock($order));
+        Http::assertNothingSent();
     }
 
     public function test_preference_timeout_is_durable_and_never_retried_or_disclosed_to_other_sessions(): void

@@ -132,10 +132,17 @@ class CheckoutProClient
         return (is_string($id) || is_int($id)) && preg_match('/\A[1-9][0-9]{0,19}\z/', (string) $id) === 1;
     }
 
+    public function isConfigured(): bool
+    {
+        $token = config('mercadopago.access_token');
+
+        return is_string($token) && trim($token) !== '' && self::isNumericId(config('mercadopago.collector_id'));
+    }
+
     private function request(string $method, string $path, array $data = []): array
     {
         $token = config('mercadopago.access_token');
-        if (! is_string($token) || trim($token) === '' || ! self::isNumericId(config('mercadopago.collector_id'))) {
+        if (! $this->isConfigured()) {
             throw new RuntimeException('Mercado Pago is not configured.');
         }
         try {

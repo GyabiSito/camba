@@ -82,6 +82,14 @@ class ReconcilePayments
                 'payment_reconcile_token' => (string) Str::uuid(),
                 'payment_reconcile_at' => now()->addMinutes(5),
             ])->save();
+            // StartPayment holds this order lock before persisting an attempt or calling the provider.
+            if (! $this->client->isConfigured()
+                && ! PaymentAttempt::query()->where('order_id', $id)->exists()
+                && ! Payment::query()->where('order_id', $id)->exists()) {
+                $this->sync->execute($order->reference, [], $order->payment_reconcile_token, now(), complete: true);
+
+                return null;
+            }
             // A worker can die after the provider accepted a POST. Never replay that POST.
             PaymentAttempt::query()->where('order_id', $id)->where('status', PaymentAttemptStatus::Initiating->value)
                 ->where('updated_at', '<', now()->subSeconds(30))->update(['status' => PaymentAttemptStatus::Uncertain->value]);
