@@ -20,14 +20,27 @@ test('verified admin reaches the catalog and can sign out', async ({ page }, inf
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth))
     .toBeLessThanOrEqual(1);
+  const menu = page.getByRole('button', { name: 'Menú' });
+  const navigation = page.getByRole('navigation', { name: 'Administración' });
+  await expect(navigation).toBeHidden();
+  await menu.focus();
+  await page.keyboard.press('Enter');
+  await expect(menu).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('Tab');
+  await expect(navigation.getByRole('link', { name: 'Productos' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeFocused();
+  await expect(navigation).toBeHidden();
   await page.screenshot({
     path: info.outputPath('admin-catalog-mobile.png'),
     fullPage: true,
     animations: 'disabled',
   });
 
-  await page.getByRole('navigation', { name: 'Administración' }).getByText('Configuración').click();
+  await menu.click();
+  await navigation.getByRole('link', { name: 'Configuración' }).click();
   await expect(page).toHaveURL(/\/configuracion$/);
+  await expect(menu).toHaveAttribute('aria-expanded', 'false');
   await page.locator('header summary[aria-label="Opciones de Camba Mesa"]').click();
   await page.getByRole('button', { name: 'Cerrar sesión' }).click();
   await expect(page).toHaveURL(/\/ingresar/);

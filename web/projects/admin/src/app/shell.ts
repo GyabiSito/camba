@@ -44,27 +44,9 @@ export const requireAdmin: CanActivateFn = async (_, state) => {
 
 @Component({
   selector: 'camba-admin-login',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule],
   styleUrl: './shell.css',
-  template: `
-    <main class="login-frame" id="contenido">
-      <a class="wordmark" routerLink="/productos" aria-label="Camba, administración">Camba</a>
-      <div class="login-box">
-        <h1>Ingresar a administración</h1>
-        <p class="muted">Usá una cuenta con acceso administrativo y correo verificado.</p>
-        @if (error()) { <p class="callout" role="alert">{{ error() }}</p> }
-        <form (ngSubmit)="submit()" #form="ngForm" [attr.aria-busy]="busy()">
-          <label class="field">Correo electrónico
-            <input [(ngModel)]="email" name="email" type="email" required autocomplete="username" />
-          </label>
-          <label class="field">Contraseña
-            <input [(ngModel)]="password" name="password" type="password" required autocomplete="current-password" />
-          </label>
-          <button class="button" type="submit" [disabled]="busy() || form.invalid">{{ busy() ? 'Ingresando…' : 'Ingresar' }}</button>
-        </form>
-      </div>
-    </main>
-  `,
+  templateUrl: './admin-login.html',
 })
 export class AdminLogin {
   private readonly session = inject(AdminSession);
@@ -104,29 +86,7 @@ export class AdminLogin {
   selector: 'camba-admin-shell',
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
   styleUrl: './shell.css',
-  template: `
-    <a class="skip" [href]="'.' + router.url.split('#', 1)[0] + '#contenido'">Saltar al contenido</a>
-    <header class="masthead">
-      <a class="wordmark" routerLink="/productos" aria-label="Camba, administración">Camba</a>
-      <nav aria-label="Administración">
-        <a routerLink="/productos" routerLinkActive="active" ariaCurrentWhenActive="page">Productos</a>
-        <a routerLink="/pedidos" routerLinkActive="active" ariaCurrentWhenActive="page">Pedidos</a>
-        <a routerLink="/configuracion" routerLinkActive="active" ariaCurrentWhenActive="page">Configuración</a>
-      </nav>
-      <details class="account">
-        <summary [attr.aria-label]="'Opciones de ' + user()?.name" [title]="user()?.name">{{ initials() }}</summary>
-        <div class="surface">
-          <strong>{{ user()?.name }}</strong>
-          <span class="muted">{{ user()?.email }}</span>
-          <button type="button" class="button button--quiet" [disabled]="busy()" (click)="signOut()">Cerrar sesión</button>
-        </div>
-      </details>
-    </header>
-    <main id="contenido" tabindex="-1" class="admin-body">
-      @if (error()) { <p role="alert" class="callout">{{ error() }}</p> }
-      <router-outlet />
-    </main>
-  `,
+  templateUrl: './admin-layout.html',
 })
 export class AdminShell {
   private readonly session = inject(AdminSession);
@@ -135,6 +95,13 @@ export class AdminShell {
   protected readonly initials = computed(() => this.user()?.name.trim().split(/\s+/).slice(0, 2).map((v) => v[0]).join('').toUpperCase() || 'CA');
   protected readonly error = signal('');
   protected readonly busy = signal(false);
+  protected readonly menuOpen = signal(false);
+
+  protected closeMenu(focusTarget: HTMLElement) {
+    if (!this.menuOpen()) return;
+    this.menuOpen.set(false);
+    focusTarget.focus();
+  }
 
   protected async signOut() {
     this.busy.set(true);

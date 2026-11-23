@@ -1,0 +1,43 @@
+<a class="skip" [href]="'.' + router.url.split('#', 1)[0] + '#contenido'">Saltar al contenido</a>
+<div class="admin-layout">
+  <header class="admin-sidebar" (keydown.escape)="closeMenu(menuTrigger)">
+    <a class="wordmark" routerLink="/productos" aria-label="Camba, administración" (click)="closeMenu(content)">
+      <img src="/brand/camba.svg" width="92" height="43" alt="" />
+    </a>
+    <button class="menu-trigger button button--quiet" type="button" #menuTrigger
+      aria-controls="admin-nav" [attr.aria-expanded]="menuOpen()" (click)="menuOpen.set(!menuOpen())">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+      Menú
+    </button>
+    <nav class="section-nav" id="admin-nav" aria-label="Administración" [class.is-open]="menuOpen()">
+      <a routerLink="/productos" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="closeMenu(content)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM3 4h18v3H3zM10 11h4" /></svg>
+        Productos
+      </a>
+      <a routerLink="/pedidos" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="closeMenu(content)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l2 12H4L6 8Zm3 0V6a3 3 0 0 1 6 0v2" /></svg>
+        Pedidos
+      </a>
+      <a routerLink="/configuracion" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="closeMenu(content)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 4v4m8 2v4m-6 2v4" /></svg>
+        Configuración
+      </a>
+    </nav>
+    <details class="account">
+      <summary [attr.aria-label]="'Opciones de ' + user()?.name" [title]="user()?.name">
+        <span class="avatar" aria-hidden="true">{{ initials() }}</span>
+        <span class="account-label">Mi sesión</span>
+        <svg class="account-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+      </summary>
+      <div class="account-panel surface">
+        <strong>{{ user()?.name }}</strong>
+        <span class="muted">{{ user()?.email }}</span>
+        <button type="button" class="button button--quiet" [disabled]="busy()" (click)="signOut()">Cerrar sesión</button>
+      </div>
+    </details>
+  </header>
+  <main id="contenido" tabindex="-1" class="admin-body" #content>
+    @if (error()) { <p role="alert" class="callout">{{ error() }}</p> }
+    <router-outlet />
+  </main>
+</div>
