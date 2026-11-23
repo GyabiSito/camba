@@ -10,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
+    public const PREPARATION_STAGES = ['unstarted', 'preparing'];
+
     protected $hidden = ['owner_key', 'idempotency_key', 'request_hash', 'payment_reconcile_token'];
 
     protected $casts = [

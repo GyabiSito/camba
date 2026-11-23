@@ -20,6 +20,7 @@ class BrowseProductsRequest extends FormRequest
             'page' => ['sometimes', 'integer', 'min:1', 'max:2147483647'],
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'status' => $this->routeIs('admin.catalog.*') ? ['nullable', Rule::enum(ProductStatus::class)] : ['missing'],
+            'availability' => $this->routeIs('admin.catalog.*') ? ['nullable', Rule::in(['out_of_stock'])] : ['missing'],
         ];
     }
 }

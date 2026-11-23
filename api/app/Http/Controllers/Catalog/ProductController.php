@@ -29,6 +29,10 @@ class ProductController
             $query->where('status', $filters['status']);
         }
 
+        if (($filters['availability'] ?? null) === 'out_of_stock') {
+            $query->withoutAvailableStock();
+        }
+
         if (isset($filters['q'])) {
             // ponytail: substring search scans matching rows; move to indexed search if catalog size warrants it.
             $needle = '%'.strtr($filters['q'], ['!' => '!!', '%' => '!%', '_' => '!_']).'%';

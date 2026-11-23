@@ -28,3 +28,4 @@ require __DIR__.'/payments.php';
 require __DIR__.'/settings.php';
 require __DIR__.'/notices.php';
 require __DIR__.'/homepage.php';
+require __DIR__.'/dashboard.php';

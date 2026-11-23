@@ -23,6 +23,12 @@ class Product extends Model
         $query->where('status', ProductStatus::Published->value);
     }
 
+    #[Scope]
+    protected function withoutAvailableStock(Builder $query): void
+    {
+        $query->where('stock', '<=', 0);
+    }
+
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);

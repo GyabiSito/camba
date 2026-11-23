@@ -28,9 +28,17 @@ class AdminOrderController
     {
         $filters = $request->validate([
             'status' => ['sometimes', Rule::enum(OrderStatus::class)],
-            'fulfilment_status' => ['sometimes', Rule::in(['unstarted', ...self::STAGES])],
+            'fulfilment_status' => ['sometimes', Rule::in(['unstarted', ...self::STAGES, 'needs_preparation'])],
         ]);
-        $orders = Order::query()->where($filters)->latest('id')->paginate(25)->withQueryString();
+        $stage = $filters['fulfilment_status'] ?? null;
+        unset($filters['fulfilment_status']);
+        $query = Order::query()->where($filters);
+        if ($stage === 'needs_preparation') {
+            $query->whereIn('fulfilment_status', Order::PREPARATION_STAGES);
+        } elseif ($stage !== null) {
+            $query->where('fulfilment_status', $stage);
+        }
+        $orders = $query->latest('id')->paginate(25)->withQueryString();
 
         return OrderResource::collection($orders)->response()->header('Cache-Control', 'private, no-store');
     }
