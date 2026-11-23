@@ -1,8 +1,18 @@
-<section class="catalog-page catalog-page--work">
+<section class="catalog-page catalog-page--work batch-page batch-page--photos">
   <a class="back" routerLink="/productos">Volver a productos</a>
+  <nav class="batch-methods" aria-label="Métodos de carga masiva">
+    <a routerLink="/productos/carga-por-fotos" aria-current="page">Por fotos</a>
+    <a routerLink="/productos/importar">Desde CSV o XLSX</a>
+  </nav>
   <header class="page-heading">
     <div><h1>Carga por fotos</h1><p class="muted">Armá un grupo de fotos por producto. Cada grupo se guarda como borrador, sin publicarse.</p></div>
   </header>
+  <ol class="batch-steps" aria-label="Etapas de la carga por fotos">
+    <li [attr.aria-current]="!preview() && result() === 0 ? 'step' : null">Preparar grupos</li>
+    <li [attr.aria-current]="preview() && !running() ? 'step' : null">Revisar fotos y datos</li>
+    <li [attr.aria-current]="preview() && running() ? 'step' : null">Confirmar borradores</li>
+    <li [attr.aria-current]="result() > 0 && !preview() ? 'step' : null">Resultado</li>
+  </ol>
   @if (loading()) {
     <div class="loading-block" aria-hidden="true"><span class="skeleton skeleton-line"></span><span class="skeleton skeleton-line"></span></div>
     <p class="sr-only" role="status">Cargando categorías y marcas…</p>
@@ -52,6 +62,12 @@
       </details>
     }
 
+    @if (preview()) {
+      <div class="batch-stage" role="status">
+        <h2>Vista previa</h2>
+        <p>Revisá las fotos y los datos de cada grupo. La confirmación crea borradores; no publica productos.</p>
+      </div>
+    }
     <div class="batch-grid">
       @for (group of groups(); track group.key) {
         <fieldset class="batch-group" [disabled]="running()">
@@ -123,9 +139,13 @@
       }
     </div>
     @if (result() > 0) {
-      <p class="callout" role="status">{{ result() }} {{ result() === 1 ? 'borrador preparado' : 'borradores preparados' }}. Todavía no se publicaron.</p>
+      <div class="batch-result callout" role="status">
+        <h2>Resultado de la carga</h2>
+        <p>{{ result() }} {{ result() === 1 ? 'borrador preparado' : 'borradores preparados' }}. Todavía no se publicaron.</p>
+        <p>Próximo paso: revisá cada borrador y publicalo cuando esté listo.</p>
+      </div>
     }
-    <div class="actions">
+    <div class="actions batch-actions">
       @if (preview()) {
         <button class="button" type="button" (click)="run()">Confirmar y crear borradores</button>
         <button class="button button--quiet" type="button" (click)="preview.set(false)">Volver a editar</button>

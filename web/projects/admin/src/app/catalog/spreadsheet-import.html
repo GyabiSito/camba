@@ -1,29 +1,21 @@
-<section class="catalog-page catalog-page--work">
+<section class="catalog-page catalog-page--work batch-page batch-page--spreadsheet">
   <a class="back" routerLink="/productos">Volver a productos</a>
+  <nav class="batch-methods" aria-label="Métodos de carga masiva">
+    <a routerLink="/productos/carga-por-fotos">Por fotos</a>
+    <a routerLink="/productos/importar" aria-current="page">Desde CSV o XLSX</a>
+  </nav>
   <header class="page-heading">
     <div><h1>Importar planilla</h1><p class="muted">Revisá altas y cambios por SKU antes de aplicarlos al catálogo.</p></div>
     <button class="button button--quiet" type="button" [disabled]="downloading()" (click)="downloadTemplate()">
       {{ downloading() ? 'Descargando…' : 'Descargar plantilla CSV' }}
     </button>
   </header>
-  <form class="work-section" (submit)="preview($event)">
-    <label class="field">Archivo CSV o XLSX
-      <small>Hasta 2 MB y 500 filas. Para CSV, usá UTF-8 y comas como separador. Para XLSX, dejá una sola hoja sin fórmulas.</small>
-      <input type="file" accept=".csv,.xlsx" [disabled]="running() || loading()" (change)="choose($event)" />
-    </label>
-    <details>
-      <summary>Cómo preparar la planilla</summary>
-      <ul>
-        <li>El código es el SKU. Si ya existe, se modifica ese producto. Si no existe, se crea un borrador.</li>
-        <li>Los campos vacíos no borran datos. Usá precios en UYU sin separador de miles y con hasta dos decimales.</li>
-        <li>Usá los identificadores de <a routerLink="/productos/clasificaciones">categorías y marcas</a> activas. No se crean clasificaciones al importar. La marca es opcional.</li>
-        <li>Para fotos, usá rutas de fotos optimizadas que ya pertenecen al mismo SKU, separadas por <code>|</code>. No se descargan enlaces. Para un producto nuevo, agregá las fotos a su borrador.</li>
-      </ul>
-    </details>
-    <button class="button" type="submit" [disabled]="!file() || running() || loading()">{{ analyzing() ? 'Analizando…' : 'Ver vista previa' }}</button>
-    @if (fileError()) { <p class="callout alert" role="alert">{{ fileError() }}</p> }
-  </form>
-
+  <ol class="batch-steps" aria-label="Etapas de la importación">
+    <li [attr.aria-current]="!active() ? 'step' : null">Recibir archivo</li>
+    <li [attr.aria-current]="active()?.status === 'preview' && !confirmed() ? 'step' : null">Vista previa</li>
+    <li [attr.aria-current]="active()?.status === 'preview' && confirmed() ? 'step' : null">Confirmar filas válidas</li>
+    <li [attr.aria-current]="active()?.status === 'queued' || active()?.status === 'completed' ? 'step' : null">Procesamiento y resultado</li>
+  </ol>
   @if (loading() && !active()) {
     <div class="loading-block" aria-hidden="true"><span class="skeleton skeleton-line"></span><span class="skeleton skeleton-line"></span></div>
     <p class="sr-only" role="status">Cargando importación…</p>
@@ -43,22 +35,33 @@
           {{ imported.status === 'preview' ? 'Sin confirmar' : imported.status === 'queued' ? 'Confirmada' : 'Finalizada' }}
         </span>
       </header>
-      <p role="status">{{ imported.counts.ready }} listas · {{ imported.counts.invalid }} inválidas · {{ imported.counts.applied }} aplicadas · {{ imported.counts.failed }} no aplicadas</p>
+      <p class="muted" role="status">{{ imported.counts.ready }} listas · {{ imported.counts.invalid }} inválidas · {{ imported.counts.applied }} aplicadas · {{ imported.counts.failed }} no aplicadas</p>
       @if (runError()) { <p class="callout alert" role="alert">{{ runError() }}</p> }
+
+      @if (imported.counts.invalid || imported.counts.failed) {
+        <aside class="batch-stage batch-row-errors" aria-labelledby="import-errors-heading">
+          <h3 id="import-errors-heading">Filas que necesitan atención</h3>
+          <p>{{ imported.counts.invalid }} con errores · {{ imported.counts.failed }} no aplicadas. Revisá el detalle de cada fila antes de volver a cargar datos corregidos.</p>
+          <button class="button button--quiet" type="button" (click)="chooseFilter('errors')">Ver filas con errores</button>
+        </aside>
+      }
 
       @if (imported.status === 'preview') {
         @if (imported.counts.ready) {
+          <div class="batch-stage">
+          <h3>Confirmación</h3>
           <label class="choice"><input type="checkbox" [ngModel]="confirmed()" (ngModelChange)="confirmed.set($event)" [disabled]="running()" />
             Revisé las filas y quiero aplicar únicamente las {{ imported.counts.ready }} válidas.
           </label>
           <button class="button" type="button" [disabled]="!confirmed() || running() || loading()" (click)="run()">
             {{ running() ? 'Confirmando…' : 'Confirmar importación' }}
           </button>
+          </div>
         } @else {
           <p class="callout">No hay filas válidas. Corregí los errores y subí una planilla nueva.</p>
         }
       } @else if (imported.status === 'queued') {
-        <label class="progress">Filas procesadas: {{ imported.counts.applied + imported.counts.failed }} de {{ imported.counts.ready + imported.counts.applied + imported.counts.failed }}
+        <div class="batch-stage"><h3>Procesamiento</h3><label class="progress">Filas procesadas: {{ imported.counts.applied + imported.counts.failed }} de {{ imported.counts.ready + imported.counts.applied + imported.counts.failed }}
           <progress [value]="imported.counts.applied + imported.counts.failed" [max]="imported.counts.ready + imported.counts.applied + imported.counts.failed || 1"></progress>
         </label>
         <p class="muted">{{ polling() ? 'El estado se actualiza automáticamente.' : 'La actualización automática se detuvo. Podés consultar el estado.' }} Si la tarea no avanza, reanudá la misma importación; no se repiten las filas ya aplicadas.</p>
@@ -66,18 +69,19 @@
           <button class="button button--quiet" type="button" [disabled]="running() || loading()" (click)="load()">{{ loading() ? 'Actualizando…' : 'Actualizar estado' }}</button>
           <button class="button button--quiet" type="button" [disabled]="running() || loading()" (click)="run()">{{ running() ? 'Reanudando…' : 'Reanudar importación' }}</button>
         </div>
+        </div>
       } @else if (imported.counts.failed || imported.counts.invalid) {
         <p class="callout">Corregí las filas inválidas o no aplicadas y subí solo esas filas en una planilla nueva.</p>
       }
 
-      <label class="field" style="margin-top:1rem">Ver filas
+      <label class="field">Ver filas
         <select [ngModel]="filter()" (ngModelChange)="chooseFilter($event)">
           <option value="all">Todas</option><option value="errors">Con errores</option>
           <option value="ready">Listas</option><option value="applied">Aplicadas</option>
         </select>
       </label>
       @if (visibleRows().length) {
-        <div class="wide-table" role="region" aria-label="Filas de la importación" tabindex="0">
+        <div class="wide-table" id="import-rows" role="region" aria-label="Filas de la importación" tabindex="0">
           <table class="ledger">
             <thead><tr><th scope="col">Fila</th><th scope="col">SKU</th><th scope="col">Acción</th><th scope="col">Estado</th><th scope="col">Detalle</th></tr></thead>
             <tbody>
@@ -129,4 +133,25 @@
       }
     </section>
   }
+
+  <form class="work-section batch-stage batch-stage--received" (submit)="preview($event)">
+    <label class="field">Archivo CSV o XLSX
+      <small>Hasta 2 MB y 500 filas. Para CSV, usá UTF-8 y comas como separador. Para XLSX, dejá una sola hoja sin fórmulas.</small>
+      <input type="file" accept=".csv,.xlsx" [disabled]="running() || loading()" (change)="choose($event)" />
+    </label>
+    @if (file(); as selectedFile) {
+      <p class="batch-file-received"><span>Archivo recibido:</span> <strong>{{ selectedFile.name }}</strong><span>{{ selectedFile.size }} bytes, en este navegador</span></p>
+    }
+    <details>
+      <summary>Cómo preparar la planilla</summary>
+      <ul>
+        <li>El código es el SKU. Si ya existe, se modifica ese producto. Si no existe, se crea un borrador.</li>
+        <li>Los campos vacíos no borran datos. Usá precios en UYU sin separador de miles y con hasta dos decimales.</li>
+        <li>Usá los identificadores de <a routerLink="/productos/clasificaciones">categorías y marcas</a> activas. No se crean clasificaciones al importar. La marca es opcional.</li>
+        <li>Para fotos, usá rutas de fotos optimizadas que ya pertenecen al mismo SKU, separadas por <code>|</code>. No se descargan enlaces. Para un producto nuevo, agregá las fotos a su borrador.</li>
+      </ul>
+    </details>
+    <div class="batch-actions"><button class="button" type="submit" [disabled]="!file() || running() || loading()">{{ analyzing() ? 'Analizando…' : 'Ver vista previa' }}</button></div>
+    @if (fileError()) { <p class="callout alert" role="alert">{{ fileError() }}</p> }
+  </form>
 </section>

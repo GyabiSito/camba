@@ -20,7 +20,7 @@ type Filter = 'all' | 'errors' | 'ready' | 'applied';
 @Component({
   imports: [FormsModule, RouterLink],
   templateUrl: './spreadsheet-import.html',
-  styleUrls: ['./catalog.css', './work.css'],
+  styleUrls: ['./catalog.css', './work.css', './batch-entry.css'],
 })
 export class SpreadsheetImport {
   private readonly api = inject(ApiClient);

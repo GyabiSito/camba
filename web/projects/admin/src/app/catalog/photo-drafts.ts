@@ -15,7 +15,7 @@ type Group = {
 @Component({
   imports: [FormsModule, RouterLink, ProductFieldsForm],
   templateUrl: './photo-drafts.html',
-  styleUrls: ['./catalog.css', './work.css'],
+  styleUrls: ['./catalog.css', './work.css', './batch-entry.css'],
 })
 export class PhotoDrafts {
   private readonly api = inject(ApiClient);
