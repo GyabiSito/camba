@@ -111,7 +111,7 @@ return [
     */
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', env('APP_ENV', 'production') === 'production' ? null : 'notificaciones@camba.test'),
+        'address' => env('MAIL_FROM_ADDRESS', env('APP_ENV', 'production') === 'production' ? 'hello@example.com' : 'notificaciones@camba.test'),
         'name' => env('MAIL_FROM_NAME', 'Camba'),
     ],
 

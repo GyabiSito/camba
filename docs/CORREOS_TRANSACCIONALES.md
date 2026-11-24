@@ -34,4 +34,4 @@ Al terminar, detené solo el buzón descartable con `docker stop camba-transacti
 
 ## Remitente
 
-En local: **Camba <notificaciones@camba.test>**. En producción, configurá `MAIL_FROM_ADDRESS` con la dirección autorizada por el proveedor y dejá `MAIL_FROM_NAME=Camba`; no hay dirección local de respaldo en producción. Los ensayos con Mailpit no certifican entrega o apariencia en proveedores y clientes externos.
+En local: **Camba <notificaciones@camba.test>**. En producción, configurá `MAIL_FROM_ADDRESS` con la dirección autorizada por el proveedor y dejá `MAIL_FROM_NAME=Camba`. Si la variable falta, se conserva el respaldo anterior `hello@example.com` por compatibilidad; no lo uses como remitente en instalaciones nuevas. Los ensayos con Mailpit no certifican entrega o apariencia en proveedores y clientes externos.
