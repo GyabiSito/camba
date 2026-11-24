@@ -10,6 +10,9 @@
 .narrow {
   max-width: 39rem;
 }
+.shop-workspace.verification-result {
+  padding-block-end: 0;
+}
 .shop-workspace :is(h1, h2, h3, p, ul, dl) {
   margin-block: 0;
 }

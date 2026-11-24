@@ -1,3 +1,17 @@
+@if (
+  !loading() &&
+  (verificationResult === 'invalida' ||
+    (verificationResult === 'confirmada' && (buyer()?.email_verified ?? true)))
+) {
+  <div class="shop-workspace narrow members verification-result">
+    @if (verificationResult === 'confirmada') {
+      <p class="notice" role="status">Tu cuenta ha sido verificada</p>
+    } @else {
+      <p class="notice problem" role="alert">El enlace de verificación es inválido o venció.</p>
+    }
+  </div>
+}
+
 @if (loading()) {
   <section class="shop-workspace narrow members">
     <header class="page-header"><h1>Tu cuenta</h1></header>

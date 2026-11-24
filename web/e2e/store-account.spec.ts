@@ -88,7 +88,7 @@ test('registration shows an unverified account and handles a bad reset link', as
   await expect(page.getByRole('alert')).toBeVisible();
 });
 
-test('a resent Mailpit link verifies the buyer account', async ({ baseURL, context, page, request }) => {
+test('a resent Mailpit link verifies the buyer account', async ({ baseURL, browser, page, request }) => {
   test.skip(!mailPort, 'Requires disposable Mailpit SMTP and HTTP ports.');
   const email = `verify-${randomUUID()}@camba.test`;
   await register(page, email);
@@ -103,14 +103,26 @@ test('a resent Mailpit link verifies the buyer account', async ({ baseURL, conte
   expect((await resend).status()).toBe(204);
   const { link } = await deliveredLink(request, baseURL!, email, '/email/verify/', first.id);
 
-  const messageTab = await context.newPage();
-  const verification = messageTab.waitForResponse((response) => response.url() === link);
-  // The 204 navigation does not commit a new document.
-  await messageTab.evaluate((url) => window.location.assign(url), link);
-  expect((await verification).status()).toBe(204);
-  await messageTab.close();
-  await page.getByRole('button', { name: 'Comprobar verificación' }).click();
-  await expect(page.getByRole('status')).toHaveText('Correo verificado.');
+  const account = baseURL + '/cuenta?verificacion=';
+  const confirmation = 'Tu cuenta ha sido verificada';
+  const guest = await browser.newContext({ baseURL });
+  try {
+    const messageTab = await guest.newPage();
+    await messageTab.goto(link + '&invalid=1');
+    await expect(messageTab).toHaveURL(account + 'invalida');
+    await expect(messageTab.getByRole('alert')).toHaveText('El enlace de verificación es inválido o venció.');
+    await messageTab.goto(link);
+    await expect(messageTab).toHaveURL(account + 'confirmada');
+    await expect(messageTab.getByText(confirmation, { exact: true })).toBeVisible();
+    expect(await login(messageTab, email, password)).toBe(204);
+    await expect(messageTab.getByRole('heading', { name: 'Datos personales' })).toBeVisible();
+    await expect(messageTab.getByText(confirmation, { exact: true })).toBeVisible();
+  } finally {
+    await guest.close();
+  }
+  await page.goto(link);
+  await expect(page).toHaveURL(account + 'confirmada');
+  await expect(page.getByText(confirmation, { exact: true })).toBeVisible();
   await expect(notice).toBeHidden();
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Datos personales' })).toBeVisible();

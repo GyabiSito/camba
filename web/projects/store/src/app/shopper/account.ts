@@ -20,6 +20,9 @@ export class AccountPage {
   private readonly router = inject(Router);
   protected readonly returnToCheckout =
     inject(ActivatedRoute).snapshot.queryParamMap.get('volver') === 'checkout';
+  protected readonly verificationResult = inject(ActivatedRoute).snapshot.queryParamMap.get(
+    'verificacion',
+  );
   protected readonly buyer = signal<Buyer | null>(null);
   protected readonly loading = signal(true);
   protected readonly error = signal('');

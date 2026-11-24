@@ -143,6 +143,30 @@ class BuyerAccessTest extends TestCase
         $this->assertTrue($buyer->fresh()->hasVerifiedEmail());
     }
 
+    public function test_browser_email_verification_redirects_but_json_keeps_its_contract(): void
+    {
+        config(['app.url' => 'https://tienda.example.test']);
+        $buyer = User::factory()->unverified()->create();
+        $params = ['id' => $buyer->id, 'hash' => sha1($buyer->email)];
+        $valid = URL::temporarySignedRoute('verification.verify', now()->addMinutes(5), $params);
+        $expired = URL::temporarySignedRoute('verification.verify', now()->subMinute(), $params);
+        $html = ['Accept' => 'text/html,application/xhtml+xml,*/*;q=0.8'];
+        $account = 'https://tienda.example.test/cuenta?verificacion=';
+
+        foreach ([$expired, $valid.'&extra=1'] as $invalid) {
+            $this->get($invalid, $html)->assertStatus(303)->assertRedirect($account.'invalida');
+        }
+        $this->assertFalse($buyer->fresh()->hasVerifiedEmail());
+
+        $this->get($valid, $html)->assertStatus(303)->assertRedirect($account.'confirmada')
+            ->assertHeader('Referrer-Policy', 'no-referrer');
+        $this->assertTrue($buyer->fresh()->hasVerifiedEmail());
+
+        $this->getJson($valid)->assertNoContent();
+        $this->get($valid, ['Accept' => '*/*'])->assertNoContent();
+        $this->getJson($expired)->assertForbidden();
+    }
+
     public function test_first_buyer_verification_creates_one_welcome_and_existing_delivery_retries_it(): void
     {
         Notification::fake();

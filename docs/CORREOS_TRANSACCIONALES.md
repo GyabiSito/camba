@@ -14,6 +14,8 @@ Los nueve correos existentes comparten la [plantilla HTML](../api/resources/view
 | Tu pago sigue pendiente | El pedido sigue pendiente y entra en la ventana previa al vencimiento; la tienda y el comprador verificado tienen el recordatorio activado. |
 | Tenés productos en el carrito | El carrito de un comprador verificado conserva stock, supera el plazo de inactividad y no tiene una compra posterior; ambos permisos de recordatorio están activos. |
 
+Al abrir un enlace válido en el navegador, Mi cuenta muestra «Tu cuenta ha sido verificada». Si abrís el correo en otro navegador, vas a ver el aviso junto al ingreso y, al entrar, vas a quedar en Mi cuenta. Los enlaces inválidos o vencidos muestran un aviso; la firma no pasa a la URL de la cuenta. Los clientes JSON conservan la respuesta 204 para un enlace válido.
+
 Verificación y recuperación usan las notificaciones encoladas de Laravel. Para los otros siete correos, incluido el de bienvenida, el scheduler ejecuta `php artisan camba:notices` y el worker entrega solo los avisos elegibles. El CTA «Ver pedido» no otorga acceso: la tienda exige la sesión del titular; los invitados ven «Ir a la tienda». El pie muestra solo los canales de ayuda de Configuración que estén publicados. Los avisos de stock, importación e incidencias operativas siguen siendo del panel.
 
 La primera confirmación guarda un único aviso de bienvenida junto con la verificación. Una falla al enviar no desverifica la cuenta: se aplican los [reintentos seguros del registro de avisos](../api/docs/notices.md#delivery-and-recovery). Si no se sabe si SMTP aceptó el correo, no se reenvía automáticamente.
