@@ -7,11 +7,13 @@ use App\Actions\Identity\RegisterBuyerAction;
 use App\Http\Requests\Identity\LoginRequest;
 use App\Http\Requests\Identity\RegisterBuyerRequest;
 use App\Http\Resources\Identity\UserResource;
+use App\Models\CommerceNotice;
 use App\Models\User;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Throwable;
 
@@ -79,11 +81,31 @@ class AuthController
 
     public function verify(string $id, string $hash): Response
     {
-        $user = User::findOrFail($id);
-        abort_unless(hash_equals(sha1($user->getEmailForVerification()), $hash), 403);
+        $verified = DB::transaction(function () use ($id, $hash): ?User {
+            $user = User::query()->lockForUpdate()->findOrFail($id);
+            abort_unless(hash_equals(sha1($user->getEmailForVerification()), $hash), 403);
+            if ($user->hasVerifiedEmail() || ! $user->markEmailAsVerified()) {
+                return null;
+            }
 
-        if (! $user->hasVerifiedEmail() && $user->markEmailAsVerified()) {
-            event(new Verified($user));
+            if ($user->role === 'buyer') {
+                // The existing notice scheduler only queues this record once the transaction is committed.
+                CommerceNotice::query()->createOrFirst(['dedup_key' => 'mail:buyer_welcome:user:'.$user->id], [
+                    'channel' => 'mail',
+                    'kind' => CommerceNotice::BUYER_WELCOME,
+                    'subject_type' => 'user',
+                    'subject_id' => $user->id,
+                    'source_hash' => hash('sha256', $user->getEmailForVerification()),
+                    'state' => 'pending',
+                    'available_at' => now(),
+                ]);
+            }
+
+            return $user;
+        }, 3);
+
+        if ($verified) {
+            event(new Verified($verified));
         }
 
         return response()->noContent();

@@ -6,6 +6,7 @@ use App\Mail\CommerceNoticeMail;
 use App\Mail\TransactionalEmail;
 use App\Models\CommerceNotice;
 use App\Models\Order;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use RuntimeException;
@@ -38,7 +39,10 @@ class DeliverCommerceNotice
                 }
                 $pendingMail = Mail::mailer()->to($recipient[0]);
                 $order = $recipient[1] === null ? null : Order::query()->find($notice->subject_id);
-                $message = new CommerceNoticeMail($notice->id, $notice->kind, $recipient[1], $order, TransactionalEmail::support());
+                $buyerName = $notice->kind === CommerceNotice::BUYER_WELCOME
+                    ? User::query()->whereKey($notice->subject_id)->value('name')
+                    : null;
+                $message = new CommerceNoticeMail($notice->id, $notice->kind, $recipient[1], $order, TransactionalEmail::support(), $buyerName);
             } catch (Throwable) {
                 $notice->forceFill($this->preparationFailure($notice->attempts))->save();
 

@@ -21,6 +21,13 @@ class NoticeEligibility
 
     public function recipient(CommerceNotice $notice): ?array
     {
+        if ($notice->kind === CommerceNotice::BUYER_WELCOME) {
+            $buyer = $this->buyer($notice->subject_id);
+
+            return $buyer && filter_var($buyer->email, FILTER_VALIDATE_EMAIL)
+                && hash_equals($notice->source_hash ?? '', hash('sha256', $buyer->getEmailForVerification()))
+                ? [$buyer->email, null] : null;
+        }
         if ($notice->kind === 'cart_reminder') {
             return $this->cartRecipient($notice);
         }

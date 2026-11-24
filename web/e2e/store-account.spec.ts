@@ -153,8 +153,16 @@ test.describe('Camba transactional mail', () => {
     test.setTimeout(100_000);
     const inbox = `http://127.0.0.1:${mailPort}`;
     const email = `mail-${run}@camba.test`;
-    const output = 'test-results/transactional-mail';
+    const welcomeSubject = 'Te damos la bienvenida a Camba';
+    const output = `test-results/transactional-mail/${run}`;
     await mkdir(output, { recursive: true });
+
+    async function welcomeCount() {
+      const result = await request.get(inbox + '/api/v1/messages', { maxRedirects: 0 });
+      expect(result.ok()).toBe(true);
+      const { messages } = await result.json() as { messages: { Subject: string; To: { Address: string }[] }[] };
+      return messages.filter(m => m.Subject === welcomeSubject && m.To.some(t => t.Address === email)).length;
+    }
 
     async function received(to: string, subject: string, action: string) {
       let id: string | undefined;
@@ -214,10 +222,16 @@ test.describe('Camba transactional mail', () => {
 
     await register(page, email);
     const verification = await received(email, 'Verificá tu correo', 'Verificar mi correo');
+    expect(await welcomeCount()).toBe(0);
     expect(new URL(verification.link).pathname.startsWith('/email/verify/')).toBe(true);
     await captures('verificacion', verification.html, 'Verificar mi correo');
     const verified = await request.get(verification.link, { maxRedirects: 0 });
     expect(verified.status()).toBe(204);
+    const welcome = await received(email, welcomeSubject, 'Ver tienda');
+    expect(welcome.plain.includes('¡Hola, Cuenta de prueba! Tu correo ya está verificado.')).toBe(true);
+    expect(welcome.link).toBe(baseURL + '/tienda');
+    await captures('bienvenida', welcome.html, 'Ver tienda');
+    expect((await request.get(verification.link, { maxRedirects: 0 })).status()).toBe(204);
 
     await page.getByRole('button', { name: 'Olvidé mi contraseña' }).click();
     await page.getByLabel('Correo electrónico').fill(email);
@@ -259,6 +273,8 @@ test.describe('Camba transactional mail', () => {
     }
     const cart = await received(`cart-${run}@camba.test`, 'Camba: tenés productos en el carrito', 'Ver carrito');
     expect(new URL(cart.link).pathname).toBe('/carrito');
+    // Checkout mail proves the scheduler and worker ran again after replaying the verification link.
+    expect(await welcomeCount()).toBe(1);
   });
 });
 

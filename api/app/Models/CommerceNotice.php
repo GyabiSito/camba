@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class CommerceNotice extends Model
 {
+    public const BUYER_WELCOME = 'buyer_welcome';
+
     protected $guarded = ['id'];
 
     protected $hidden = ['dedup_key', 'source_hash'];

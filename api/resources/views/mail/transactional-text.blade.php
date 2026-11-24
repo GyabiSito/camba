@@ -2,7 +2,8 @@ Camba
 
 {{ $title }}
 
-{{ $intro }}
+{{-- This view is plain MIME: a buyer name must not turn into HTML entities. --}}
+{!! $intro !!}
 @foreach ($details ?? [] as $label => $value)
 
 {{ $label }}: {{ $value }}

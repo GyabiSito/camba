@@ -51,6 +51,21 @@ class CommerceNoticeTest extends TestCase
         $this->getJson(self::ADMIN)->assertForbidden();
     }
 
+    public function test_admin_commerce_feed_does_not_expose_welcome_records(): void
+    {
+        $buyer = User::factory()->create();
+        CommerceNotice::create([
+            'dedup_key' => 'test:mail:buyer_welcome:'.$buyer->id,
+            'channel' => 'mail',
+            'kind' => CommerceNotice::BUYER_WELCOME,
+            'subject_type' => 'user',
+            'subject_id' => $buyer->id,
+            'state' => 'uncertain',
+        ]);
+        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->getJson(self::ADMIN.'?state=uncertain')->assertOk()->assertJsonCount(0, 'data');
+    }
+
     public function test_committed_orders_and_operational_events_project_once_and_hide_personal_data(): void
     {
         Queue::fake();

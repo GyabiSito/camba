@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Enums\OrderStatus;
+use App\Models\CommerceNotice;
 use App\Models\Order;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
@@ -17,11 +18,14 @@ class CommerceNoticeMail extends Mailable
         public ?string $reference,
         private ?Order $order = null,
         private array $support = [],
+        private ?string $buyerName = null,
     ) {}
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: 'Camba: '.mb_lcfirst($this->title()));
+        return new Envelope(subject: $this->kind === CommerceNotice::BUYER_WELCOME
+            ? $this->title()
+            : 'Camba: '.mb_lcfirst($this->title()));
     }
 
     public function headers(): Headers
@@ -35,6 +39,7 @@ class CommerceNoticeMail extends Mailable
     {
         $store = rtrim(config('app.url'), '/');
         [$actionLabel, $actionUrl] = match (true) {
+            $this->kind === CommerceNotice::BUYER_WELCOME => ['Ver tienda', $store.'/tienda'],
             $this->kind === 'cart_reminder' => ['Ver carrito', $store.'/carrito'],
             $this->order?->user_id !== null => ['Ver pedido', $store.'/pedidos/'.rawurlencode($this->reference)],
             default => ['Ir a la tienda', $store],
@@ -43,6 +48,7 @@ class CommerceNoticeMail extends Mailable
         return new Content(view: TransactionalEmail::HTML, text: TransactionalEmail::TEXT, with: [
             'title' => $this->title(),
             'intro' => match ($this->kind) {
+                CommerceNotice::BUYER_WELCOME => $this->welcomeIntro(),
                 'order_created' => 'Consultá el estado del pago y de la entrega en la tienda.',
                 'order_paid' => 'Confirmamos tu pago. Consultá los próximos pasos en la tienda.',
                 'payment_reminder' => 'Revisá el estado de tu pedido antes de intentar pagar.',
@@ -74,6 +80,7 @@ class CommerceNoticeMail extends Mailable
     private function title(): string
     {
         return match ($this->kind) {
+            CommerceNotice::BUYER_WELCOME => 'Te damos la bienvenida a Camba',
             'order_created' => 'Recibimos tu pedido',
             'order_paid' => 'Pago confirmado',
             'payment_reminder' => 'Tu pago sigue pendiente',
@@ -81,5 +88,13 @@ class CommerceNoticeMail extends Mailable
             'order_ready_for_pickup' => 'Tu pedido está listo para retirar',
             'order_shipped' => 'Enviamos tu pedido',
         };
+    }
+
+    private function welcomeIntro(): string
+    {
+        $name = trim($this->buyerName ?? '');
+        $greeting = $name === '' ? '¡Hola!' : "¡Hola, $name!";
+
+        return "$greeting Tu correo ya está verificado. Desde Mi cuenta podés guardar tus direcciones y consultar tus pedidos.";
     }
 }
