@@ -48,12 +48,48 @@ class StoreContactTest extends TestCase
         $this->assertStringContainsString(self::FORM['name'], $mail->getTextBody());
         $this->assertStringContainsString(self::FORM['message'], $mail->getTextBody());
         $this->assertStringContainsString('Teléfono: 099 555 555', $mail->getTextBody());
+        $this->assertStringContainsString('Teléfono', $mail->getHtmlBody());
+        $this->assertStringContainsString('099 555 555', $mail->getHtmlBody());
+    }
+
+    public function test_contact_renders_both_parts_with_safe_visitor_data_and_no_empty_phone(): void
+    {
+        config(['mail.default' => 'array']);
+        $this->configureSupport();
+        $visitor = 'ana+qa?canal@camba.test';
+        $name = 'Ana <QA> & equipo';
+        $body = "Primer párrafo.\n\nSegundo párrafo: <img src=x onerror=alert(1)> & texto.";
+        $this->postJson(self::PATH, ['name' => $name, 'email' => $visitor, 'message' => $body])->assertNoContent();
+
+        $messages = Mail::mailer('array')->getSymfonyTransport()->messages();
+        $this->assertCount(1, $messages);
+        $mail = $messages->first()->getOriginalMessage();
+        $html = $mail->getHtmlBody();
+        $plain = $mail->getTextBody();
+        $this->assertNotNull($html);
+        $this->assertNotNull($plain);
+        $this->assertSame($visitor, $mail->getReplyTo()[0]->getAddress());
+        $url = 'mailto:ana%2Bqa%3Fcanal@camba.test?subject=Re%3A%20Consulta%20desde%20Camba';
+        $this->assertStringContainsString('href="'.$url.'"', $html);
+        $this->assertStringContainsString('src="cid:', $html);
+        $this->assertStringContainsString(e($name), $html);
+        $this->assertStringContainsString(nl2br(e($body), false), $html);
+        $this->assertStringNotContainsString('<img src=x', $html);
+        $this->assertStringContainsString('Nombre: '.$name, $plain);
+        $this->assertStringContainsString('Correo: '.$visitor, $plain);
+        $this->assertStringContainsString($body, $plain);
+        $this->assertStringContainsString($url, $plain);
+        foreach ([$html, $plain] as $part) {
+            $this->assertStringContainsString('Nueva consulta desde la tienda', $part);
+            $this->assertStringContainsString('Responder consulta', $part);
+            $this->assertStringNotContainsString('Teléfono', $part);
+        }
     }
 
     public function test_invalid_messages_and_unconfigured_contact_are_not_sent(): void
     {
         config(['store.public_contact.email' => 'public@camba.test']);
-        Mail::shouldReceive('raw')->never();
+        Mail::shouldReceive('send')->never();
         $this->postJson(self::PATH, self::FORM)->assertServiceUnavailable();
         $this->configureSupport('not-an-email');
         $this->postJson(self::PATH, self::FORM)->assertServiceUnavailable();
@@ -68,7 +104,7 @@ class StoreContactTest extends TestCase
     public function test_delivery_failure_is_not_an_acknowledgement(): void
     {
         $this->configureSupport();
-        Mail::shouldReceive('raw')->once()->andThrow(new TransportException('SMTP unavailable'));
+        Mail::shouldReceive('send')->once()->andThrow(new TransportException('SMTP unavailable'));
 
         $this->postJson(self::PATH, self::FORM)->assertServiceUnavailable()->assertJsonPath('message', 'No pudimos enviar tu consulta. Probá de nuevo más tarde.');
     }
@@ -76,7 +112,7 @@ class StoreContactTest extends TestCase
     public function test_contact_limits_submissions_per_ip(): void
     {
         $this->configureSupport();
-        Mail::shouldReceive('raw')->times(5);
+        Mail::shouldReceive('send')->times(5);
 
         for ($i = 0; $i < 5; $i++) {
             $this->postJson(self::PATH, self::FORM)->assertNoContent();

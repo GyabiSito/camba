@@ -26,11 +26,11 @@
                     </tr>
                 </table>
             </td></tr>
-            <tr><td class="mail-gutter" style="padding:34px 28px 28px;color:#24201E;font:16px/1.6 Arial,Helvetica,sans-serif;">
+            <tr><td class="mail-gutter" style="padding:34px 28px 28px;color:#24201E;font:16px/1.6 Arial,Helvetica,sans-serif;@isset($contactMessage)background:#FFFFFF;border:1px solid #E8DEDA;border-radius:14px;@endisset">
                 <h1 class="mail-title" style="margin:0 0 14px;color:#24201E;font:normal 40px/1.12 Georgia,'Times New Roman',serif;letter-spacing:-0.7px;">{{ $title }}</h1>
                 <p style="margin:0 0 22px;">{{ $intro }}</p>
                 @if (!empty($details))
-                    <table width="100%" cellspacing="0" cellpadding="0" aria-label="Datos del pedido" style="margin:0 0 24px;border-collapse:collapse;font:15px/1.4 Arial,Helvetica,sans-serif;">
+                    <table width="100%" cellspacing="0" cellpadding="0" aria-label="{{ isset($contactMessage) ? 'Datos de contacto' : 'Datos del pedido' }}" style="margin:0 0 24px;border-collapse:collapse;font:15px/1.4 Arial,Helvetica,sans-serif;">
                         @foreach ($details as $label => $value)
                             <tr>
                                 <th scope="row" align="left" style="padding:10px 12px 10px 0;border-top:1px solid #E8DEDA;color:#635956;font-weight:normal;">{{ $label }}</th>
@@ -39,6 +39,14 @@
                         @endforeach
                     </table>
                 @endif
+                @isset($contactMessage)
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
+                        <tr><td bgcolor="#FCFAF6" style="padding:16px 18px;border:1px solid #E8DEDA;border-radius:6px;">
+                            <h2 style="margin:0 0 8px;color:#720F12;font:bold 16px/1.4 Arial,Helvetica,sans-serif;">Mensaje</h2>
+                            <p style="margin:0;word-break:break-word;overflow-wrap:anywhere;">{!! nl2br(e($contactMessage), false) !!}</p>
+                        </td></tr>
+                    </table>
+                @endisset
                 <table role="presentation" cellspacing="0" cellpadding="0" style="margin:0 0 22px;">
                     <tr><td bgcolor="#821F40" style="border-radius:4px;">
                         <a href="{{ $actionUrl }}" style="display:inline-block;padding:11px 19px;border:1px solid #821F40;border-radius:4px;background:#821F40;color:#FCFAF6;font:bold 16px/1.4 Arial,Helvetica,sans-serif;text-decoration:none;">{{ $actionLabel }}</a>
@@ -49,8 +57,8 @@
                 @endforeach
             </td></tr>
             <tr><td class="mail-gutter" style="padding:17px 28px 0;border-top:1px solid #E8DEDA;color:#635956;font:14px/1.55 Arial,Helvetica,sans-serif;">
-                <p style="margin:0 0 4px;">Si el botón no funciona, copiá y pegá este enlace en tu navegador:</p>
-                <p style="margin:0 0 16px;word-break:break-all;overflow-wrap:anywhere;"><a href="{{ $actionUrl }}" style="color:#720F12;text-decoration:underline;word-break:break-all;">{{ $actionUrl }}</a></p>
+                <p style="margin:0 0 4px;">{{ isset($contactMessage) ? 'Si el botón no funciona, escribile a este correo:' : 'Si el botón no funciona, copiá y pegá este enlace en tu navegador:' }}</p>
+                <p style="margin:0 0 16px;word-break:break-all;overflow-wrap:anywhere;"><a href="{{ $actionUrl }}" style="color:#720F12;text-decoration:underline;word-break:break-all;">{{ isset($contactMessage) ? $details['Correo'] : $actionUrl }}</a></p>
                 @if (($supportEmail ?? null) || ($supportPhone ?? null))
                     <p style="margin:0 0 8px;">
                         Ayuda:

@@ -2,7 +2,6 @@ import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, Elemen
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { useStoreMeta } from '../../../../../core/seo/store-meta';
-import { editorialEnabled } from '../../../../home';
 import type { PublicStoreInfo } from '../../../../../shared/data-access/public-store-info';
 import { scrollHelpOnNavigation } from '../../../../../shared/ui/help-article/scroll-help-on-navigation';
 import { CONTACT_SENDER } from '../../../application/contact-sender';
@@ -20,7 +19,6 @@ export class Contact {
   private readonly sender = inject(CONTACT_SENDER);
   private readonly host = inject(ElementRef<HTMLElement>).nativeElement;
   private readonly destroy = inject(DestroyRef);
-  protected readonly editorial = editorialEnabled;
   protected readonly title = 'Contactanos';
   protected readonly description = 'Escribinos si tenés una consulta sobre un producto, un pedido o tu cuenta.';
   protected readonly info = inject(ActivatedRoute).snapshot.data['info'] as PublicStoreInfo | null;

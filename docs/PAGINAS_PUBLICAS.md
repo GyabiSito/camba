@@ -32,4 +32,6 @@ El recorrido prueba las cinco páginas independientes en SSR sin JavaScript, rec
 
 Para comprobar el formulario, usá una instancia de prueba con **un correo de soporte sintético** y SMTP hacia Mailpit. `POST /api/v1/contact` acepta nombre, correo, teléfono opcional y mensaje. El destinatario sale de Configuración; el correo provisto se usa solo para responder. La API devuelve 204 después de que el transporte acepta el mensaje, 422 por datos inválidos, 429 al superar cinco intentos por minuto e IP y 503 si falta el destinatario o falla el transporte. No hay un envío simulado ni un reintento automático.
 
+En el Docker local, podés guardar `soporte-contacto@camba.test` en **Admin → Configuración → Correo interno para consultas**. Se guarda en la base de la demo, no en `CAMBA_PUBLIC_CONTACT_EMAIL`, que solo publica el canal visible. La demo usa `mailpit:1025` por SMTP y el buzón se abre en `http://127.0.0.1:48025/`. Usá direcciones `.test` solo en local.
+
 Con esa instancia y su buzón activos, el mismo recorrido prueba el formulario si definís `CAMBA_CONTACT_STORE`, `CAMBA_CONTACT_MAILPIT` y `CAMBA_CONTACT_RECIPIENT` con su URL de Tienda, su URL de Mailpit y el correo de soporte configurado, respectivamente. Comprueba el 204 y un único mensaje real al destinatario esperado con el `Reply-To` correcto.

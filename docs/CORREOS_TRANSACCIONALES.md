@@ -7,6 +7,7 @@ Diez correos comparten la [plantilla HTML](../api/resources/views/mail/transacti
 | Verificá tu correo | Creá una cuenta de comprador o, sin verificar, ingresá y pedí otro enlace en Mi cuenta. |
 | Te damos la bienvenida a Camba | Registrá un comprador. Llega una vez aunque el correo siga sin verificar. «Explorá la tienda» lleva a `/tienda`. Verificar o reenviar la verificación no dispara otra bienvenida; tampoco se envía a cuentas preexistentes. |
 | Restablecé tu contraseña | En Mi cuenta, elegí «Olvidé mi contraseña» e ingresá el correo de una cuenta de prueba. |
+| Consulta desde Camba | Enviá el formulario de [Contactanos](http://127.0.0.1:4200/contacto) con el destinatario interno configurado en Admin. |
 | Recibimos tu pedido | Confirmá una compra con un comprador de prueba verificado o como invitado con correo. |
 | Pago confirmado | El pago verificado queda confirmado en el pedido. |
 | Tu pedido está listo para retirar | Marcá un pedido pagado de retiro como listo, desde el Admin. |
@@ -18,7 +19,7 @@ Diez correos comparten la [plantilla HTML](../api/resources/views/mail/transacti
 
 Al abrir un enlace válido en el navegador, Mi cuenta muestra «Tu cuenta ha sido verificada». Si abrís el correo en otro navegador, vas a ver el aviso junto al ingreso y, al entrar, vas a quedar en Mi cuenta. Los enlaces inválidos o vencidos muestran un aviso; la firma no pasa a la URL de la cuenta. Los clientes JSON conservan la respuesta 204 para un enlace válido.
 
-Verificación y recuperación usan las notificaciones encoladas de Laravel. Para los otros nueve correos, incluido el de bienvenida, el scheduler ejecuta `php artisan camba:notices` y el worker entrega solo los avisos elegibles. El CTA «Ver pedido» no otorga acceso: la tienda exige la sesión del titular; los invitados ven «Ir a la tienda». El pie muestra solo los canales de ayuda de Configuración que estén publicados. Los avisos de stock, importación e incidencias operativas siguen siendo del panel.
+Verificación y recuperación usan las notificaciones encoladas de Laravel. El scheduler ejecuta `php artisan camba:notices` para los nueve avisos, incluido el de bienvenida, y el worker entrega solo los elegibles. La consulta de Contactanos se envía sincrónicamente al destinatario interno; el botón y `Reply-To` apuntan al correo del visitante. El CTA «Ver pedido» no otorga acceso: la tienda exige la sesión del titular; los invitados ven «Ir a la tienda». El pie muestra solo los canales de ayuda de Configuración que estén publicados. Los avisos de stock, importación e incidencias operativas siguen siendo del panel.
 
 Los correos de envío y entrega a domicilio se registran en la misma transacción que el cambio de estado. Pasar a Entregado antes del próximo ciclo no anula el aviso de Enviado. No se generan correos retroactivos. El correo al administrador también se registra al guardar el pedido por primera vez; si no hay un solo administrador verificado o cambia su dirección antes del envío, no se redirige a otra persona. Configurá el origen de Admin (`CAMBA_ADMIN_URL` en Compose de producción, `ADMIN_URL` en Laravel). El Docker local lo toma del puerto de Admin; «Ver pedido» lleva al detalle autenticado.
 

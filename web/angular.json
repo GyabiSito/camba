@@ -141,6 +141,11 @@
               {
                 "glob": "**/*",
                 "input": "projects/store/public"
+              },
+              {
+                "glob": "atelier-cierre-tela{,-small}.webp",
+                "input": "projects/store/demo-assets",
+                "output": "/demo-home"
               }
             ],
             "styles": ["projects/store/src/styles.css"],

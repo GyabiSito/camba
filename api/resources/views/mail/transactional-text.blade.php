@@ -6,8 +6,17 @@ Camba
 {!! $intro !!}
 @foreach ($details ?? [] as $label => $value)
 
+@if (isset($contactMessage))
+{{ $label }}: {!! $value !!}
+@else
 {{ $label }}: {{ $value }}
+@endif
 @endforeach
+@isset($contactMessage)
+
+Mensaje:
+{!! $contactMessage !!}
+@endisset
 
 {{ $actionLabel }}:
 {{-- Plain MIME needs the original URL, including literal query separators in signed links. --}}

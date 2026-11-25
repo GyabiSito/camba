@@ -31,6 +31,7 @@ test('five pages render in SSR and are linked from every shared footer', async (
         if (settings.pickup_address) await expect(main.getByText(settings.pickup_address, { exact: true })).toBeVisible();
       }
       if (path === '/contacto') {
+        await expect.poll(() => main.locator('.contact-banner img').evaluate(img => img.naturalWidth)).toBeGreaterThan(0);
         await expect(main.getByRole('heading', { name: 'Estamos para ayudarte', exact: true })).toBeVisible();
         await expect(main.locator('a[href^="mailto:"]')).toHaveCount(settings.support_email ? 1 : 0);
         await expect(main.locator('a[href^="tel:"]')).toHaveCount(settings.support_phone ? 1 : 0);
@@ -199,7 +200,22 @@ test('contact links use their configured public destinations and collapse indivi
   try {
     for (const width of [1440, 390]) {
       const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
-      await page.goto(base + '/contacto');
+      await page.goto(base + '/tienda');
+      const footer = page.getByRole('contentinfo');
+      const paper = await footer.evaluate(el => getComputedStyle(el).backgroundColor);
+      const footerContact = footer.getByRole('link', { name: 'Contactanos', exact: true });
+      await footerContact.scrollIntoViewIfNeeded();
+      await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+      await footerContact.click();
+      await expect(page).toHaveURL(base + '/contacto');
+      await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+      await page.goto(base + '/tienda');
+      await page.evaluate(() => scrollTo(0, 400));
+      const header = page.getByRole('banner');
+      if (width === 390) await header.getByRole('button', { name: 'Menú de tienda' }).click();
+      await header.getByRole('link', { name: 'Contacto', exact: true }).click();
+      await expect(page).toHaveURL(base + '/contacto');
+      await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
       const section = page.getByRole('region', { name: 'Estamos para ayudarte' });
       const banner = page.locator('.contact-banner');
       await expect(banner.getByRole('heading', { name: 'Contactanos', level: 1 })).toBeVisible();
@@ -207,9 +223,13 @@ test('contact links use their configured public destinations and collapse indivi
         const bounds = el.getBoundingClientRect();
         return bounds.left === 0 && Math.abs(bounds.right - document.documentElement.clientWidth) <= 1;
       })).toBe(true);
-      if (process.env.CAMBA_CONTACT_EXPECT_EDITORIAL === '1') {
-        await expect.poll(() => banner.locator('img').evaluate(img => img.naturalWidth)).toBeGreaterThan(0);
-      }
+      const image = banner.locator('img');
+      await expect.poll(() => image.evaluate(img => img.naturalWidth)).toBeGreaterThan(0);
+      expect(await image.evaluate(img => new URL(img.currentSrc).pathname)).toBe(
+        `/demo-home/atelier-cierre-tela${width === 390 ? '-small' : ''}.webp`,
+      );
+      await expect(page.locator('.contact-grid')).toHaveCSS('background-color', paper);
+      await expect(footer).toHaveCSS('background-color', paper);
       const card = page.getByRole('region', { name: 'Mandanos un mensaje' });
       const [formBox, helpBox, fieldsBox, buttonBox] = await Promise.all([
         card.boundingBox(), section.boundingBox(), card.locator('fieldset').boundingBox(),
@@ -315,9 +335,19 @@ test('contact form delivers to the configured Mailpit recipient', { skip: !proce
     await page.getByLabel('Nombre', { exact: true }).fill('Lucía Fernández');
     await page.getByLabel('Correo electrónico', { exact: true }).fill(buyer);
     await expect(page.getByLabel('Teléfono (opcional)')).toHaveValue('');
-    await page.getByLabel('Mensaje', { exact: true }).fill('Consulta de prueba sobre un pedido. Referencia ' + ref);
+    const text = 'Hola, tengo una consulta sobre un pedido.\n\n¿Me pueden confirmar cómo coordinar el retiro?\n\nReferencia de prueba: ' + ref;
+    await page.getByLabel('Mensaje', { exact: true }).fill(text);
+    const send = page.getByRole('button', { name: 'Enviar consulta' });
+    // Simulate a failure only in this browser; the real request below must send exactly once.
+    await page.route(store + '/api/v1/contact', route => route.fulfill({ status: 503, json: {} }), { times: 1 });
+    await send.click();
+    await expect(page.getByRole('alert')).toBeVisible();
+    await expect(page.getByText('Enviamos tu consulta.', { exact: false })).toHaveCount(0);
+    await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue('Lucía Fernández');
+    await expect(page.getByLabel('Correo electrónico', { exact: true })).toHaveValue(buyer);
+    await expect(page.getByLabel('Mensaje', { exact: true })).toHaveValue(text);
     const submission = page.waitForResponse(r => r.url().endsWith('/api/v1/contact') && r.request().method() === 'POST');
-    await page.getByRole('button', { name: 'Enviar consulta' }).click();
+    await send.click();
     expect((await submission).status()).toBe(204);
     await expect(page.getByRole('status')).toContainText('Enviamos tu consulta.');
     expect(hydrationErrors).toEqual([]);
@@ -325,9 +355,9 @@ test('contact form delivers to the configured Mailpit recipient', { skip: !proce
     let deliveries = [];
     await expect.poll(async () => {
       deliveries = [];
-      const { messages } = await fetch(mailpit + '/api/v1/messages').then(r => r.json());
+      const { messages } = await fetch(mailpit + '/api/v1/search?query=' + encodeURIComponent(ref)).then(r => r.json());
       for (const mail of messages) {
-        if (mail.Subject !== 'Consulta desde Camba' || mail.To.length !== 1 || mail.To[0].Address !== recipient) continue;
+        if (mail.Subject !== 'Consulta desde Camba') continue;
         const message = await fetch(mailpit + '/api/v1/message/' + encodeURIComponent(mail.ID)).then(r => r.json());
         if (message.Text?.includes(ref)) deliveries.push(message);
       }
@@ -335,15 +365,22 @@ test('contact form delivers to the configured Mailpit recipient', { skip: !proce
     }).toBe(1);
     const [delivered] = deliveries;
     expect(delivered.From).toMatchObject({ Name: 'Camba', Address: 'notificaciones@camba.test' });
+    expect(delivered.To).toEqual([expect.objectContaining({ Address: recipient })]);
     expect(delivered.ReplyTo).toEqual([expect.objectContaining({ Address: buyer })]);
     expect(delivered.Text).toContain('Nombre: Lucía Fernández');
+    expect(delivered.Text.replace(/\r\n/g, '\n')).toContain(text);
     expect(delivered.Text).not.toContain('Teléfono:');
+    expect(delivered.HTML).toContain('Nueva consulta desde la tienda');
+    expect(delivered.HTML).toContain('Responder consulta');
     console.log(`Mailpit: un mensaje “${delivered.Subject}” al destinatario configurado; Reply-To y cuerpo verificados.`);
 
     await mkdir(output, { recursive: true });
-    await page.goto(mailpit + '/view/' + encodeURIComponent(delivered.ID) + '.txt');
-    await expect(page.getByText(ref, { exact: false })).toBeVisible();
-    await page.screenshot({ path: `${output}/contacto-mailpit.png` });
+    await page.goto(mailpit + '/view/' + encodeURIComponent(delivered.ID));
+    const view = page.locator('#message-view');
+    await expect(view.getByText('Reply-To', { exact: true })).toBeVisible();
+    await view.getByRole('tab', { name: 'Text', exact: true }).click();
+    await expect(view.locator('.text-view')).toContainText(text);
+    await view.screenshot({ path: `${output}/contacto-mailpit.png`, animations: 'disabled' });
   } finally {
     await browser.close();
   }
