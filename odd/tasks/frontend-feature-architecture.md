@@ -29,9 +29,9 @@ S7. «Entregá el árbol final de ambas apps, la correspondencia entre las rutas
 ## Tasks
 
 - T1 — S1–S2, S5–S6 · inline first · verified · `6b53a9e`, support routes, regression and local smoke (see L3).
-- T2 — S3, S5–S6 · Store writer (parallel app surfaces after T1) · integrated and built; Docker and suite evidence in Log.
-- T3 — S4–S6 · Admin writer (parallel app surfaces after T1) · integrated and built; access and Docker evidence in Log.
-- T4 — S5–S7 · parent integration, verification and route/tree inventory · in progress.
+- T2 — S3, S5–S6 · Store writer (parallel app surfaces after T1) · functionally verified · `c06dc07`, `7a1de6e`; see Log.
+- T3 — S4–S6 · Admin writer (parallel app surfaces after T1) · functionally verified · `c06dc07`; see Log.
+- T4 — S5–S7 · parent integration, verification and route/tree inventory · functionally verified · `c06dc07`, `7a1de6e`; final evidence below and in `docs/FRONTEND_ARCHITECTURE.md`.
 
 ## Log
 
@@ -85,3 +85,7 @@ L6 — Final Docker Store 4200: 9 passed in the support/layout run with a separa
 L7 — Risk item 2 (session/guard wiring moved and account HTTP extracted without intentional authentication changes). Independent browser checks of the actual Admin canvas and Products with guest and buyer sessions passed; guard body matches the baseline after whitespace normalization. The shared buyer session survives the failed access; no outside requests. Incorporated the access regression in the existing Docker test; this test and the explicit admin/CSRF/session checks passed. No independent scratch was written inside the checkout.
 
 L8 — Combined Playwright run initially observed 44 pass, 4 environment-conditioned skips and five failures. The shared login fixture returned HTTP 429 during one Admin case. Store traces showed a Vite overlay during interactive tests; a subsequent build exposed a dangling Checkout import created during cleanup, now repaired. Also aligned the stale Store header test with the existing Contact route and handled native vs. hydration-replayed Catalog form/link cancellation. Added a resolvable-import architecture check; combined Node verification now has 12 passing tests. No production or API threshold was changed.
+
+L9 — Isolated reruns passed the previously failing grouped photo recovery, Store accessibility, guest quote and shell navigation cases. The Admin accessibility case passed in the full run and timed out once during a redundant focused reload while its catalog was still loading. The mobile catalog test had to expand the existing filter disclosure before selecting options; it then reproduced a lost search string on hydration. `7a1de6e` uses the SSR default value attribute and updates the live field only on route-query change. Fresh Playwright mobile catalog and shell cases passed; the final Docker storefront was rebuilt and Back/filter checks plus all 12 Node checks passed again. Total: 49 distinct applicable Playwright cases passed across runs; four explicitly environment-conditioned cases were skipped. No claim of a single green full run.
+
+L10 — The Store and Admin moves share a commit because the real Admin homepage preview consumes the Store renderer; a single-app intermediate move would leave an invalid import. Local work units only, no push. The auth path was flagged for native review (separate from the passing independent functional checks).
