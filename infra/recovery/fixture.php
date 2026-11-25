@@ -44,8 +44,9 @@ $side = in_array($phase, ['seed', 'crash', 'before-expiry', 'stage-jobs'], true)
 if ($phase === 'snapshot') {
     $side = '(source|target)';
 }
-check($app->environment('local') && config('database.default') === 'mysql'
-    && config('database.connections.mysql.host') === 'mysql'
+check($app->environment('local') && config('database.default') === 'pgsql'
+    && config('database.connections.pgsql.host') === 'postgres'
+    && empty(config('database.connections.pgsql.url'))
     && preg_match("/^camba_recovery_[a-f0-9]{8}_$side$/D", DB::getDatabaseName()), 'synthetic database guard');
 
 switch ($phase) {

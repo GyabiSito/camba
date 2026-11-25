@@ -1,10 +1,10 @@
 # Rehearse recovery without touching the store
 
-Run one local drill to restore Camba's MySQL database and public/private media, restart a payment inbox after a process exit, and safely rebuild jobs on a fresh Redis instance. The drill makes its own synthetic data. **Do not give it a real database, export, credential, or media archive.** For incident planning, see [Recovery](RECOVERY.md).
+Run one local drill to restore Camba's PostgreSQL database and public/private media, restart a payment inbox after a process exit, and safely rebuild jobs on a fresh Redis instance. The drill makes its own synthetic data. **Do not give it a real database, export, credential, or media archive.** For incident planning, see [Recovery](RECOVERY.md).
 
 ## Run the drill
 
-1. Use a local Docker engine with Compose and an installed Camba API **runtime** image. Build one from this checkout if needed: `docker build -t camba-recovery-api:local api`. The rehearsal itself does not pull images; it also requires the MySQL, Redis and Mailpit images pinned in [`infra/recovery/compose.yml`](../infra/recovery/compose.yml).
+1. Use a local Docker engine with Compose and an installed Camba API **runtime** image. Build one from this checkout if needed: `docker build -t camba-recovery-api:local api`. The rehearsal itself does not pull images; it also requires the PostgreSQL, Redis and Mailpit images pinned in [`infra/recovery/compose.yml`](../infra/recovery/compose.yml).
 2. From the repository root in PowerShell, run:
 
    ```powershell
@@ -28,3 +28,5 @@ The interrupted payment uses Laravel's HTTP-client fake for one `GET /v1/payment
 ## Recorded local run
 
 On 2026-11-18, `.\infra\recovery\rehearse.ps1 -ApiImage camba-v2-local-api:ui` exited 0 on Docker Desktop Linux / Compose 2.34.0, using the installed image `sha256:6bdfd0afe1b72a35c03e6dcc1cb2306b779155c1edc9141b33a917268dd66d25`. The comparison covered 31 table counts and 15 migrations. The worker completed exactly two queued jobs and Mailpit received one message. The run retained its synthetic artifacts and pre-resume comparison in `$env:TEMP\camba-recovery-7482a987` on the machine that ran it.
+
+The recorded run used the superseded MySQL recovery setup and is historical only, not evidence for PostgreSQL; record a new result after running the current isolated drill.

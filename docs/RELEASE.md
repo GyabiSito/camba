@@ -11,7 +11,7 @@ The release executor is for automated deployment on Linux. Do not invoke it manu
 - `CAMBA_COMPOSE_FILE`: an absolute path to the installed release Compose file that contains all three application groups. `CAMBA_COMPOSE_PROJECT` defaults to `camba-v2`; never supply the legacy project name.
 - `CAMBA_EDGE_COMPOSE_FILE`: optional absolute path to the installed `infra/compose.edge.yml` overlay. Set `CAMBA_EDGE_NETWORK` in the protected Compose configuration to the existing edge network and `CAMBA_STORE_ALLOWED_HOSTS` to the exact publicly served storefront hosts. Do not use wildcards.
 
-The release account needs Docker Compose with `up --wait`, Bash, and `flock`. Start MySQL and Redis and confirm their health separately for the first installation. They are not updated or restarted by this executor.
+The release account needs Docker Compose with `up --wait`, Bash, and `flock`. Start PostgreSQL and Redis and confirm their health separately for the first installation. PostgreSQL is initialized with the distinct administrator credential `CAMBA_DB_ADMIN_PASSWORD`; provision the application login and database ownership before running migrations. Keep `CAMBA_DB_PASSWORD` out of command arguments: pass it into `psql`'s environment and read it with `\getenv` from SQL supplied on stdin. These services are not updated or restarted by this executor.
 
 ## What it does
 

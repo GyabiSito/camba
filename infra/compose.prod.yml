@@ -17,13 +17,13 @@ x-backend: &backend
     SANCTUM_STATEFUL_DOMAINS: ${CAMBA_SANCTUM_DOMAINS:?Set the first-party domains}
     LOG_CHANNEL: stderr
     LOG_LEVEL: warning
-    DB_CONNECTION: mysql
+    DB_CONNECTION: pgsql
     DB_URL: ''
-    DB_HOST: mysql
-    DB_PORT: '3306'
+    DB_HOST: postgres
+    DB_PORT: '5432'
     DB_DATABASE: camba_v2
     DB_USERNAME: camba_v2
-    DB_PASSWORD: ${CAMBA_DB_PASSWORD:?Set the MySQL application password}
+    DB_PASSWORD: ${CAMBA_DB_PASSWORD:?Set the PostgreSQL application password}
     REDIS_CLIENT: phpredis
     REDIS_URL: ''
     REDIS_HOST: redis
@@ -36,7 +36,7 @@ x-backend: &backend
     SESSION_ENCRYPT: 'true'
     SESSION_SECURE_COOKIE: 'true'
   depends_on:
-    mysql:
+    postgres:
       condition: service_healthy
     redis:
       condition: service_healthy
@@ -126,21 +126,21 @@ services:
     networks: [data]
     restart: 'no'
 
-  mysql:
-    image: mysql:8.4@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
+  postgres:
+    # Match the pinned PostgreSQL 18.7 development image and data-directory mount.
+    image: postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
     environment:
-      MYSQL_DATABASE: camba_v2
-      MYSQL_USER: camba_v2
-      MYSQL_PASSWORD: ${CAMBA_DB_PASSWORD:?Set the MySQL application password}
-      MYSQL_ROOT_PASSWORD: ${CAMBA_DB_ROOT_PASSWORD:?Set the MySQL administrator password}
+      POSTGRES_DB: camba_v2
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${CAMBA_DB_ADMIN_PASSWORD:?Set the PostgreSQL administrator password}
     networks: [data]
     volumes:
-      - mysql:/var/lib/mysql
+      - postgres:/var/lib/postgresql
     restart: unless-stopped
     healthcheck:
       test:
         - CMD-SHELL
-        - 'mysql --connect-timeout=3 --protocol=TCP -h 127.0.0.1 -u"$$MYSQL_USER" -p"$$MYSQL_PASSWORD" "$$MYSQL_DATABASE" -e "SELECT 1" >/dev/null 2>&1'
+        - 'PGPASSWORD="$$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -Atqc "SELECT 1" >/dev/null'
       interval: 5s
       timeout: 4s
       retries: 20
@@ -166,7 +166,7 @@ networks:
   egress: {}
 
 volumes:
-  mysql:
+  postgres:
   redis:
   public-media:
   private-files:

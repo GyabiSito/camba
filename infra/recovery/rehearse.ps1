@@ -47,7 +47,7 @@ foreach ($side in $sides) {
         Set-Content -Encoding Ascii -LiteralPath (Join-Path $scratch "$side.env")
 }
 
-$dump = Join-Path $scratch 'database.sql'
+$dump = Join-Path $scratch 'database.dump'
 $media = Join-Path $scratch 'media.tar'
 $active = @()
 $oldImage, $oldDb, $oldSubnet = $env:CAMBA_REHEARSAL_IMAGE, $env:CAMBA_REHEARSAL_DB, $env:CAMBA_REHEARSAL_SUBNET
@@ -61,10 +61,10 @@ try {
         Compose $side @('up', '-d', '--wait', '--wait-timeout', '150', '--pull', 'never')
         Compose $side @('cp', (Join-Path $PSScriptRoot 'fixture.php'), 'api-fpm:/tmp/camba-recovery-fixture.php')
         $schema = "camba_recovery_${token}_$side"
-        $mysql = @('exec', '-T', '-e', 'MYSQL_PWD=synthetic-root', 'mysql')
-        $mysqlArgs = @('--user=root', '--database', $schema)
-        $empty = Compose $side ($mysql + @('mysql', '--batch', '--skip-column-names') + $mysqlArgs +
-            @('--execute=SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()'))
+        $postgres = @('exec', '-T', '-e', 'PGPASSWORD=synthetic-db', 'postgres')
+        $postgresArgs = @('--host=127.0.0.1', '--username=drill', '--dbname', $schema)
+        $empty = Compose $side ($postgres + @('psql', '-Atq', '--set=ON_ERROR_STOP=1') + $postgresArgs +
+            @('--command=SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = current_schema()'))
         if ($empty -cne '0') { throw "Refusing to use a non-empty $side schema." }
 
         if ($side -eq 'source') {
@@ -76,16 +76,17 @@ try {
             $source = Fixture $side 'snapshot'
             $source | Set-Content -Encoding Ascii -LiteralPath (Join-Path $scratch 'source.json')
             # Only the fixture has written to this network. No worker or scheduler runs on the source.
-            Compose $side ($mysql + @('mysqldump', '--user=root', '--single-transaction', '--no-tablespaces',
-                '--set-gtid-purged=OFF', '--skip-add-drop-table', '--result-file=/tmp/camba.sql', $schema))
+            Compose $side ($postgres + @('pg_dump', '--format=custom', '--no-owner', '--no-privileges',
+                '--file=/tmp/camba.dump') + $postgresArgs)
             Compose $side @('exec', '-T', 'api-fpm', 'tar', '-C', 'storage/app', '-cf', '/tmp/camba-media.tar', 'public', 'private')
-            Compose $side @('cp', 'mysql:/tmp/camba.sql', $dump)
+            Compose $side @('cp', 'postgres:/tmp/camba.dump', $dump)
             Compose $side @('cp', 'api-fpm:/tmp/camba-media.tar', $media)
             Compose $side @('stop')
         } else {
-            Compose $side @('cp', $dump, 'mysql:/tmp/camba.sql')
+            Compose $side @('cp', $dump, 'postgres:/tmp/camba.dump')
             Compose $side @('cp', $media, 'api-fpm:/tmp/camba-media.tar')
-            Compose $side ($mysql + @('mysql') + $mysqlArgs + @('--execute=source /tmp/camba.sql'))
+            Compose $side ($postgres + @('pg_restore', '--exit-on-error', '--single-transaction', '--no-owner',
+                '--no-privileges') + $postgresArgs + @('/tmp/camba.dump'))
             Compose $side @('exec', '-T', 'api-fpm', 'tar', '-C', 'storage/app', '-xf', '/tmp/camba-media.tar')
             $target = Fixture $side 'snapshot'
             $target | Set-Content -Encoding Ascii -LiteralPath (Join-Path $scratch 'target.json')

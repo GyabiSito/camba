@@ -11,7 +11,7 @@ case "$component" in
 esac
 
 if [[ $component == api ]]; then
-  docker run --rm --entrypoint php "$image" -r 'foreach (["pdo_mysql", "redis", "gd", "exif", "zip"] as $name) if (!extension_loaded($name)) exit(1);'
+  docker run --rm --entrypoint php "$image" -r 'foreach (["pdo_pgsql", "redis", "gd", "exif", "zip"] as $name) if (!extension_loaded($name)) exit(1);'
   docker run --rm --entrypoint nginx "$image" -t -c /etc/nginx/camba.conf
 else
   container=$(docker run --detach --read-only --tmpfs /tmp --network none "$image")

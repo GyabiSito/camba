@@ -5,8 +5,10 @@ x-app: &app
     APP_ENV: local
     APP_URL: http://api:8080
     APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-    DB_CONNECTION: mysql
-    DB_HOST: mysql
+    DB_CONNECTION: pgsql
+    DB_URL: ''
+    DB_HOST: postgres
+    DB_PORT: '5432'
     DB_DATABASE: ${CAMBA_REHEARSAL_DB:?Use a new synthetic schema}
     DB_USERNAME: drill
     DB_PASSWORD: synthetic-db
@@ -37,18 +39,17 @@ services:
       interval: 2s
       timeout: 7s
       retries: 20
-  mysql:
-    image: mysql:8.4@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902
+  postgres:
+    image: postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
     environment:
-      MYSQL_DATABASE: ${CAMBA_REHEARSAL_DB:?Use a new synthetic schema}
-      MYSQL_USER: drill
-      MYSQL_PASSWORD: synthetic-db
-      MYSQL_ROOT_PASSWORD: synthetic-root
+      POSTGRES_DB: ${CAMBA_REHEARSAL_DB:?Use a new synthetic schema}
+      POSTGRES_USER: drill
+      POSTGRES_PASSWORD: synthetic-db
     networks: [recovery]
     volumes:
-      - mysql:/var/lib/mysql
+      - postgres:/var/lib/postgresql
     healthcheck:
-      test: [CMD-SHELL, 'mysql --protocol=TCP -h 127.0.0.1 -u"$$MYSQL_USER" -p"$$MYSQL_PASSWORD" "$$MYSQL_DATABASE" -e "SELECT 1" >/dev/null 2>&1']
+      test: [CMD-SHELL, 'PGPASSWORD="$$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -Atqc "SELECT 1" >/dev/null']
       interval: 2s
       timeout: 4s
       retries: 25
@@ -72,6 +73,6 @@ networks:
         - subnet: ${CAMBA_REHEARSAL_SUBNET:?Use a new private subnet}
 
 volumes:
-  mysql:
+  postgres:
   public-media:
   private-files:
