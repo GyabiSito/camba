@@ -1,0 +1,10 @@
+<store-help-article [title]="title" [description]="description">
+  <p class="draft" help-draft><strong>Borrador pendiente de aprobación.</strong> Última actualización del borrador: <time datetime="2026-11-23">23 de noviembre de 2026</time>.</p>
+  <div class="help-content">
+    <section><h2>Cuentas</h2><p>{{ info?.business_name || 'Camba' }} usa tu nombre y correo para identificar tu cuenta, verificarla y ayudarte a recuperar el acceso. Las direcciones que guardás se pueden reutilizar en compras futuras.</p></section>
+    <section><h2>Pedidos y entregas</h2><p>Usamos los datos de contacto y el detalle de la compra para registrar el pedido y avisarte de su estado. Para entregas, también pedimos nombre de quien recibe y dirección.</p></section>
+    <section><h2>Avisos, consultas y sesión</h2><p>Usamos tu correo para avisos de cuenta y de compra. Los recordatorios opcionales dependen de tus preferencias y de la configuración de la tienda. Si escribís por el formulario, enviamos tu nombre, correo, teléfono si lo completás y mensaje al canal de soporte para responderte. La tienda usa cookies para mantener la sesión y proteger los formularios.</p></section>
+    <section><h2>Pendiente de aprobación</h2><p>Falta confirmar quién es el responsable legal, sus datos de contacto, los proveedores que reciben datos, los plazos de conservación y el procedimiento para ejercer tus derechos. También falta aprobar la información sobre cookies no esenciales y el tratamiento de datos de menores.</p></section>
+    <p class="support-close">Si tenés una consulta sobre tus datos, <a routerLink="/contacto">contactanos</a>.</p>
+  </div>
+</store-help-article>

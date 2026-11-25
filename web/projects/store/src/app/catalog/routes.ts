@@ -1,3 +1,4 @@
+import { useStoreMeta } from '../core/seo/store-meta';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink, Routes } from '@angular/router';
 import {
@@ -5,7 +6,6 @@ import {
   resolveHome,
   resolveMissing,
   resolveProduct,
-  useStoreMeta,
 } from './catalog-data';
 
 @Component({

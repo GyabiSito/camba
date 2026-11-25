@@ -1,0 +1,8 @@
+<article class="support-page" aria-labelledby="support-title">
+  <header class="support-heading">
+    <h1 id="support-title">{{ title() }}</h1>
+    <p>{{ description() }}</p>
+    <ng-content select="[help-draft]" />
+  </header>
+  <ng-content />
+</article>

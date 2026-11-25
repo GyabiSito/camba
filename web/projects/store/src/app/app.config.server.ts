@@ -3,7 +3,7 @@ import { provideServerRendering, withRoutes } from '@angular/ssr';
 import { CAMBA_API_ORIGIN } from '@camba/shared';
 import { appConfig } from './app.config';
 import { serverRoutes } from './app.routes.server';
-import { STORE_CANONICAL_ORIGIN } from './catalog/catalog-data';
+import { STORE_CANONICAL_ORIGIN } from './core/seo/store-meta';
 
 const serverConfig: ApplicationConfig = {
   providers: [

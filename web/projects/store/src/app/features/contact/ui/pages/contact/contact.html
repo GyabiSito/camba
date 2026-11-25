@@ -1,0 +1,71 @@
+<article class="support-page support-page--contact" aria-labelledby="support-title">
+  <header class="contact-banner">
+    @if (editorial) {
+      <picture>
+        <source media="(max-width: 42rem)" srcset="/demo-home/atelier-cierre-tela-small.webp" />
+        <img src="/demo-home/atelier-cierre-tela.webp" alt="" fetchpriority="high" />
+      </picture>
+    }
+    <h1 id="support-title">{{ title }}</h1>
+  </header>
+
+  <div class="contact-grid">
+    <section class="contact-form-card" aria-labelledby="form-title">
+      <h2 id="form-title">Mandanos un mensaje</h2>
+      <form method="post" [formGroup]="form" (ngSubmit)="send()" ngNativeValidate>
+        <fieldset [disabled]="!interactive() || sending()">
+          <label for="support-name">Nombre</label>
+          <input id="support-name" formControlName="name" autocomplete="name" required minlength="2" maxlength="120" />
+          <label for="support-email">Correo electrónico</label>
+          <input id="support-email" formControlName="email" type="email" autocomplete="email" required maxlength="254" />
+          <label for="support-phone">Teléfono <span>(opcional)</span></label>
+          <input id="support-phone" formControlName="phone" type="tel" autocomplete="tel" maxlength="40" />
+          <label for="support-message">Mensaje</label>
+          <textarea id="support-message" formControlName="message" rows="5" required minlength="10" maxlength="2000" aria-describedby="support-message-help"></textarea>
+          <p id="support-message-help" class="field-hint">No incluyas contraseñas ni datos de pago.</p>
+          <button class="button" type="submit">{{ sending() ? 'Enviando…' : 'Enviar consulta' }}</button>
+        </fieldset>
+        @if (error()) { <p class="form-error" role="alert">{{ error() }}</p> }
+        @if (sent()) { <p role="status">Enviamos tu consulta. Te vamos a responder al correo que dejaste.</p> }
+        @if (!interactive()) { <p>Para enviar el formulario, activá JavaScript.</p> }
+      </form>
+    </section>
+    <section class="contact-channels" aria-labelledby="channels-title">
+      <h2 id="channels-title">Estamos para ayudarte</h2>
+      <p>{{ description }}</p>
+      @if (info; as settings) {
+        @if (settings.support_email || settings.support_phone) {
+          <dl class="channel-list">
+            @if (settings.support_phone; as phone) {
+              <div>
+                <dt>
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <path d="M6.6 3.5 4.4 4.6c-.7.4-1 1.2-.8 2 1.2 6.9 6.5 12.3 13.4 13.7.8.2 1.6-.2 2-.9l1.1-2.2-4.6-2.7-1.8 1.8a13.1 13.1 0 0 1-6-6l1.8-1.8-2.9-5Z" />
+                  </svg>
+                  Teléfono
+                </dt>
+                <dd><a [href]="phoneLink(phone)">{{ phone }}</a></dd>
+              </div>
+            }
+            @if (settings.support_email; as email) {
+              <div>
+                <dt>
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                    <rect x="3" y="5" width="18" height="14" rx="2" /><path d="m4 7 8 6 8-6" />
+                  </svg>
+                  Correo
+                </dt>
+                <dd><a [href]="emailLink(email)">{{ email }}</a></dd>
+              </div>
+            }
+          </dl>
+        } @else {
+          <p>Por ahora no hay canales de atención publicados.</p>
+        }
+      } @else {
+        <p>No pudimos cargar los canales de atención. Probá recargar en unos minutos.</p>
+      }
+      <p>También podés consultar las <a routerLink="/preguntas-frecuentes">Preguntas frecuentes</a>.</p>
+    </section>
+  </div>
+</article>

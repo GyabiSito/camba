@@ -1,13 +1,5 @@
 :host { display: block; }
 
-.support-page {
-  max-inline-size: 68rem;
-  margin-inline: auto;
-  padding-block: clamp(2.6rem, 7vw, 6rem) clamp(3rem, 7vw, 6rem);
-  overflow-wrap: anywhere;
-}
-
-.support-heading { margin-block-end: clamp(1.8rem, 5vw, 3.5rem); }
 .support-page h1,
 .support-page h2 {
   color: var(--ink);
@@ -18,31 +10,11 @@
 .support-page h1 { font-size: clamp(2.55rem, 6vw, 4.6rem); letter-spacing: -.032em; line-height: 1.06; }
 .support-page h2 { font-size: clamp(1.5rem, 3vw, 2.05rem); line-height: 1.15; }
 .support-page p { max-inline-size: 68ch; margin: .7rem 0 0; line-height: 1.65; }
-.support-heading p { color: var(--muted); }
-.support-heading .draft { margin-block-start: 1.2rem; color: var(--ink); }
-.draft strong { color: var(--home-brand); }
-.support-page section { padding-block: 1.25rem 1.55rem; border-block-start: 1px solid var(--line); }
 .support-page a { color: var(--home-action); text-decoration: underline; text-underline-offset: .19em; }
-
-.shipping-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem 2rem;
-  margin: 0 0 1.75rem;
-  padding: 1.25rem clamp(1rem, 3vw, 2rem);
-  background: var(--home-shelf, var(--surface));
-  border-block: 1px solid var(--line);
-}
 .support-page dt { font-weight: 800; color: var(--home-brand); }
 .support-page dd { margin: .35rem 0 0; line-height: 1.55; }
-.support-page details { max-inline-size: 68ch; border-block-end: 1px solid var(--line); }
-.support-page h2 + details { margin-block-start: .65rem; }
-.support-page summary { min-block-size: 44px; padding-block: .65rem; font-weight: 700; cursor: pointer; }
-.support-page summary::marker { color: var(--home-action); }
-.support-page details p { margin: 0 0 1rem; }
-.support-page .support-close { border-block-start: 1px solid var(--line); padding-block-start: 1.25rem; }
 
-.support-page--contact { max-inline-size: none; padding: 0; }
+.support-page--contact { overflow-wrap: anywhere; }
 .contact-banner {
   position: relative;
   display: grid;
@@ -111,7 +83,7 @@
 .form-error { color: var(--danger); }
 
 @media (max-width: 42rem) {
-  .shipping-summary, .contact-grid { grid-template-columns: minmax(0, 1fr); }
+  .contact-grid { grid-template-columns: minmax(0, 1fr); }
   .channel-list { grid-auto-flow: row; }
   .channel-list > div + div { border-inline-start: 0; padding-inline-start: 0; border-block-start: 1px solid var(--line); padding-block-start: .85rem; }
 }

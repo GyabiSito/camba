@@ -1,0 +1,5 @@
+.help-content details { max-inline-size: 68ch; border-block-end: 1px solid var(--line); }
+.help-content h2 + details { margin-block-start: .65rem; }
+.help-content summary { min-block-size: 44px; padding-block: .65rem; font-weight: 700; cursor: pointer; }
+.help-content summary::marker { color: var(--home-action); }
+.help-content details p { margin: 0 0 1rem; }

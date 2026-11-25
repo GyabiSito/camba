@@ -6,11 +6,11 @@ import { chromium, expect } from '@playwright/test';
 const base = process.env.CAMBA_STORE ?? 'http://127.0.0.1:4200';
 const loopback = url => ['127.0.0.1', 'localhost', '[::1]'].includes(new URL(url).hostname);
 const destinations = [
-  ['/envios', 'Envíos'],
-  ['/preguntas-frecuentes', 'Preguntas frecuentes'],
-  ['/contacto', 'Contactanos'],
-  ['/politica-de-privacidad', 'Política de privacidad'],
-  ['/terminos-y-condiciones', 'Términos y condiciones'],
+  ['/envios', 'Envíos', 'store-shipping'],
+  ['/preguntas-frecuentes', 'Preguntas frecuentes', 'store-faq'],
+  ['/contacto', 'Contactanos', 'store-contact'],
+  ['/politica-de-privacidad', 'Política de privacidad', 'store-privacy-policy'],
+  ['/terminos-y-condiciones', 'Términos y condiciones', 'store-terms-conditions'],
 ];
 const output = 'test-results/storefront-support-pages';
 
@@ -19,9 +19,10 @@ test('five pages render in SSR and are linked from every shared footer', async (
   try {
     const page = await browser.newPage({ javaScriptEnabled: false, viewport: { width: 320, height: 760 } });
     const { data: settings } = await fetch(base + '/api/v1/store-info').then(r => r.json());
-    for (const [path, title] of destinations) {
+    for (const [path, title, component] of destinations) {
       expect((await page.goto(base + path))?.status()).toBe(200);
       const main = page.getByRole('main');
+      await expect(main.locator(component)).toHaveCount(1);
       await expect(main.getByRole('heading', { name: title, level: 1, exact: true })).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
       if (path === '/envios') {
@@ -56,12 +57,13 @@ test('five pages render in SSR and are linked from every shared footer', async (
     const live = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
     await mkdir(output, { recursive: true });
     for (const origin of ['/', '/tienda', `/producto/${products[0].slug}`]) {
-      for (const [path, title] of destinations) {
+      for (const [path, title, component] of destinations) {
         expect((await live.goto(base + origin))?.ok()).toBe(true);
         const footer = live.getByRole('contentinfo');
         await expect(footer.getByRole('navigation', { name: 'Explorá' }).getByRole('link')).toHaveCount(categories.length + 1);
         await footer.getByRole('link', { name: title, exact: true }).click();
         await expect(live).toHaveURL(base + path);
+        await expect(live.locator(component)).toHaveCount(1);
         await expect(live.getByRole('main').getByRole('heading', { name: title, level: 1, exact: true }), `${origin} → ${path}`).toBeInViewport({ ratio: 1 });
       }
     }

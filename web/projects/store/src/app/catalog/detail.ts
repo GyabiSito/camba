@@ -1,3 +1,4 @@
+import { useStoreMeta } from '../core/seo/store-meta';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
@@ -13,7 +14,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiClient, apiMessage, CART_CHANGED, formatMoney } from '@camba/shared';
 import { firstValueFrom, map } from 'rxjs';
 import type { Cart, CartItem, Data } from '../shopper/shopper';
-import { catalogParams, PageResult, Product, readCatalogQuery, useStoreMeta } from './catalog-data';
+import { catalogParams, PageResult, Product, readCatalogQuery } from './catalog-data';
 import { ProductPhoto } from './product-media';
 
 interface CartFeedback {

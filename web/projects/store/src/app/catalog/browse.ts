@@ -1,3 +1,4 @@
+import { useStoreMeta } from '../core/seo/store-meta';
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, input, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -17,7 +18,6 @@ import {
   PageResult,
   productSorts,
   readCatalogQuery,
-  useStoreMeta,
 } from './catalog-data';
 import { ProductGrid, ProductPhoto } from './product-media';
 import { HOME_RENDER_OPTIONS } from './home-render-options';
