@@ -48,6 +48,8 @@ The five public help/legal route files lazy-load standalone components under eac
 
 `/catalogo` remains a redirect to `/tienda`. Store SSR retains the explicit client rendering rules for session-specific routes and the catch-all server rule for public routes. Terms and Privacy still set `noindex` in SSR. Contact sends through its own application port and API adapter; it gets published channels through the same public Store information resolver as Shipping and Privacy. The shared help article owns only its presentation, not the pages' contents or metadata.
 
+The catalog still accepts a native GET form before JavaScript is available. Its SSR value attribute sets the initial search without replacing input typed during hydration. Subsequent URL changes synchronize the current search field, including Back and Clear. Replayed events cannot cancel an already-dispatched browser action.
+
 ## Admin
 
 ```text

@@ -25,11 +25,8 @@ test('store captures real catalog data and offers a visible keyboard skip link',
   await expect(page).toHaveURL(
     (url) => url.pathname === '/tienda' && url.searchParams.get('q') === 'Remera lisa',
   );
-  await page
-    .getByRole('navigation', { name: 'Tienda', exact: true })
-    .getByRole('link', { name: 'Tienda', exact: true })
-    .click();
-  await expect(page.getByRole('link', { name: /Remera lisa/i }).first()).toBeVisible();
+  await expect(search).toHaveValue('Remera lisa');
+  await expect(page.getByRole('link', { name: 'Remera lisa', exact: true })).toBeVisible();
   await page.screenshot({
     path: info.outputPath('store-catalog-desktop.png'),
     fullPage: true,

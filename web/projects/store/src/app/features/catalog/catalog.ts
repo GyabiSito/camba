@@ -1,5 +1,5 @@
 import { useStoreMeta } from '../../core/seo/store-meta';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, convertToParamMap, PRIMARY_OUTLET, Router, RouterLink } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs';
@@ -18,6 +18,7 @@ import { PageResult } from '../../shared/page-result';
 export class StoreCatalog {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly searchField = viewChild<ElementRef<HTMLInputElement>>('searchField');
   protected readonly result = toSignal(
     this.route.data.pipe(map((data) => data['result'] as PageResult<CatalogData>)),
     { requireSync: true },
@@ -56,6 +57,16 @@ export class StoreCatalog {
       canonical: this.url(catalogParams({ ...this.query(), sort: 'newest', q: '' })),
       noindex: this.result().kind !== 'ready' || !!this.query().q,
     }));
+    let previousQuery = this.query().q;
+    effect(() => {
+      const query = this.query().q;
+      const input = this.searchField()?.nativeElement;
+      // Preserve text typed into SSR HTML until an actual route change supplies a new value.
+      if (input && query !== previousQuery) {
+        input.value = query;
+        previousQuery = query;
+      }
+    });
   }
 
   protected apply(event: SubmitEvent): void {

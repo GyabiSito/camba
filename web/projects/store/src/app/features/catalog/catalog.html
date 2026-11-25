@@ -20,13 +20,14 @@
           <div class="search-field">
             <label for="catalog-search">Buscar en la tienda</label>
             <input
+              #searchField
               class="field"
               id="catalog-search"
               name="q"
               type="search"
               placeholder="Nombre o SKU"
               maxlength="120"
-              [value]="query().q"
+              [attr.value]="query().q"
             />
           </div>
           <button type="submit" class="button apply-mobile">Aplicar</button>
