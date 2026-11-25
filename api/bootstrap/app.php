@@ -1,5 +1,6 @@
 <?php
 
+use App\Logging\PaymentLog;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,5 +17,6 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectGuestsTo(null);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->dontReportWhen(static fn (Throwable $error): bool => PaymentLog::handled($error));
         $exceptions->shouldRenderJsonWhen(fn ($request, $exception) => $request->is('api/*') || $request->expectsJson());
     })->create();

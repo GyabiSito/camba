@@ -13,6 +13,8 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -48,6 +50,64 @@ class OrderCheckoutTest extends TestCase
         parent::setUp();
         config(['session.driver' => 'database', 'checkout.pickup_address' => 'Pickup Counter', 'checkout.delivery_cents' => 3500]);
         $this->withCredentials()->withHeader('Origin', 'http://localhost');
+    }
+
+    public function test_checkout_logs_rejection_and_committed_order_without_logging_input_or_replays(): void
+    {
+        $scratch = sys_get_temp_dir().'/camba-checkout-log-'.Str::uuid();
+        config([
+            'logging.channels.pagos.handler_with.directory' => $scratch.'/pagos',
+            'logging.default' => 'single',
+            'logging.channels.single.path' => $scratch.'/laravel.log',
+        ]);
+
+        try {
+            $items = $this->items($this->product());
+            $payload = $this->payload($items, 'pickup', $this->quote($items, 'pickup'));
+            $key = (string) Str::uuid();
+            $this->place([...$payload, 'quote_token' => str_repeat('b', 64)], $key)->assertConflict();
+            $reference = $this->place($payload, $key)->assertCreated()->json('data.reference');
+            $this->place($payload, $key)->assertOk();
+            $order = Order::where('reference', $reference)->sole();
+            $this->postJson(self::QUOTE, ['items' => []])->assertUnprocessable();
+            $event = 'eloquent.creating: '.CommerceNotice::class;
+            Event::listen($event, static fn () => throw new RuntimeException('secret sentinel from a failing ledger'));
+            try {
+                $this->place($payload)->assertServerError();
+            } finally {
+                Event::forget($event);
+            }
+
+            $contents = File::get($scratch.'/pagos/'.now('America/Montevideo')->format('dmY').'.log');
+            $records = collect(explode("\n", trim($contents)))->map(fn (string $line) => json_decode($line, true, flags: JSON_THROW_ON_ERROR));
+            $rejected = $records->firstWhere('message', 'checkout.rejected');
+            $created = $records->where('message', 'order.created')->sole();
+            $this->assertSame('WARNING', $rejected['level_name']);
+            $this->assertSame('http_409', $rejected['context']['reason']);
+            $this->assertArrayNotHasKey('order_id', $rejected['context']);
+            $this->assertMatchesRegularExpression('/\A[0-9a-f]{64}\z/', $rejected['context']['correlation_id']);
+            $this->assertSame($rejected['context']['correlation_id'], $created['context']['correlation_id']);
+            $this->assertSame($order->id, $created['context']['order_id']);
+            $this->assertTrue($records->contains('message', 'checkout.quote.started'));
+            $this->assertTrue($records->contains('message', 'checkout.started'));
+            $validation = $records->where('message', 'checkout.quote.rejected')->sole();
+            $this->assertSame('http_422', $validation['context']['reason']);
+            $failure = $records->where('message', 'checkout.failed')->sole();
+            $this->assertSame('ERROR', $failure['level_name']);
+            $this->assertSame(RuntimeException::class, $failure['context']['exception_class']);
+            $this->assertArrayNotHasKey('order_id', $failure['context']);
+            foreach ([$key, $reference, $payload['quote_token'], $payload['contact']['email'], 'secret sentinel'] as $private) {
+                $this->assertStringNotContainsString($private, $contents);
+            }
+            $this->assertFileDoesNotExist($scratch.'/laravel.log');
+            Log::error('ordinary-app-event');
+            $this->assertStringContainsString('ordinary-app-event', File::get($scratch.'/laravel.log'));
+            $this->assertStringNotContainsString('ordinary-app-event', File::get($scratch.'/pagos/'.now('America/Montevideo')->format('dmY').'.log'));
+        } finally {
+            Log::forgetChannel('pagos');
+            Log::forgetChannel('single');
+            File::deleteDirectory($scratch);
+        }
     }
 
     public function test_quote_uses_live_prices_and_only_configured_shipping_options(): void

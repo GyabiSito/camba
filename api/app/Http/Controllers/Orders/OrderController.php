@@ -8,26 +8,54 @@ use App\Actions\Orders\QuoteCheckout;
 use App\Http\Requests\Orders\CheckoutRequest;
 use App\Http\Requests\Orders\OrderSessionRequest;
 use App\Http\Resources\Orders\OrderResource;
+use App\Logging\PaymentLog;
 use App\Models\Order;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
+use Monolog\Level;
+use Throwable;
 
 class OrderController
 {
     public function quote(CheckoutRequest $request, QuoteCheckout $quote, ResolveAddressGeography $geography): JsonResponse
     {
-        if ($address = $request->validated('address')) {
-            $geography->execute($address['department_id'], $address['locality_id'], 'address.locality_id');
+        $correlation = PaymentLog::attempt();
+        PaymentLog::write(Level::Info, 'checkout.quote.started', $correlation);
+        try {
+            if ($address = $request->validated('address')) {
+                $geography->execute($address['department_id'], $address['locality_id'], 'address.locality_id');
+            }
+            [$data] = $quote->execute($request->validated('items'));
+        } catch (Throwable $error) {
+            PaymentLog::failure('checkout.quote', $correlation, $error);
+
+            throw $error;
         }
-        [$data] = $quote->execute($request->validated('items'));
 
         return $this->uncacheable(response()->json(['data' => $data]));
     }
 
     public function store(CheckoutRequest $request, PlaceOrder $place): JsonResponse
     {
-        $order = $place->execute($request->user('web')?->id, $request->session()->getId(), $request->validated());
+        $userId = $request->user('web')?->id;
+        $sessionId = $request->session()->getId();
+        $input = $request->validated();
+        $correlation = PaymentLog::checkout(Order::ownerKey($userId, $sessionId), $input['idempotency_key']);
+        PaymentLog::write(Level::Info, 'checkout.started', $correlation);
 
-        return $this->uncacheable((new OrderResource($order->load('items')))->response());
+        $order = null;
+        try {
+            $order = $place->execute($userId, $sessionId, $input);
+            if ($order->wasRecentlyCreated) {
+                DB::afterCommit(static fn () => PaymentLog::write(Level::Info, 'order.created', $correlation, $order->id, status: $order->status->value));
+            }
+
+            return $this->uncacheable((new OrderResource($order->load('items')))->response());
+        } catch (Throwable $error) {
+            PaymentLog::failure('checkout', $correlation, $error, $order?->id);
+
+            throw $error;
+        }
     }
 
     public function index(OrderSessionRequest $request): JsonResponse

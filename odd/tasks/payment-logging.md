@@ -16,8 +16,8 @@ S5 — Entregá la ruta del archivo que generaste, un ejemplo sanitizado de una 
 
 ## Tasks
 
-- [x] T1 · S1/S4 · Monolog daily file and persistent storage · inline; isolated rollover 1/7, resolved Compose mounts checked. Risk item 5 (delivery/storage).
-- [ ] T2 · S2/S3 · checkout, rejection, correlation and committed order creation · inline; depends on T1 channel shape. Risk item 2 (customer data redaction).
+- [x] T1 · S1/S4 · Monolog daily file and persistent storage · `65d9ad7`; isolated rollover 1/7, resolved Compose mounts checked. Risk item 5 (delivery/storage).
+- [x] T2 · S2/S3 · checkout, rejection, correlation and committed order creation · inline; checkout/rotation suites 16/354. Risk item 2 (customer data redaction).
 - [ ] T3 · S2/S3 · payment provider, transitions and deduplication · inline; depends on checkout identity/telemetry shape. Risk items 2 and 4 (payload redaction and existing lifecycle locks).
 - [ ] T4 · S1–S5 · Docker fake-provider proof, isolated fault/rollover, independent verification and sanitized handoff · inline integration; delegate independent verifier for the named risks.
 
@@ -44,3 +44,7 @@ The feature branch is clean at 1253279. The usual local API, worker, scheduler a
 ### L3 — T1 file proof
 
 RED: the channel does not exist. GREEN: one Laravel-resolved logger wrote exactly `25112026.log` and `26112026.log` for fake UTC records one second apart across midnight in Uruguay, with local timestamps and no `laravel.log` creation (1 test, 7 assertions). The handler reuses Monolog file locking and opens the stream lazily, and only adds the named Docker volume for the backend roles.
+
+### L4 — T2 checkout proof
+
+RED: the real stale-quote/confirm/retry HTTP regression created no dedicated log. GREEN: 16 checkout/channel tests and 354 assertions. Before order creation, quote attempts get their own UUID and valid confirmation attempts derive a non-reversible HMAC from the existing idempotency key and owner key; subsequent order events derive the same HMAC without a migration. HTTP responses are left unchanged. Only committed new orders log creation, not idempotent replays or rolled-back orders. The exact exception object is marked once to avoid unsanitized default exception reporting, and non-payment logs still reach the configured default channel.

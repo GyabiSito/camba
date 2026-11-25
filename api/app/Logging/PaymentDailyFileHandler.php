@@ -20,7 +20,7 @@ final class PaymentDailyFileHandler extends StreamHandler
 
     public function handle(LogRecord $record): bool
     {
-        return parent::handle($record->with(datetime: $record->datetime->setTimezone($this->timezone)));
+        return parent::handle($record->with(datetime: $record->datetime->setTimezone($this->timezone), extra: []));
     }
 
     protected function write(LogRecord $record): void

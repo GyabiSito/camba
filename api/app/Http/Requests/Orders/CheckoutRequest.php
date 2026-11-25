@@ -2,10 +2,24 @@
 
 namespace App\Http\Requests\Orders;
 
+use App\Logging\PaymentLog;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class CheckoutRequest extends OrderSessionRequest
 {
+    protected function failedValidation(Validator $validator)
+    {
+        try {
+            parent::failedValidation($validator);
+        } catch (ValidationException $error) {
+            PaymentLog::failure($this->routeIs('orders.store') ? 'checkout' : 'checkout.quote', PaymentLog::attempt(), $error);
+
+            throw $error;
+        }
+    }
+
     protected function prepareForValidation(): void
     {
         parent::prepareForValidation();
