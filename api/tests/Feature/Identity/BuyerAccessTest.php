@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\URL;
 use RuntimeException;
+use Tests\Feature\TestDatabase;
 use Tests\TestCase;
 
 class BuyerAccessTest extends TestCase
@@ -29,13 +30,7 @@ class BuyerAccessTest extends TestCase
 
     protected function beforeRefreshingDatabase(): void
     {
-        $connection = config('database.default');
-        $database = config("database.connections.$connection.database");
-
-        $this->assertTrue(
-            ($connection === 'sqlite' && $database === ':memory:') || ($connection === 'mysql' && $database === 'camba_v2_test'),
-            'The identity suite may only reset an in-memory database or the dedicated Camba v2 test database.',
-        );
+        TestDatabase::assertIsolated($this);
     }
 
     public function test_registration_normalizes_email_and_requests_verification(): void

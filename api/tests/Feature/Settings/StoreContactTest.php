@@ -6,6 +6,7 @@ use App\Models\StoreSettings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Symfony\Component\Mailer\Exception\TransportException;
+use Tests\Feature\TestDatabase;
 use Tests\TestCase;
 
 class StoreContactTest extends TestCase
@@ -18,7 +19,7 @@ class StoreContactTest extends TestCase
 
     protected function beforeRefreshingDatabase(): void
     {
-        $this->assertContains(config('database.connections.'.config('database.default').'.database'), [':memory:', 'camba_v2_test']);
+        TestDatabase::assertIsolated($this);
     }
 
     private function configureSupport(string $recipient = 'ayuda@camba.test'): void

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Queue;
+use Tests\Feature\TestDatabase;
 use Tests\TestCase;
 
 class PasswordRecoveryTest extends TestCase
@@ -18,9 +19,7 @@ class PasswordRecoveryTest extends TestCase
 
     protected function beforeRefreshingDatabase(): void
     {
-        $connection = config('database.default');
-        $database = config("database.connections.$connection.database");
-        $this->assertTrue(($connection === 'sqlite' && $database === ':memory:') || ($connection === 'mysql' && $database === 'camba_v2_test'), 'Use only an isolated recovery test database.');
+        TestDatabase::assertIsolated($this);
     }
 
     private function payload(User $user, string $token): array

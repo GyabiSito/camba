@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\URL;
+use Tests\Feature\TestDatabase;
 use Tests\TestCase;
 
 class TransactionalIdentityMailTest extends TestCase
@@ -18,8 +19,7 @@ class TransactionalIdentityMailTest extends TestCase
 
     protected function beforeRefreshingDatabase(): void
     {
-        $this->assertSame('sqlite', config('database.default'));
-        $this->assertSame(':memory:', config('database.connections.sqlite.database'));
+        TestDatabase::assertIsolated($this);
     }
 
     public function test_rendered_identity_mail_keeps_original_links_and_expiry_in_both_parts(): void

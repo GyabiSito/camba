@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tests\Feature\TestDatabase;
 use Tests\TestCase;
 
 class CommerceNoticeTest extends TestCase
@@ -31,9 +32,7 @@ class CommerceNoticeTest extends TestCase
 
     protected function beforeRefreshingDatabase(): void
     {
-        $connection = config('database.default');
-        $database = config("database.connections.$connection.database");
-        $this->assertTrue(($connection === 'sqlite' && $database === ':memory:') || ($connection === 'mysql' && $database === 'camba_v2_test'));
+        TestDatabase::assertIsolated($this);
     }
 
     public function test_only_a_verified_buyer_can_change_their_own_opt_in(): void

@@ -36,22 +36,21 @@ jobs:
       run:
         working-directory: api
     services:
-      mysql:
-        image: mysql:8.4
+      postgres:
+        image: postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
         env:
-          MYSQL_DATABASE: camba_v2_test
-          MYSQL_USER: camba_v2
-          MYSQL_PASSWORD: camba-ci-only
-          MYSQL_ROOT_PASSWORD: camba-ci-root-only
+          POSTGRES_DB: camba_v2_demo_test
+          POSTGRES_USER: camba_v2
+          POSTGRES_PASSWORD: camba-ci-only
         ports:
-          - 3306/tcp
+          - 5432/tcp
         options: >-
-          --health-cmd="mysql --protocol=TCP -h 127.0.0.1 -ucamba_v2 -pcamba-ci-only camba_v2_test -e 'SELECT 1'"
+          --health-cmd="pg_isready -h 127.0.0.1 -U camba_v2 -d camba_v2_demo_test"
           --health-interval=5s --health-timeout=5s --health-retries=20
     env:
-      DB_CONNECTION: mysql
-      DB_HOST: 127.0.0.1
-      DB_DATABASE: camba_v2_test
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_DATABASE: camba_v2_demo_test
       DB_USERNAME: camba_v2
       DB_PASSWORD: camba-ci-only
     steps:
@@ -61,17 +60,24 @@ jobs:
       - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: '8.4'
-          extensions: pdo_mysql, pdo_sqlite, gd, exif, zip
+          extensions: pdo_pgsql, pdo_sqlite, gd, exif, zip
           coverage: none
       - run: composer validate --strict --no-check-publish
       - run: composer install --no-interaction --prefer-dist --no-progress
       - run: php vendor/bin/pint --test
-      - name: Run PHPUnit against isolated MySQL
+      - name: Prepare isolated PostgreSQL test databases
         env:
-          DB_PORT: ${{ job.services.mysql.ports['3306'] }}
+          PG_SERVICE: ${{ job.services.postgres.id }}
+        run: |
+          echo '127.0.0.1 postgres' | sudo tee -a /etc/hosts >/dev/null
+          docker exec "$PG_SERVICE" psql -U camba_v2 -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE camba_v2_demo_seed_test'
+      - name: Run the PostgreSQL integration suite
+        env:
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
         run: |
           export APP_KEY="$(php artisan key:generate --show)"
-          php vendor/bin/phpunit
+          php vendor/bin/phpunit --filter '~^(?!Tests\\Feature\\Demo\\)~'
+          DB_DATABASE=camba_v2_demo_seed_test php vendor/bin/phpunit tests/Feature/Demo
 
   web:
     needs: changes

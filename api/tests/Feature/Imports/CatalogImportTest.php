@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Tests\Feature\TestDatabase;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -27,12 +28,7 @@ class CatalogImportTest extends TestCase
 
     protected function beforeRefreshingDatabase(): void
     {
-        $connection = config('database.default');
-        $database = config("database.connections.$connection.database");
-        $this->assertTrue(
-            ($connection === 'sqlite' && $database === ':memory:') || ($connection === 'mysql' && $database === 'camba_v2_test'),
-            'Import tests require SQLite memory or the dedicated Camba test database.',
-        );
+        TestDatabase::assertIsolated($this);
     }
 
     public function test_template_and_imports_require_the_verified_admin_gate(): void

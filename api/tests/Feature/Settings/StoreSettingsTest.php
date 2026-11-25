@@ -5,6 +5,7 @@ namespace Tests\Feature\Settings;
 use App\Models\StoreSettings;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Feature\TestDatabase;
 use Tests\TestCase;
 
 class StoreSettingsTest extends TestCase
@@ -13,7 +14,7 @@ class StoreSettingsTest extends TestCase
 
     protected function beforeRefreshingDatabase(): void
     {
-        $this->assertContains(config('database.connections.'.config('database.default').'.database'), [':memory:', 'camba_v2_test']);
+        TestDatabase::assertIsolated($this);
     }
 
     public function test_only_verified_admin_changes_settings_and_the_change_is_audited(): void

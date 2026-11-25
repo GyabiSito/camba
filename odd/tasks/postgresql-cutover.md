@@ -19,9 +19,9 @@ S6. «Entregá el cambio aplicado, el SHA probado y los comandos exactos para le
 ## Tasks
 
 - T1 — S1–S3/S6 · runtime/recovery writer, disjoint surfaces · integrated as `5a1968e`; build and recovery verified. Risk: item 5 (production image, Compose and recovery wiring).
-- T2 — S3/S5 · integration/concurrency writer, disjoint surfaces · in progress. Risk: item 5 (CI) and item 4 (proving the existing locking invariants on the new engine).
+- T2 — S3/S5 · integration/concurrency writer, disjoint surfaces · code integrated, exact final suite running. Risk: item 5 (CI) and item 4 (proving the existing locking invariants on the new engine).
 - T3 — S4 · legacy rehearsal writer, disjoint surface · integrated as `d6a1097`; isolated synthetic checks passed. Risk: item 1 (guard against accidental imported-data writes outside disposable storage).
-- T4 — S4–S6 · parent integration, exact-SHA production Compose rehearsal, independent checks and VPS runbook · in progress. Risk: item 5 (candidate assembly and reference-only bootstrap).
+- T4 — S4–S6 · parent integration, exact-SHA production Compose rehearsal, independent checks and VPS runbook · initial proof passed on `c11344c`; final integrated candidate pending. Risk: item 5 (candidate assembly and reference-only bootstrap).
 
 ## Log
 
@@ -54,3 +54,7 @@ L4 — T1 carried the pinned PostgreSQL image and parent data directory into pro
 L5 — T3 ported the disposable legacy catalog guard to PostgreSQL without introducing a full-database data transfer tool. Observed RED on the old PostgreSQL guard. SQLite Legacy feature suite: 16 tests, 140 assertions, one opt-in test skipped. A fresh isolated real PG18 staging run passed (1 test, 21 assertions): exact stock/cents, receipt/replay, relations, next ID and wrong-target refusal. The historical SQL file was not used.
 
 L6 — Built API runtime from immutable `d6a1097`; `powershell.exe -File infra/recovery/rehearse.ps1 -ApiImage <that local image>` exited 0. Custom-format dump/restore matched table counts, migrations, decrypted order, stock, jobs and public/private media; probes /up and /ready passed, private media returned 404 and one synthetic notice reached isolated Mailpit without replay. Both recovery projects were stopped without deleting their volumes. The active demo stayed up.
+
+L7 — Immutable runtime `c11344c` passed the full rehearsal on secondary ports in scratch: PostgreSQL 18.7, 18 migrations, reference-only geography (19 departments and 1,884 localities), all services up, HTTP 200 for readiness/Tienda/Admin, browser checkout 201 and Admin order 200, 24,690 cents and stock 5→3, matching IDs/FKs and sequences. Stopped only that scratch project, keeping its volumes intact, before the final candidate run.
+
+L8 — The old MySQL contention class skipped all six on real PostgreSQL (RED). In PostgreSQL a waiting worker can directly block another worker queued for the same row; the test observes the transitive blocker chain and clears the statistics snapshot each poll. The PG18 contention suite passed all six (135 assertions). Exact integrated full API and separate demo-seed suite running.

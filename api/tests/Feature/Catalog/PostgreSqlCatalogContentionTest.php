@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
-class MySqlCatalogContentionTest extends TestCase
+class PostgreSqlCatalogContentionTest extends TestCase
 {
     use DatabaseMigrations;
 
@@ -26,17 +26,14 @@ class MySqlCatalogContentionTest extends TestCase
 
     protected function beforeRefreshingDatabase(): void
     {
-        if (config('database.default') !== 'mysql') {
-            $this->markTestSkipped('Independent InnoDB requests require the isolated MySQL runner.');
-        }
-
         $db = DB::connection();
         $this->assertTrue($this->app->environment('testing'));
         $this->assertFalse($this->app->configurationIsCached());
-        $this->assertSame('camba_v2_test', $db->getDatabaseName());
-        $this->assertSame('127.0.0.1', $db->getConfig('host'));
+        $this->assertSame('pgsql', $db->getDriverName());
+        $this->assertSame('camba_v2_demo_test', $db->getDatabaseName());
+        $this->assertSame('postgres', $db->getConfig('host'));
         $this->assertEmpty($db->getConfig('url'));
-        $this->assertEmpty($db->getConfig('unix_socket'));
+        DB::selectOne("SELECT set_config('application_name', ?, false)", ['camba_catalog_contention_owner']);
     }
 
     protected function afterRefreshingDatabase(): void
@@ -159,7 +156,7 @@ class MySqlCatalogContentionTest extends TestCase
         $product = $this->draft(['status' => 'published', 'stock' => 4]);
         $cart = Cart::query()->forceCreate(['user_id' => $buyer->id]);
         $cart->setQuantity($product->id, 1);
-        $this->assertSame('InnoDB', DB::selectOne("SHOW TABLE STATUS WHERE Name = 'cart_items'")->Engine);
+        $this->assertSame('heap', DB::selectOne("SELECT amname FROM pg_class c JOIN pg_am a ON a.oid = c.relam WHERE c.relname = 'cart_items'")->amname);
         $add = ['POST', "/api/v1/cart/items/$product->id"];
 
         foreach ([[[200, 200], [2, 3], 3], [[200, 422], [4], 4]] as [$statuses, $quantities, $stored]) {
@@ -221,15 +218,21 @@ class MySqlCatalogContentionTest extends TestCase
 
     private function race(string $table, int $id, array $a, array $b, ?User $actor = null): array
     {
-        DB::beginTransaction();
+        $gate = $this->media.DIRECTORY_SEPARATOR.Str::uuid();
+        File::ensureDirectoryExists($this->media);
+        File::makeDirectory($gate);
         $workers = [];
         try {
-            DB::table($table)->where('id', $id)->lockForUpdate()->first();
             foreach ([$a, $b] as $request) {
-                $worker = $workers[] = $this->worker($request, $actor ?? $this->admin);
+                $worker = $workers[] = $this->worker($request, $actor ?? $this->admin, $gate);
                 $worker->start();
-                $blocked = $this->waitForRowLocks($table, $workers);
             }
+            $this->waitForWorkersReady($gate, $workers);
+
+            DB::beginTransaction();
+            DB::table($table)->where('id', $id)->lockForUpdate()->first();
+            File::put($gate.DIRECTORY_SEPARATOR.'go', 'go');
+            $blocked = $this->waitForRowLocks($table, $workers);
             DB::commit();
 
             $responses = array_map(function (Process $worker): array {
@@ -241,19 +244,37 @@ class MySqlCatalogContentionTest extends TestCase
 
             return $responses;
         } finally {
+            File::put($gate.DIRECTORY_SEPARATOR.'go', 'go');
             if (DB::transactionLevel() > 0) {
                 DB::rollBack();
             }
             foreach ($workers as $worker) {
                 $worker->stop(0);
             }
+            File::deleteDirectory($gate);
         }
+    }
+
+    private function waitForWorkersReady(string $gate, array $workers): void
+    {
+        $deadline = microtime(true) + 30;
+        do {
+            foreach ($workers as $worker) {
+                if (! $worker->isRunning()) {
+                    $this->fail($worker->getErrorOutput().$worker->getOutput());
+                }
+            }
+            if (count(glob($gate.DIRECTORY_SEPARATOR.'ready-*') ?: []) === count($workers)) {
+                return;
+            }
+            usleep(20000);
+        } while (microtime(true) < $deadline);
+
+        $this->fail('Timed out waiting for independent PostgreSQL worker startup.');
     }
 
     private function waitForRowLocks(string $table, array $workers): array
     {
-        // Cart::lockOwner acquires its write lock at the upsert, before the explicit locked read.
-        $statement = $table === 'carts' ? '/^insert into `carts` .* on duplicate key update /i' : "/from `$table` .* for update/i";
         $deadline = microtime(true) + 8;
         do {
             foreach ($workers as $worker) {
@@ -261,29 +282,36 @@ class MySqlCatalogContentionTest extends TestCase
                     $this->fail($worker->getErrorOutput().$worker->getOutput());
                 }
             }
-            $locks = array_filter(DB::select('SHOW FULL PROCESSLIST'), fn ($row) => $row->db === 'camba_v2_test'
-                && preg_match($statement, $row->Info ?? ''));
+            DB::selectOne('SELECT pg_stat_clear_snapshot()');
+            $owner = (int) DB::selectOne('SELECT pg_backend_pid() AS id')->id;
+            $locks = DB::select("WITH RECURSIVE blocked(pid, blocker) AS (
+                SELECT pid, unnest(pg_blocking_pids(pid)) FROM pg_stat_activity
+                WHERE datname = current_database() AND application_name LIKE 'camba_catalog_contention_worker_%' AND wait_event_type = 'Lock'
+                UNION
+                SELECT blocked.pid, unnest(pg_blocking_pids(blocked.blocker)) FROM blocked WHERE blocked.blocker <> ?
+            ) SELECT DISTINCT pid FROM blocked WHERE blocker = ?", [$owner, $owner]);
             if (count($locks) === count($workers)) {
-                return array_map('intval', array_column($locks, 'Id'));
+                return array_map('intval', array_column($locks, 'pid'));
             }
             usleep(20000);
         } while (microtime(true) < $deadline);
 
-        $this->fail('Timed out observing '.count($workers)." independent $table row-lock waits.");
+        $this->fail('Timed out observing '.count($workers)." independent PostgreSQL $table row-lock waits.");
     }
 
-    private function worker(array $request, User $actor): Process
+    private function worker(array $request, User $actor, string $gate): Process
     {
         $db = DB::connection();
 
-        return new Process([PHP_BINARY, __DIR__.'/mysql-race-request.php', json_encode($request, JSON_THROW_ON_ERROR)], base_path(), [
+        return new Process([PHP_BINARY, __DIR__.'/postgres-race-request.php', json_encode($request, JSON_THROW_ON_ERROR), $gate], base_path(), [
             'APP_ENV' => 'testing', 'APP_KEY' => config('app.key'), 'APP_DEBUG' => 'false',
             'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'array', 'QUEUE_CONNECTION' => 'sync', 'MAIL_MAILER' => 'array',
-            'DB_CONNECTION' => 'mysql', 'DB_URL' => '', 'DB_HOST' => '127.0.0.1', 'DB_DATABASE' => 'camba_v2_test',
-            'DB_SOCKET' => '', 'DB_PORT' => (string) $db->getConfig('port'), 'DB_USERNAME' => $db->getConfig('username'),
+            'DB_CONNECTION' => 'pgsql', 'DB_URL' => '', 'DB_HOST' => $db->getConfig('host'), 'DB_DATABASE' => 'camba_v2_demo_test',
+            'DB_PORT' => (string) $db->getConfig('port'), 'DB_USERNAME' => $db->getConfig('username'),
             'DB_PASSWORD' => (string) $db->getConfig('password'),
+            'DB_SSLMODE' => $db->getConfig('sslmode'),
             'CAMBA_CATALOG_TEST_ACTOR' => (string) $actor->id, 'CAMBA_CATALOG_TEST_MEDIA' => $this->media,
-        ], timeout: 20);
+        ], timeout: 60);
     }
 
     private function disk(): FilesystemAdapter

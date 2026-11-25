@@ -36,21 +36,34 @@ To stop development without deleting data, run the same Compose file pair with `
 
 ### PostgreSQL checks
 
-Use the same `$camba` array from the README. Test databases are created at volume initialization and are separate from `camba_v2_demo`.
+Run database integration checks in a separate Compose project. This creates an empty disposable PostgreSQL volume and its own internal network; it does not connect to, reset or reuse the running `camba-v2-demo-pg` database or volume. The project's development PHP image is used only as a test runner.
 
 ```powershell
-docker compose @camba ps
-docker compose @camba exec -T postgres psql -U camba_v2 -d camba_v2_demo -c 'select version(), current_database()'
+$testProject = 'camba-v2-pg-integration'
+$testNetwork = "${testProject}_postgres-private"
+$testApi = (Resolve-Path api).Path
+docker compose -p $testProject -f infra/compose.dev.yml up -d --wait postgres
 $testEnv = @('-e', 'APP_ENV=testing', '-e', 'APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
-    '-e', 'SANCTUM_STATEFUL_DOMAINS=localhost', '-e', 'CACHE_STORE=array',
-    '-e', 'SESSION_DRIVER=array', '-e', 'MAIL_MAILER=array', '-e', 'QUEUE_CONNECTION=sync')
-docker compose @camba run --rm --no-deps @testEnv -e DB_DATABASE=camba_v2_demo_test api php vendor/bin/phpunit --do-not-cache-result tests/Feature/Catalog tests/Feature/Cart tests/Feature/Orders tests/Feature/Payments
-docker compose @camba run --rm --no-deps @testEnv -e DB_DATABASE=camba_v2_demo_seed_test api php vendor/bin/phpunit --do-not-cache-result tests/Feature/Demo
+    '-e', 'CACHE_STORE=array', '-e', 'SESSION_DRIVER=array', '-e', 'MAIL_MAILER=array', '-e', 'QUEUE_CONNECTION=sync',
+    '-e', 'DB_CONNECTION=pgsql', '-e', 'DB_URL=', '-e', 'DB_HOST=postgres', '-e', 'DB_PORT=5432',
+    '-e', 'DB_DATABASE=camba_v2_demo_test', '-e', 'DB_USERNAME=camba_v2', '-e', 'DB_PASSWORD=camba-local-db')
+$apiRunner = @('run', '--rm', '--network', $testNetwork, '-v', "${testApi}:/var/www/html", '-w', '/var/www/html',
+    '--entrypoint', 'php') + $testEnv + @('camba-v2-dev-php-pg')
+docker @apiRunner vendor/bin/phpunit --do-not-cache-result --filter '~^(?!Tests\\Feature\\Demo\\)~'
+$seedEnv = @('-e', 'APP_ENV=testing', '-e', 'APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+    '-e', 'CACHE_STORE=array', '-e', 'SESSION_DRIVER=array', '-e', 'MAIL_MAILER=array', '-e', 'QUEUE_CONNECTION=sync',
+    '-e', 'DB_CONNECTION=pgsql', '-e', 'DB_URL=', '-e', 'DB_HOST=postgres', '-e', 'DB_PORT=5432',
+    '-e', 'DB_DATABASE=camba_v2_demo_seed_test', '-e', 'DB_USERNAME=camba_v2', '-e', 'DB_PASSWORD=camba-local-db')
+$seedRunner = @('run', '--rm', '--network', $testNetwork, '-v', "${testApi}:/var/www/html", '-w', '/var/www/html',
+    '--entrypoint', 'php') + $seedEnv + @('camba-v2-dev-php-pg')
+docker @seedRunner vendor/bin/phpunit --do-not-cache-result tests/Feature/Demo
 cd web
 node e2e/postgres-local-demo.mjs
 ```
 
-The browser smoke test opens both local ports against the actual stack and leaves the prepared cart intact. The feature suite covers stock, retry, and simulated provider payments. The six MySQL-specific contention cases are skipped on PostgreSQL; their existing MySQL runner remains available. Never run PHPUnit against the running demo database.
+The first PHPUnit command runs all API features on real PostgreSQL, except the demo seeder group which uses its separate seed database. It includes all six independent-connection contention cases. The browser smoke test opens both local ports against the shared development stack and leaves the prepared cart intact. Never run PHPUnit against either database in the shared demo project.
+
+To keep the isolated PostgreSQL database for another run, leave the test project stopped. Do not use `down -v` with the shared demo project; only remove the disposable `camba-v2-pg-integration` project after confirming its name and scope.
 
 ### Live store, admin and Mailpit journeys
 
@@ -90,7 +103,7 @@ For the second-engine accessibility checks, install the locked Firefox with `npm
 
 ### Cart contention and photo recovery
 
-To exercise the independent database connections rather than just browser tabs, use MySQL 8.4 on loopback with a **disposable** `camba_v2_test` schema, a test-only APP_KEY, and no socket or database URL override. Run `php vendor/bin/phpunit --filter MySqlCatalogContentionTest` from `api/`. The runner holds an owner or product row and identifies both waiting connections before releasing it; the SQLite runner intentionally skips these cases.
+The six PostgreSQL contention tests above exercise independent application processes and database connections on the target engine. They identify both waiting workers through `pg_stat_activity` and `pg_blocking_pids()` before releasing the held row lock; do not substitute SQLite or skip these cases.
 
 Both admin upload flows keep the operation key in the current browser. After an uncertain upload, **Reintentar carga** sends the same ordered files with the same key. If the original files are unavailable, use **Cerrar carga pendiente** instead. The server keeps already committed photos and prevents a late upload with that key from appending. Reopening **Carga por fotos** links to the exact draft.
 
