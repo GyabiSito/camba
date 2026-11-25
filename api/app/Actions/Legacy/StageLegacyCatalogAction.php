@@ -68,18 +68,24 @@ class StageLegacyCatalogAction
         $connection = DB::connection();
         $name = (string) $connection->getDatabaseName();
         $driver = $connection->getDriverName();
+        if ($connection->getConfig('url')) {
+            throw new RuntimeException('Unset DB_URL for a disposable catalog rehearsal target.');
+        }
         if ($driver === 'sqlite' && $name === ':memory:' && app()->environment('testing')) {
             return true;
         }
         if ($driver === 'sqlite' && ($path = $this->files->localPath($name)) && is_file($path) && basename($path) === 'camba_v2_migration.sqlite') {
             return false;
         }
-        if (in_array($driver, ['mysql', 'mariadb'], true) && $name === 'camba_v2_migration'
-            && in_array($connection->getConfig('host'), ['127.0.0.1', '::1', 'localhost'], true)) {
+        $host = $connection->getConfig('host');
+        $port = (string) $connection->getConfig('port');
+        if ($driver === 'pgsql' && $name === 'camba_v2_migration'
+            && (in_array($host, ['127.0.0.1', '::1', 'localhost'], true)
+                || ($host === 'postgres' && $port === '5432'))) {
             return false;
         }
 
-        throw new RuntimeException('Use a dedicated local database: camba_v2_migration on loopback, or a local camba_v2_migration.sqlite file.');
+        throw new RuntimeException('Use a dedicated local PostgreSQL database camba_v2_migration on loopback or the internal postgres:5432 host, or a local camba_v2_migration.sqlite file; unset DB_URL.');
     }
 
     private function redirects(array $rows, mixed $selections): array

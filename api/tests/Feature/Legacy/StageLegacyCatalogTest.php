@@ -21,15 +21,19 @@ class StageLegacyCatalogTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        // The command intentionally refuses the shared MySQL test schema.
-        config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
-        $this->artisan('migrate')->assertSuccessful();
+        // Normal tests use isolated SQLite. The opt-in PostgreSQL rehearsal requires a fresh dedicated target.
+        if (getenv('LEGACY_PG_TEST') !== '1') {
+            config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
+            $this->artisan('migrate')->assertSuccessful();
+        }
         $this->fixture = sys_get_temp_dir().'/camba-legacy-stage-'.bin2hex(random_bytes(8));
         mkdir($this->fixture.'/photos', 0700, true);
         mkdir($this->fixture.'/storage', 0700);
         config(['filesystems.disks.public' => ['driver' => 'local', 'root' => $this->fixture.'/storage']]);
         Storage::forgetDisk('public');
-        Category::query()->create(['name' => 'Lighting', 'slug' => 'lighting']);
+        if (getenv('LEGACY_PG_TEST') !== '1') {
+            Category::query()->create(['name' => 'Lighting', 'slug' => 'lighting']);
+        }
     }
 
     protected function tearDown(): void
@@ -94,6 +98,107 @@ class StageLegacyCatalogTest extends TestCase
         }
         $this->assertSame(0, Product::query()->count());
         $this->assertSame(0, DB::table('legacy_catalog_receipts')->count());
+    }
+
+    public function test_allows_only_an_explicit_isolated_postgres_staging_target_without_database_url(): void
+    {
+        $this->app->detectEnvironment(fn () => 'testing');
+        config(['database.default' => 'pgsql', 'database.connections.pgsql' => [
+            'driver' => 'pgsql', 'url' => null, 'host' => 'postgres', 'port' => '5432',
+            'database' => 'camba_v2_migration', 'username' => 'camba_test', 'password' => 'secret',
+        ]]);
+        DB::purge('pgsql');
+        $action = app(\App\Actions\Legacy\StageLegacyCatalogAction::class);
+        $guard = new \ReflectionMethod($action, 'assertDatabase');
+        $this->assertFalse($guard->invoke($action));
+
+        config(['database.connections.pgsql.host' => 'remote.example.test']);
+        DB::purge('pgsql');
+        try {
+            $guard->invoke($action);
+            $this->fail('A non-local PostgreSQL host must be refused.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('dedicated local PostgreSQL', $exception->getMessage());
+        }
+
+        config(['database.default' => 'pgsql', 'database.connections.pgsql.url' => 'pgsql://user:pass@postgres/camba_v2_migration']);
+        DB::purge('pgsql');
+        try {
+            $guard->invoke($action);
+            $this->fail('DB_URL must be refused even when its URL points at the disposable target name.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('DB_URL', $exception->getMessage());
+        } finally {
+            config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
+            DB::purge('sqlite');
+        }
+    }
+
+    public function test_no_longer_accepts_mysql_as_an_apply_target(): void
+    {
+        config(['database.default' => 'mysql', 'database.connections.mysql' => [
+            'driver' => 'mysql', 'url' => null, 'host' => '127.0.0.1', 'port' => '3306',
+            'database' => 'camba_v2_migration', 'username' => 'camba_test', 'password' => 'secret',
+        ]]);
+        DB::purge('mysql');
+        $action = app(\App\Actions\Legacy\StageLegacyCatalogAction::class);
+        try {
+            (new \ReflectionMethod($action, 'assertDatabase'))->invoke($action);
+            $this->fail('MySQL must not be accepted as the catalog apply target.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringContainsString('dedicated local PostgreSQL', $exception->getMessage());
+        } finally {
+            config(['database.default' => 'sqlite', 'database.connections.sqlite.database' => ':memory:']);
+            DB::purge('sqlite');
+        }
+    }
+
+    public function test_real_postgres_rehearsal_preserves_draft_money_relations_ids_and_replay(): void
+    {
+        if (getenv('LEGACY_PG_TEST') !== '1') {
+            $this->markTestSkipped('Set LEGACY_PG_TEST=1 only for a fresh disposable PostgreSQL camba_v2_migration database.');
+        }
+
+        config(['database.default' => 'pgsql']);
+        DB::purge('pgsql');
+        $connection = DB::connection();
+        $this->assertSame('pgsql', $connection->getDriverName());
+        $this->assertSame('camba_v2_migration', $connection->getDatabaseName());
+        $this->assertNull($connection->getConfig('url'));
+        $this->assertContains($connection->getConfig('host'), ['127.0.0.1', '::1', 'localhost', 'postgres']);
+        $this->assertSame([], DB::select("select tablename from pg_tables where schemaname = 'public'"), 'The disposable rehearsal database must be empty before migrations.');
+        $this->artisan('migrate')->assertSuccessful();
+        $category = Category::query()->create(['name' => 'Lighting', 'slug' => 'lighting']);
+        $this->review([$this->product()]);
+
+        config(['database.connections.pgsql.database' => 'not_camba_v2_migration']);
+        DB::purge('pgsql');
+        [$status, $raw] = $this->stage();
+        $this->assertSame(1, $status);
+        $this->assertStringContainsString('dedicated local PostgreSQL', $raw);
+        config(['database.connections.pgsql.database' => 'camba_v2_migration']);
+        DB::purge('pgsql');
+        $this->assertSame(0, Product::query()->count());
+        $this->assertSame(0, DB::table('legacy_catalog_receipts')->count());
+
+        [$status, $raw] = $this->stage();
+        $this->assertSame(0, $status, $raw);
+        $stagedId = Product::query()->sole()->id;
+        $product = Product::query()->with(['images', 'category'])->findOrFail($stagedId);
+        $this->assertSame([$category->id, 1001, 4, ProductStatus::Draft], [$product->category_id, $product->price_cents, $product->stock, $product->status]);
+        $this->assertSame($category->id, $product->category->id);
+        $this->assertSame('product:7', DB::table('legacy_catalog_receipts')->sole()->source_unit);
+
+        $independent = (new Product(['name' => 'Unrelated product']))->forceFill(['sku' => 'INDEPENDENT', 'slug' => 'independent', 'category_id' => $category->id]);
+        $independent->save();
+        $this->assertGreaterThan($stagedId, $independent->id, 'PostgreSQL product ID sequence must advance after staging.');
+
+        [$status, $raw] = $this->stage();
+        $this->assertSame(0, $status, $raw);
+        $this->assertSame(1, json_decode($raw, true, flags: JSON_THROW_ON_ERROR)['reused']);
+        $this->assertSame(2, Product::query()->count());
+        $this->assertSame(1, DB::table('legacy_catalog_receipts')->count());
+        $this->assertSame($stagedId, Product::query()->where('sku', 'MiXeD-7')->sole()->id);
     }
 
     public function test_refuses_changed_mapping_photos_or_reviewed_report_before_drafts(): void
