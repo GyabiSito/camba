@@ -364,7 +364,11 @@ paths:
       description: A reference is not proof of ownership. Only the buyer account or unexpired original guest session may read it.
       externalDocs: { url: docs/orders.md }
       responses:
-        '200': { description: This session's private order snapshot }
+        '200':
+          description: >
+            This session's private order snapshot. The nullable data.payment_state field
+            summarizes verified provider evidence for an unpaid order as pending or rejected,
+            without exposing provider IDs. Only data.status paid confirms the order.
         '400': { description: First-party session required }
         '404': { description: 'Missing, foreign, or expired order' }
   /api/v1/orders/{reference}/payments:

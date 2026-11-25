@@ -7,6 +7,7 @@ use App\Payments\PaymentWebhookSignature;
 use Illuminate\Http\Client\Request as Outgoing;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use PHPUnit\Framework\Attributes\BackupGlobals;
 use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
@@ -26,6 +27,31 @@ class CheckoutProClientTest extends TestCase
         Http::preventStrayRequests();
     }
 
+    #[BackupGlobals(true)]
+    public function test_configuration_reads_canonical_keys_and_keeps_the_legacy_token_when_unset(): void
+    {
+        $_SERVER['CAMBA_MP_ACCESS_TOKEN'] = $_ENV['CAMBA_MP_ACCESS_TOKEN'] = 'synthetic-legacy-token';
+        $_SERVER['MERCADOPAGO_ACCESS_TOKEN'] = $_ENV['MERCADOPAGO_ACCESS_TOKEN'] = 'synthetic-new-token';
+        $_SERVER['MERCADOPAGO_PUBLIC_KEY'] = $_ENV['MERCADOPAGO_PUBLIC_KEY'] = 'synthetic-public-key';
+
+        $config = require config_path('mercadopago.php');
+        $this->assertSame('synthetic-new-token', $config['access_token']);
+        $this->assertSame('synthetic-public-key', $config['public_key']);
+
+        $_SERVER['MERCADOPAGO_ACCESS_TOKEN'] = $_ENV['MERCADOPAGO_ACCESS_TOKEN'] = 'X';
+        $_SERVER['MERCADOPAGO_PUBLIC_KEY'] = $_ENV['MERCADOPAGO_PUBLIC_KEY'] = 'X';
+
+        $config = require config_path('mercadopago.php');
+        $this->assertSame('synthetic-legacy-token', $config['access_token']);
+        $this->assertNull($config['public_key']);
+
+        $_SERVER['CAMBA_MP_ACCESS_TOKEN'] = $_ENV['CAMBA_MP_ACCESS_TOKEN'] = '';
+        $_SERVER['CAMBA_MP_COLLECTOR_ID'] = $_ENV['CAMBA_MP_COLLECTOR_ID'] = '234';
+
+        config(['mercadopago' => require config_path('mercadopago.php')]);
+        $this->assertFalse(app(CheckoutProClient::class)->isConfigured());
+    }
+
     public function test_creates_uyu_preference_from_immutable_lines_only(): void
     {
         $url = 'https://sandbox.mercadopago.com/checkout/v1/redirect?pref_id=234-example';
@@ -43,7 +69,10 @@ class CheckoutProClientTest extends TestCase
                 ['id' => 'shipping', 'title' => 'Entrega', 'currency_id' => 'UYU', 'quantity' => 1, 'unit_price' => 120],
             ]
             && $request['external_reference'] === $id
-            && $request['back_urls']['success'] === "https://camba.example.test/pedidos/$id"
+            && $request['back_urls'] === array_fill_keys(
+                ['success', 'pending', 'failure'],
+                "https://camba.example.test/pedidos/$id?retorno=mercadopago",
+            )
             && $request['notification_url'] === 'https://camba.example.test/api/v1/webhooks/mercadopago?source_news=webhooks'
             && $request['expires'] === true
             && ! isset($request['payer']));

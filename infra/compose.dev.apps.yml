@@ -18,11 +18,11 @@ x-api: &api-runtime
     APP_ENV: local
     APP_LOCALE: es
     APP_KEY: ${CAMBA_DEV_APP_KEY:?Generate a dedicated local Laravel APP_KEY}
-    APP_URL: http://127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200}
+    APP_URL: ${CAMBA_DEV_APP_URL:-http://127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200}}
     ADMIN_URL: http://127.0.0.1:${CAMBA_DEV_ADMIN_PORT:-4300}
     CAMBA_PUBLIC_CONTACT_EMAIL:
     CAMBA_PUBLIC_CONTACT_PHONE:
-    SANCTUM_STATEFUL_DOMAINS: 127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200},localhost:${CAMBA_DEV_STORE_PORT:-4200},127.0.0.1:${CAMBA_DEV_ADMIN_PORT:-4300},localhost:${CAMBA_DEV_ADMIN_PORT:-4300}
+    SANCTUM_STATEFUL_DOMAINS: ${CAMBA_DEV_STATEFUL_DOMAINS:-127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200},localhost:${CAMBA_DEV_STORE_PORT:-4200},127.0.0.1:${CAMBA_DEV_ADMIN_PORT:-4300},localhost:${CAMBA_DEV_ADMIN_PORT:-4300}}
     DB_CONNECTION: pgsql
     DB_URL: ''
     DB_HOST: postgres
@@ -40,9 +40,6 @@ x-api: &api-runtime
     MAIL_URL: smtp://mailpit:1025
     MAIL_HOST: mailpit
     MAIL_PORT: '1025'
-    CAMBA_MP_ACCESS_TOKEN: ''
-    CAMBA_MP_COLLECTOR_ID: ''
-    CAMBA_MP_WEBHOOK_SECRET: ''
     CAMBA_MP_LIVE: 'false'
 
 x-web: &web-runtime
@@ -116,9 +113,11 @@ services:
     build:
       context: ../web
       target: store-editorial-local
+      args:
+        CAMBA_DEV_ENABLE_PAYMENTS: ${CAMBA_DEV_ENABLE_PAYMENTS:-false}
     environment:
       CAMBA_SSR_API_ORIGIN: http://api:8000
-      CAMBA_PUBLIC_STORE_ORIGIN: http://127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200}
+      CAMBA_PUBLIC_STORE_ORIGIN: ${CAMBA_DEV_APP_URL:-http://127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200}}
       NG_ALLOWED_HOSTS: '127.0.0.1,localhost'
     depends_on:
       api:

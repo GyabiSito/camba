@@ -138,6 +138,7 @@
 }
 
 .members .state-chip[data-status='payment_expired'],
+.members .state-chip[data-status='payment_rejected'],
 .members .state-chip[data-status='refunded'],
 .members .state-chip[data-status='charged_back'] {
   border-color: #d9b2ac;

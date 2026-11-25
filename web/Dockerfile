@@ -13,7 +13,12 @@ FROM build AS build-store
 RUN npm exec -- ng build store
 
 FROM build AS build-store-editorial
-RUN npm exec -- ng build store --configuration production,editorial,no-payment
+ARG CAMBA_DEV_ENABLE_PAYMENTS=false
+RUN if [ "$CAMBA_DEV_ENABLE_PAYMENTS" = true ]; then \
+        npm exec -- ng build store --configuration production,editorial; \
+    else \
+        npm exec -- ng build store --configuration production,editorial,no-payment; \
+    fi
 
 FROM build AS build-admin
 RUN npm exec -- ng build admin

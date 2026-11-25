@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Orders;
 use App\Actions\Geography\ResolveAddressGeography;
 use App\Actions\Orders\PlaceOrder;
 use App\Actions\Orders\QuoteCheckout;
+use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Http\Requests\Orders\CheckoutRequest;
 use App\Http\Requests\Orders\OrderSessionRequest;
 use App\Http\Resources\Orders\OrderResource;
 use App\Logging\PaymentLog;
 use App\Models\Order;
+use App\Models\Payment;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Monolog\Level;
@@ -70,6 +73,15 @@ class OrderController
     {
         $order = Order::query()->owned($request->user('web')?->id, $request->session()->getId())
             ->with('items')->where('reference', $reference)->firstOrFail();
+        $order->payment_state = null;
+        if ($order->status === OrderStatus::PendingPayment) {
+            $states = Payment::query()->where('order_id', $order->id)->pluck('status');
+            $order->payment_state = match (true) {
+                $states->contains(fn (PaymentStatus $state): bool => $state->blocksExpiry()) => 'pending',
+                $states->isNotEmpty() => 'rejected',
+                default => null,
+            };
+        }
 
         return $this->uncacheable((new OrderResource($order))->response());
     }

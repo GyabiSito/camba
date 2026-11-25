@@ -58,7 +58,7 @@ test('a guest reviews the server quote before placing an order', async ({ page }
     firstReference = (await committed.json()).data.reference;
     await route.abort();
   });
-  await page.getByRole('button', { name: 'Confirmar pedido' }).click();
+  await page.getByRole('button', { name: 'Pagar con Mercado Pago' }).click();
   await expect(page.getByRole('alert')).toContainText('No pudimos comprobar si el pedido se creó');
   const placed = page.waitForResponse(
     (response) =>
@@ -76,6 +76,7 @@ test('a guest reviews the server quote before placing an order', async ({ page }
   });
   await expect(page.getByRole('heading', { name: 'Tu pedido' })).toBeVisible();
   await expect(page.getByText('Pendiente de pago', { exact: true })).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText('Podés reintentar desde este pedido');
 
   const attempt = async () => {
     const requested = page.waitForResponse(
@@ -97,7 +98,7 @@ test('a guest reviews the server quote before placing an order', async ({ page }
   );
   await page.goto(orderPath + '?status=approved&payment_id=1000');
   expect((await refresh).postData()).toBeNull();
-  await expect(page.getByText('Pendiente de pago', { exact: true })).toBeVisible();
+  await expect(page.getByText('Confirmación pendiente', { exact: true })).toBeVisible();
   await expect(page).toHaveURL(new RegExp(orderPath + '$'));
   await page.getByRole('link', { name: 'Ver compras' }).click();
   await expect(page.getByRole('link', { name: /Ver pedido/ })).toBeVisible();
@@ -388,7 +389,7 @@ test('a guest sees the API delivery rate and confirms a persisted delivery order
     (response) =>
       response.url().endsWith('/api/v1/orders') && response.request().method() === 'POST',
   );
-  await page.getByRole('button', { name: 'Confirmar pedido' }).click();
+  await page.getByRole('button', { name: 'Pagar con Mercado Pago' }).click();
   const order = await ordering;
   expect(order.status()).toBe(201);
   expect(order.request().postDataJSON()).toMatchObject({

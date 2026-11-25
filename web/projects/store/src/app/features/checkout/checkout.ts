@@ -13,6 +13,7 @@ import { CartApi, type Cart } from '../cart';
 import { CheckoutApi } from './data-access/checkout.api';
 import { OrderInput } from './data-access/checkout.models';
 import { Line, Order, Quote, Shipping } from '../orders';
+import { OrdersApi } from '../orders/data-access/orders.api';
 import { httpStatus } from '../../shared/data-access/api-contracts';
 
 @Component({
@@ -25,6 +26,7 @@ export class CheckoutPage {
   private readonly accounts = inject(AccountApi);
   private readonly cartApi = inject(CartApi);
   private readonly checkoutApi = inject(CheckoutApi);
+  private readonly ordersApi = inject(OrdersApi);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   private pending: { key: string; body: OrderInput } | null = null;
@@ -38,6 +40,7 @@ export class CheckoutPage {
   protected readonly empty = signal(false);
   protected readonly loading = signal(true);
   protected readonly busy = signal(false);
+  protected readonly openingPayment = signal(false);
   protected readonly uncertain = signal(false);
   protected readonly quoteError = signal('');
   protected readonly orderError = signal('');
@@ -285,7 +288,19 @@ export class CheckoutPage {
       );
       this.uncertain.set(false);
       window.dispatchEvent(new Event(CART_CHANGED));
-      await this.router.navigate(['/pedidos', data.reference]);
+      let paymentOpeningFailed = false;
+      if (paymentsEnabled && data.status === 'pending_payment') {
+        this.openingPayment.set(true);
+        try {
+          if (await this.ordersApi.redirectToPayment(data.reference, this.pending.key, window)) return;
+        } catch {
+          // The order already exists: offer another attempt from its detail, not another checkout.
+        } finally {
+          this.openingPayment.set(false);
+        }
+        paymentOpeningFailed = true;
+      }
+      await this.router.navigate(['/pedidos', data.reference], { state: { paymentOpeningFailed } });
     } catch (error) {
       const status = httpStatus(error);
       // A transport/server failure can be reported after the transaction committed. Retry exactly the same request.

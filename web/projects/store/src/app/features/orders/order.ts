@@ -1,6 +1,6 @@
 import { DOCUMENT, Location } from '@angular/common';
-import { Component, DestroyRef, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { apiMessage, formatDate, formatMoney } from '@camba/shared';
 import { firstValueFrom, timer } from 'rxjs';
 import { httpStatus } from '../../shared/data-access/api-contracts';
@@ -32,6 +32,12 @@ export class OrderPage {
   protected readonly paymentError = signal('');
   protected readonly message = signal('');
   protected readonly uncertain = signal(false);
+  protected readonly returned = signal(false);
+  protected readonly mayOpenPayment = computed(() => {
+    const order = this.order();
+    return paymentsEnabled && order?.status === 'pending_payment' && order.payment_state !== 'pending'
+      && (!this.returned() || order.payment_state === 'rejected');
+  });
   protected readonly money = formatMoney;
   protected readonly date = formatDate;
   protected readonly states = orderStatus;
@@ -40,7 +46,7 @@ export class OrderPage {
   constructor() {
     // The browser may report a return, never a successful payment. Do not store or forward its parameters.
     const query = this.route.snapshot.queryParamMap;
-    const returned = [
+    const returned = query.get('retorno') === 'mercadopago' || [
       'payment_id',
       'collection_id',
       'status',
@@ -53,15 +59,19 @@ export class OrderPage {
       'merchant_account_id',
       'site_id',
     ].some((parameter) => query.has(parameter));
+    this.returned.set(returned);
     if (returned) inject(Location).replaceState('/pedidos/' + encodeURIComponent(this.reference));
-    void this.initialize(returned);
+    if (inject(Router).currentNavigation()?.extras.state?.['paymentOpeningFailed'] === true) {
+      this.paymentError.set('No pudimos abrir Mercado Pago. Podés reintentar desde este pedido sin crear otro.');
+    }
+    void this.initialize();
   }
 
-  protected async initialize(returned = false) {
+  protected async initialize() {
     this.loading.set(true);
     await this.load();
     this.loading.set(false);
-    if (returned && this.order() && !this.destroyRef.destroyed) await this.refreshPayment();
+    if (this.returned() && this.awaitingPayment() && !this.destroyRef.destroyed) await this.refreshPayment();
   }
 
   private async load() {
@@ -99,9 +109,9 @@ export class OrderPage {
         this.message.set('');
         return;
       }
-      for (const delay of [1400, 2400]) {
+      for (let attempt = 0; attempt < 10; attempt++) {
         if (!paymentsEnabled || !this.awaitingPayment() || this.destroyRef.destroyed) break;
-        await firstValueFrom(timer(delay));
+        await firstValueFrom(timer(2500));
         if (this.destroyRef.destroyed) return;
         if (!(await this.load())) {
           this.message.set('');
@@ -109,9 +119,9 @@ export class OrderPage {
         }
       }
       this.message.set(
-        this.awaitingPayment()
-          ? 'El estado sigue pendiente. Podés volver a consultar en unos minutos.'
-          : 'Consultamos el estado registrado por la tienda.',
+        this.awaitingPayment() && !this.order()?.payment_state
+          ? 'Todavía no pudimos confirmar el pago. Podés volver a consultar en unos minutos.'
+          : '',
       );
     } catch {
       await this.load();
@@ -125,16 +135,16 @@ export class OrderPage {
   }
 
   private awaitingPayment() {
-    const status = this.order()?.status;
-    return status === 'pending_payment' || status === 'payment_review';
+    const order = this.order();
+    return order?.status === 'payment_review'
+      || (order?.status === 'pending_payment' && order.payment_state !== 'rejected');
   }
 
   protected async openPayment() {
     if (
-      !paymentsEnabled ||
+      !this.mayOpenPayment() ||
       this.paying() ||
       this.busy() ||
-      this.order()?.status !== 'pending_payment' ||
       !this.browser
     )
       return;
@@ -143,15 +153,7 @@ export class OrderPage {
     this.message.set('');
     try {
       this.paymentKey ??= this.browser.crypto.randomUUID();
-      const { data } = await firstValueFrom(this.client.startPayment(this.reference, this.paymentKey));
-      if (
-        data.status === 'ready' &&
-        data.checkout_url &&
-        new URL(data.checkout_url).protocol === 'https:'
-      ) {
-        this.browser.location.assign(data.checkout_url);
-        return;
-      }
+      if (await this.client.redirectToPayment(this.reference, this.paymentKey, this.browser)) return;
       this.message.set(
         'Estamos preparando el enlace de pago. Probá abrirlo de nuevo en un momento.',
       );

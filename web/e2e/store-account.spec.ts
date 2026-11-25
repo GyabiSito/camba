@@ -312,7 +312,7 @@ test.describe('Camba transactional mail', () => {
     await page.getByRole('link', { name: 'Continuar la compra' }).click();
     await page.getByRole('radio', { name: /Retiro/ }).check();
     const orderResponse = page.waitForResponse(r => r.url().endsWith('/api/v1/orders') && r.request().method() === 'POST');
-    await page.getByRole('button', { name: 'Confirmar pedido' }).click();
+    await page.getByRole('button', { name: 'Pagar con Mercado Pago' }).click();
     const placed = await orderResponse;
     expect(placed.status()).toBe(201);
     const { reference } = (await placed.json()).data;

@@ -15,20 +15,36 @@
       <div class="stack">
         <section class="shop-panel payment-panel" aria-labelledby="payment-title">
           <div class="payment-heading">
-            <h2 id="payment-title">Estado del pago</h2>
-            <p class="state-chip" [attr.data-status]="current.status" aria-live="polite">
-              {{ states[current.status] || 'Estado no disponible' }}
+            @let checkingReturn = returned() && current.status === 'pending_payment' && !current.payment_state;
+            <h2 id="payment-title">
+              @if (current.status === 'paid') { Pedido confirmado }
+              @else if (current.payment_state === 'rejected') { El pago no se completó }
+              @else if (checkingReturn) { Estamos confirmando el pago }
+              @else { Estado del pago }
+            </h2>
+            <p class="state-chip" [attr.data-status]="current.payment_state === 'rejected' ? 'payment_rejected' : current.status" aria-live="polite">
+              @if (current.payment_state === 'rejected') { Pago rechazado }
+              @else if (current.payment_state === 'pending') { Pago pendiente }
+              @else if (checkingReturn) { Confirmación pendiente }
+              @else { {{ states[current.status] || 'Estado no disponible' }} }
             </p>
           </div>
           @if (current.status === 'paid') {
             <p>
               El pago figura confirmado. Podés consultar abajo el estado de preparación o entrega.
             </p>
+            <div class="actions">
+              <a routerLink="/tienda" class="button">Seguir comprando</a>
+            </div>
           }
           @if (current.status === 'pending_payment') {
             <p class="muted">
               La reserva vence el {{ date(current.reservation_expires_at) }}.
-              @if (paymentsEnabled) {
+              @if (current.payment_state === 'rejected') {
+                Podés reintentar desde este mismo pedido.
+              } @else if (current.payment_state === 'pending' || returned()) {
+                Podés consultar el estado desde acá. No hagas otro pago.
+              } @else if (paymentsEnabled) {
                 Si ya intentaste pagar, consultá el estado antes de volver a abrir el pago.
               }
             </p>
@@ -65,7 +81,7 @@
           }
           @if (current.status === 'pending_payment' || current.status === 'payment_review') {
             <div class="actions">
-              @if (paymentsEnabled && current.status === 'pending_payment') {
+              @if (mayOpenPayment()) {
                 <button
                   type="button"
                   class="button"
@@ -77,7 +93,7 @@
                       ? 'Abriendo pago…'
                       : uncertain()
                         ? 'Reintentar apertura del pago'
-                        : 'Pagar con Mercado Pago'
+                        : current.payment_state === 'rejected' ? 'Reintentar pago' : 'Pagar con Mercado Pago'
                   }}
                 </button>
               }

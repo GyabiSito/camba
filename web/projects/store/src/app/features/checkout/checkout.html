@@ -159,7 +159,7 @@
           <p class="muted small">
             {{
               paymentsEnabled
-                ? 'Después de confirmar vas a poder pagar con Mercado Pago.'
+                ? 'Vas a continuar en Mercado Pago para completar el pago.'
                 : 'Después de confirmar vas a poder consultar el estado de tu pedido.'
             }}
           </p>
@@ -175,10 +175,10 @@
             >
               {{
                 busy()
-                  ? 'Confirmando…'
+                  ? (openingPayment() ? 'Abriendo Mercado Pago…' : 'Confirmando…')
                   : uncertain()
                     ? 'Reintentar el mismo pedido'
-                    : 'Confirmar pedido'
+                    : paymentsEnabled ? 'Pagar con Mercado Pago' : 'Confirmar pedido'
               }}
             </button>
           </div>

@@ -35,7 +35,7 @@ class CheckoutProClient
                 'unit_price' => $shippingCents / 100,
             ];
         }
-        $returnUrl = $origin.'/pedidos/'.rawurlencode($reference);
+        $returnUrl = $origin.'/pedidos/'.rawurlencode($reference).'?retorno=mercadopago';
         $payload = $this->request('POST', '/checkout/preferences', [
             'items' => $items,
             'external_reference' => $reference,
