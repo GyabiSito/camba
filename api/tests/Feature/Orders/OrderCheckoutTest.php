@@ -88,6 +88,7 @@ class OrderCheckoutTest extends TestCase
             $this->assertMatchesRegularExpression('/\A[0-9a-f]{64}\z/', $rejected['context']['correlation_id']);
             $this->assertSame($rejected['context']['correlation_id'], $created['context']['correlation_id']);
             $this->assertSame($order->id, $created['context']['order_id']);
+            $this->assertSame($reference, $created['context']['reference']);
             $this->assertTrue($records->contains('message', 'checkout.quote.started'));
             $this->assertTrue($records->contains('message', 'checkout.started'));
             $validation = $records->where('message', 'checkout.quote.rejected')->sole();
@@ -96,7 +97,7 @@ class OrderCheckoutTest extends TestCase
             $this->assertSame('ERROR', $failure['level_name']);
             $this->assertSame(RuntimeException::class, $failure['context']['exception_class']);
             $this->assertArrayNotHasKey('order_id', $failure['context']);
-            foreach ([$key, $reference, $payload['quote_token'], $payload['contact']['email'], 'secret sentinel'] as $private) {
+            foreach ([$key, $payload['quote_token'], $payload['contact']['email'], 'secret sentinel'] as $private) {
                 $this->assertStringNotContainsString($private, $contents);
             }
             $this->assertFileDoesNotExist($scratch.'/laravel.log');

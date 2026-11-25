@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
@@ -16,6 +17,7 @@ class Order extends Model
 
     protected $casts = [
         'status' => OrderStatus::class,
+        'checkout_managed' => 'boolean',
         'contact' => 'encrypted:array',
         'address' => 'encrypted:array',
         'subtotal_cents' => 'integer',
@@ -45,6 +47,17 @@ class Order extends Model
         if ($userId === null) {
             $query->where('guest_access_expires_at', '>', now());
         }
+    }
+
+    #[Scope]
+    protected function commercial(Builder $query): void
+    {
+        $query->where(fn (Builder $visible) => $visible->where('checkout_managed', false)->orWhereNotNull('paid_at'));
+    }
+
+    public function payment(): BelongsTo
+    {
+        return $this->belongsTo(OrderPayment::class);
     }
 
     /** @return HasMany<OrderItem, $this> */

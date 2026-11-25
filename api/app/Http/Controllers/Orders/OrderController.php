@@ -49,7 +49,11 @@ class OrderController
         try {
             $order = $place->execute($userId, $sessionId, $input);
             if ($order->wasRecentlyCreated) {
-                DB::afterCommit(static fn () => PaymentLog::write(Level::Info, 'order.created', $correlation, $order->id, status: $order->status->value));
+                DB::afterCommit(static fn () => PaymentLog::write(Level::Info, 'order.created', $correlation, $order->id,
+                    status: $order->status->value, reference: $order->reference));
+                if ($order->checkout_managed) {
+                    PaymentLog::transition('checkout.stock_reserved', $order, null, 'reserved');
+                }
             }
 
             return $this->uncacheable((new OrderResource($order->load('items')))->response());
@@ -63,7 +67,7 @@ class OrderController
     public function index(OrderSessionRequest $request): JsonResponse
     {
         $orders = Order::query()->owned($request->user('web')?->id, $request->session()->getId())
-            ->latest('id')->paginate(20);
+            ->commercial()->latest('id')->paginate(20);
 
         return $this->uncacheable(OrderResource::collection($orders)->response());
     }
@@ -73,7 +77,7 @@ class OrderController
         $order = Order::query()->owned($request->user('web')?->id, $request->session()->getId())
             ->with('items')->where('reference', $reference)->firstOrFail();
         $order->payment_state = null;
-        if ($order->status === OrderStatus::PendingPayment) {
+        if ($order->status === OrderStatus::PendingPayment || ($order->checkout_managed && $order->status === OrderStatus::PaymentExpired)) {
             $payments = Payment::query()->where('order_id', $order->id)->orderBy('id')->get(['id', 'status']);
             $order->payment_state = match (true) {
                 $payments->contains(fn (Payment $payment): bool => $payment->status->blocksExpiry()) => 'pending',

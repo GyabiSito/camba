@@ -27,7 +27,9 @@ class ProjectCommerceNotices
     {
         $settings = StoreSettings::loadValues();
         $recent = now()->subDays(NoticeEligibility::MAIL_WINDOW_DAYS);
-        $created = Order::query()->where('created_at', '>=', $recent);
+        $created = Order::query()->where(fn (Builder $query) => $query
+            ->where(fn (Builder $orders) => $orders->where('checkout_managed', false)->where('created_at', '>=', $recent))
+            ->orWhere(fn (Builder $orders) => $orders->where('checkout_managed', true)->where('status', 'paid')->where('paid_at', '>=', $recent)));
         $paid = Order::query()->where('status', 'paid')->where('paid_at', '>=', $recent);
         foreach (['panel', 'mail'] as $channel) {
             $this->events(clone $created, $channel, 'order_created', 'order');
@@ -54,7 +56,7 @@ class ProjectCommerceNotices
         }
         $this->condition($overdue, 'paid_overdue', 'order');
         if ($settings['remind_payment']) {
-            $this->events(Order::query()->where('status', 'pending_payment')->whereNull('paid_at')
+            $this->events(Order::query()->where('checkout_managed', false)->where('status', 'pending_payment')->whereNull('paid_at')
                 ->where('reservation_expires_at', '>', now())->where('reservation_expires_at', '<=', now()->addMinutes($settings['payment_lead_minutes']))
                 ->whereExists(fn ($query) => $query->from('buyer_reminder_preferences')->whereColumn('user_id', 'orders.user_id')
                     ->where('payment_reminders', true)), 'mail', 'payment_reminder', 'order');

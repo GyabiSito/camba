@@ -50,6 +50,8 @@
                 Si ya intentaste pagar, consultá el estado antes de volver a abrir el pago.
               }
             </p>
+          } @else if (current.checkout_retryable) {
+            <p class="muted">El pago no se completó y liberamos la reserva. Tu carrito sigue disponible.</p>
           } @else if (current.status === 'payment_expired') {
             <p class="muted">
               La reserva venció. Podés revisar tu carrito si querés volver a comprar.
@@ -81,7 +83,7 @@
           @if (message()) {
             <p role="status" class="notice">{{ message() }}</p>
           }
-          @if (current.status === 'pending_payment' || current.status === 'payment_review') {
+          @if (current.status === 'pending_payment' || current.status === 'payment_review' || current.checkout_retryable) {
             <div class="actions">
               @if (mayOpenPayment()) {
                 <button
@@ -95,7 +97,7 @@
                       ? 'Abriendo pago…'
                       : uncertain()
                         ? 'Reintentar apertura del pago'
-                        : rejectionConfirmed() ? 'Reintentar pago'
+                        : rejectionConfirmed() || current.checkout_retryable ? 'Reintentar pago'
                           : canResumePayment() ? 'Volver a Mercado Pago' : 'Pagar con Mercado Pago'
                   }}
                 </button>

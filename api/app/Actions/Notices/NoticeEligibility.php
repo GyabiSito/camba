@@ -43,7 +43,7 @@ class NoticeEligibility
             $admin = $this->soleAdministrator();
 
             return $admin && hash_equals($notice->source_hash ?? '', $this->administratorFingerprint($admin))
-                && $order->created_at->gte(now()->subDays(self::MAIL_WINDOW_DAYS))
+                && ($order->checkout_managed ? $order->paid_at : $order->created_at)?->gte(now()->subDays(self::MAIL_WINDOW_DAYS))
                 && TransactionalEmail::adminOrderUrl($order->reference) !== null
                 ? [$admin->email, $order->reference] : null;
         }
@@ -59,7 +59,9 @@ class NoticeEligibility
         $earliest = now()->subDays(self::MAIL_WINDOW_DAYS);
         $paidAt = $order->getRawOriginal('paid_at');
         $eligible = match ($notice->kind) {
-            'order_created' => $order->created_at->gte($earliest) && in_array($status, ['pending_payment', 'paid', 'payment_review'], true),
+            'order_created' => $order->checkout_managed
+                ? $status === 'paid' && $paidAt !== null && $paidAt >= $earliest->toDateTimeString()
+                : $order->created_at->gte($earliest) && in_array($status, ['pending_payment', 'paid', 'payment_review'], true),
             'order_paid' => $status === 'paid' && $paidAt !== null && $paidAt >= $earliest->toDateTimeString(),
             'payment_reminder' => $this->canRemindPayment($order, $buyer),
             'order_ready_for_pickup', 'order_shipped', CommerceNotice::ORDER_DELIVERED => $this->canNotifyFulfilment($notice, $order, $status),

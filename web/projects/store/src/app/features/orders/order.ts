@@ -48,8 +48,9 @@ export class OrderPage {
     && this.order()?.payment_state !== 'pending');
   protected readonly mayOpenPayment = computed(() => {
     const order = this.order();
-    return this.canAttemptPayment() && order?.status === 'pending_payment' && order.payment_state !== 'pending'
-      && (!this.returned() || this.rejectionConfirmed() || this.canResumePayment());
+    return this.canAttemptPayment() && !!order && order.payment_state !== 'pending'
+      && (order.checkout_retryable || (order.status === 'pending_payment'
+        && (!this.returned() || this.rejectionConfirmed() || this.canResumePayment())));
   });
   protected readonly money = formatMoney;
   protected readonly date = formatDate;
@@ -194,6 +195,10 @@ export class OrderPage {
       const status = httpStatus(error);
       if (status === 409) {
         await this.load();
+        if (this.order()?.checkout_retryable) {
+          this.paymentKey = undefined;
+          this.paymentError.set('No pudimos abrir el pago. Podés reintentar desde este pedido sin crear otro.');
+        }
         this.uncertain.set(this.order()?.status === 'pending_payment');
         if (this.uncertain()) {
           this.paymentError.set(

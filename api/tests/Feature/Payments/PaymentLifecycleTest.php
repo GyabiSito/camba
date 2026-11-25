@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Payments;
 
+use App\Actions\Notices\ProjectCommerceNotices;
 use App\Models\Category;
 use App\Models\CommerceNotice;
 use App\Models\Order;
@@ -9,6 +10,7 @@ use App\Models\Payment;
 use App\Models\PaymentAttempt;
 use App\Models\Product;
 use App\Models\User;
+use App\Payments\CheckoutProClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
@@ -54,6 +56,182 @@ class PaymentLifecycleTest extends TestCase
         ]);
         $this->withCredentials()->withHeader('Origin', 'http://localhost');
         Http::preventStrayRequests();
+    }
+
+    public function test_new_mercado_pago_checkout_publishes_purchase_and_notices_only_after_approval(): void
+    {
+        config(['checkout.pickup_address' => 'QA pickup point']);
+        $order = $this->submitLoggedCheckout('binary', keepCart: true);
+        $this->getJson('/api/v1/orders')->assertOk()->assertJsonMissing(['reference' => $order->reference]);
+        app(ProjectCommerceNotices::class)->execute();
+        $this->assertDatabaseMissing('commerce_notices', ['subject_type' => 'order', 'subject_id' => $order->id]);
+        Http::fake([
+            'https://api.mercadopago.com/checkout/preferences' => Http::response([
+                'collector_id' => 234, 'id' => '234-example', 'sandbox_init_point' => self::REDIRECT,
+            ], 201),
+            'https://api.mercadopago.com/v1/payments/159' => Http::response($this->payment($order, 159, 'approved')),
+        ]);
+        $this->start($order, (string) Str::uuid())->assertCreated();
+        $attempt = PaymentAttempt::query()->where('order_id', $order->id)->sole();
+        Http::assertSent(fn (Request $request) => str_ends_with($request->url(), '/checkout/preferences')
+            && $request['binary_mode'] === true
+            && $request['external_reference'] === CheckoutProClient::attemptReference($order->reference, $attempt->id));
+        $this->getJson('/api/v1/cart')->assertOk()->assertJsonCount(1, 'data.items');
+        $this->webhook(159, 'approved-checkout-first')->assertOk();
+        $this->webhook(159, 'approved-checkout-first')->assertOk();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->getJson('/api/v1/orders')->assertOk()->assertJsonFragment(['reference' => $order->reference, 'status' => 'paid']);
+        $this->getJson('/api/v1/cart')->assertOk()->assertJsonCount(0, 'data.items');
+        $this->assertSame(3, $this->stock($order));
+        $this->assertSame('preparing', $order->fresh()->fulfilment_status);
+        $this->assertDatabaseHas('payment_attempts', ['order_id' => $order->id, 'payment_id' => $order->fresh()->payment_id]);
+        app(ProjectCommerceNotices::class)->execute();
+        $this->assertSame(1, CommerceNotice::query()->where('subject_id', $order->id)->where('channel', 'panel')
+            ->where('kind', 'order_created')->count());
+    }
+
+    #[DataProvider('closedPaymentStates')]
+    public function test_checked_rejection_or_cancellation_releases_once_and_allows_new_attempt_on_same_payment(string $state): void
+    {
+        config(['checkout.pickup_address' => 'QA pickup point']);
+        $order = $this->submitLoggedCheckout($state, keepCart: true);
+        $payment = $this->payment($order, 159, $state);
+        Http::fake([
+            'https://api.mercadopago.com/checkout/preferences' => Http::sequence()
+                ->push(['collector_id' => 234, 'id' => '234-example', 'sandbox_init_point' => self::REDIRECT], 201)
+                ->push(['collector_id' => 234, 'id' => '234-retry', 'sandbox_init_point' => self::REDIRECT], 201),
+            'https://api.mercadopago.com/v1/payments/159' => Http::response($payment),
+        ]);
+        $firstKey = (string) Str::uuid();
+        $this->start($order, $firstKey)->assertCreated();
+        $first = PaymentAttempt::query()->where('order_id', $order->id)->sole();
+        $this->webhook(159, 'terminal-first')->assertOk();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertSame($state, $first->fresh()->status->value);
+        $this->assertSame(5, $this->stock($order));
+        $this->getJson('/api/v1/cart')->assertOk()->assertJsonCount(1, 'data.items');
+        $this->getJson('/api/v1/orders')->assertOk()->assertJsonMissing(['reference' => $order->reference]);
+        $this->start($order, $firstKey)->assertConflict();
+
+        $secondKey = (string) Str::uuid();
+        $this->start($order, $secondKey)->assertCreated();
+        $this->start($order, $secondKey)->assertOk();
+        $this->webhook(159, 'terminal-repeated')->assertOk();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertSame(3, $this->stock($order));
+        $this->assertSame([$state, 'ready'], $order->payment->attempts()->orderBy('id')->pluck('status')
+            ->map(fn ($status) => $status->value)->all());
+        $this->assertDatabaseCount('orders', 1);
+    }
+
+    public static function closedPaymentStates(): array
+    {
+        return [['rejected'], ['cancelled']];
+    }
+
+    public function test_definite_preference_denial_releases_but_does_not_fabricate_a_rejected_payment(): void
+    {
+        config(['checkout.pickup_address' => 'QA pickup point']);
+        $order = $this->submitLoggedCheckout('preference-denial', keepCart: true);
+        Http::fake(['https://api.mercadopago.com/checkout/preferences' => Http::response([], 422)]);
+        $key = (string) Str::uuid();
+        $this->start($order, $key)->assertConflict()->assertJsonPath('data.status', 'failed');
+        $this->start($order, $key)->assertConflict();
+        Http::assertSentCount(1);
+        $this->assertDatabaseCount('payments', 0);
+        $this->assertSame(5, $this->stock($order));
+        $this->getJson('/api/v1/cart')->assertOk()->assertJsonCount(1, 'data.items');
+    }
+
+    public function test_payment_group_migration_preserves_the_legacy_order_and_attempt(): void
+    {
+        if (DB::getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Legacy upgrade runs on PostgreSQL; SQLite cannot rebuild FK tables inside this test transaction.');
+        }
+        $migration = require database_path('migrations/2026_11_25_210000_group_checkout_payment_attempts.php');
+        $migration->down();
+        $order = $this->reservedOrder(sessionId: 'legacy-fixture-session');
+        $attempt = PaymentAttempt::query()->forceCreate([
+            'order_id' => $order->id, 'idempotency_key' => (string) Str::uuid(),
+            'status' => 'ready', 'provider_preference_id' => '234-legacy',
+            'checkout_url' => self::REDIRECT, 'expires_at' => $order->reservation_expires_at,
+        ]);
+        $payment = Payment::query()->forceCreate([
+            'order_id' => $order->id, 'provider_payment_id' => '159', 'amount_cents' => 2400,
+            'status' => 'rejected', 'provider_updated_at' => '2026-05-10T10:00:00.000Z',
+        ]);
+        $before = $this->stock($order);
+
+        $migration->up();
+
+        $migrated = $order->fresh();
+        $this->assertFalse($migrated->checkout_managed);
+        $this->assertSame($order->reference, $migrated->reference);
+        $this->assertSame($attempt->id, $migrated->payment->attempts()->sole()->id);
+        $this->assertSame(self::REDIRECT, $attempt->fresh()->checkout_url);
+        $this->assertSame($attempt->id, $payment->fresh()->payment_attempt_id);
+        $this->assertSame($before, $this->stock($migrated));
+    }
+
+    public function test_abandoned_binary_checkout_releases_after_a_complete_search_and_tracks_late_approval_without_stock(): void
+    {
+        config(['checkout.pickup_address' => 'QA pickup point']);
+        $order = $this->submitLoggedCheckout('late');
+        Http::fake(['https://api.mercadopago.com/checkout/preferences' => Http::response([
+            'collector_id' => 234, 'id' => '234-example', 'sandbox_init_point' => self::REDIRECT,
+        ], 201)]);
+        $this->start($order, (string) Str::uuid())->assertCreated();
+        $attempt = $order->payment->attempts()->sole();
+        $providerReference = CheckoutProClient::attemptReference($order->reference, $attempt->id);
+        Http::fake([
+            'https://api.mercadopago.com/v1/payments/search*' => Http::response(['paging' => ['total' => 0], 'results' => []]),
+            'https://api.mercadopago.com/v1/payments/159' => Http::response([
+                ...$this->payment($order, 159, 'approved'), 'external_reference' => $providerReference,
+            ]),
+        ]);
+        $this->travel(12)->minutes();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        Http::assertSent(fn (Request $request) => str_contains($request->url(), '/payments/search')
+            && str_contains($request->url(), $providerReference));
+        $this->assertSame('expired', $attempt->fresh()->status->value);
+        $this->assertSame(5, $this->stock($order));
+        Product::query()->whereKey($order->items()->firstOrFail()->product_id)->update(['stock' => 0]);
+        $this->webhook(159, 'late-no-stock')->assertOk();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertSame(0, $this->stock($order));
+        $this->assertSame('payment_review', $order->fresh()->status->value);
+        $this->assertContains('late_approval_without_stock', $order->fresh()->payment_issues);
+        $this->assertDatabaseHas('payments', ['order_id' => $order->id, 'payment_attempt_id' => $attempt->id, 'status' => 'approved']);
+        app(ProjectCommerceNotices::class)->execute();
+        $this->assertDatabaseHas('commerce_notices', ['subject_type' => 'order', 'subject_id' => $order->id,
+            'kind' => 'payment_issue', 'issue' => 'late_approval_without_stock']);
+    }
+
+    public function test_binary_checkout_reconciliation_finds_approved_provider_attempt_without_webhook_or_return(): void
+    {
+        config(['checkout.pickup_address' => 'QA pickup point']);
+        $order = $this->submitLoggedCheckout('no-webhook');
+        Http::fake(['https://api.mercadopago.com/checkout/preferences' => Http::response([
+            'collector_id' => 234, 'id' => '234-example', 'sandbox_init_point' => self::REDIRECT,
+        ], 201)]);
+        $this->start($order, (string) Str::uuid())->assertCreated();
+        $attempt = $order->payment->attempts()->sole();
+        $reference = CheckoutProClient::attemptReference($order->reference, $attempt->id);
+        Http::fake([
+            'https://api.mercadopago.com/v1/payments/search*' => fn (Request $request) => Http::response(
+                str_contains($request->url(), $reference)
+                    ? ['results' => [['id' => 159]], 'paging' => ['total' => 1]]
+                    : ['results' => [], 'paging' => ['total' => 0]]),
+            'https://api.mercadopago.com/v1/payments/159' => Http::response([
+                ...$this->payment($order, 159, 'approved'), 'external_reference' => $reference,
+            ]),
+        ]);
+        $this->travel(2)->minutes();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertDatabaseCount('payment_webhook_events', 0);
+        $this->assertSame('approved', $attempt->fresh()->status->value);
+        $this->getJson('/api/v1/orders')->assertOk()->assertJsonFragment(['reference' => $order->reference, 'status' => 'paid']);
+        $this->assertSame(3, $this->stock($order));
     }
 
     public function test_real_checkout_logs_simulated_payment_and_one_provider_failure_with_no_private_fields(): void
@@ -104,16 +282,19 @@ class PaymentLifecycleTest extends TestCase
             $paid = $records->where('message', 'order.status_changed')->sole();
             $this->assertSame('paid', $paid['context']['status']);
             $this->assertSame($success->id, $paid['context']['order_id']);
+            $this->assertSame($success->reference, $paid['context']['reference']);
             $this->assertSame('INFO', $paid['level_name']);
             $this->assertSame('approved', $records->where('message', 'payment.status_changed')->sole()['context']['status']);
             $error = $records->where('message', 'payment.preference.failed')->sole();
             $this->assertSame($failed->id, $error['context']['order_id']);
+            $this->assertSame($failed->reference, $error['context']['reference']);
+            $this->assertSame($failed->payment->attempts()->value('id'), $error['context']['attempt_id']);
             $this->assertSame('ERROR', $error['level_name']);
             $this->assertSame('provider_unavailable', $error['context']['reason']);
             $this->assertNotEmpty($error['context']['exception_class']);
 
             $logged = $records->toJson();
-            foreach (['buyer-log@example.test', 'PROVIDER_PRIVATE_SENTINEL', 'fake-local-test', 'local-signature-test', $retryKey, $success->reference, $failed->reference, '234-example'] as $sensitive) {
+            foreach (['buyer-log@example.test', 'PROVIDER_PRIVATE_SENTINEL', 'fake-local-test', 'local-signature-test', $retryKey, '234-example'] as $sensitive) {
                 $this->assertStringNotContainsString($sensitive, $logged);
             }
             $default = File::exists($directory.'/laravel.log') ? File::get($directory.'/laravel.log') : '';
@@ -132,7 +313,7 @@ class PaymentLifecycleTest extends TestCase
         }
     }
 
-    private function submitLoggedCheckout(string $variant): Order
+    private function submitLoggedCheckout(string $variant, bool $keepCart = false): Order
     {
         $category = Category::query()->firstOrCreate(['slug' => 'test'], ['name' => 'Test']);
         $product = Product::query()->forceCreate([
@@ -143,6 +324,9 @@ class PaymentLifecycleTest extends TestCase
         $quote = $this->postJson('/api/v1/checkout/quote', ['items' => $items])->assertOk();
         $cookie = $quote->getCookie(config('session.cookie'));
         $this->withCookie($cookie->getName(), $cookie->getValue());
+        if ($keepCart) {
+            $this->putJson('/api/v1/cart/items/'.$product->id, ['quantity' => 2])->assertOk();
+        }
         $reference = $this->postJson('/api/v1/orders', [
             'items' => $items, 'shipping_method' => 'pickup', 'quote_token' => $quote->json('data.shipping_options.0.quote_token'),
             'contact' => ['name' => 'QA checkout', 'email' => 'buyer-log@example.test'],
@@ -530,13 +714,15 @@ class PaymentLifecycleTest extends TestCase
         ]);
     }
 
-    private function reservedOrder(bool $expired = false): Order
+    private function reservedOrder(bool $expired = false, ?string $sessionId = null): Order
     {
-        $response = $this->getJson('/api/v1/orders')->assertOk();
-        $cookie = $response->getCookie(config('session.cookie'));
-        $this->assertNotNull($cookie);
-        $sessionId = $cookie->getValue();
-        $this->withCookie($cookie->getName(), $sessionId);
+        if ($sessionId === null) {
+            $response = $this->getJson('/api/v1/orders')->assertOk();
+            $cookie = $response->getCookie(config('session.cookie'));
+            $this->assertNotNull($cookie);
+            $sessionId = $cookie->getValue();
+            $this->withCookie($cookie->getName(), $sessionId);
+        }
         $category = Category::query()->firstOrCreate(['slug' => 'test'], ['name' => 'Test']);
         $product = Product::query()->forceCreate([
             'sku' => 'PAYMENT-TEST', 'slug' => 'payment-test', 'name' => 'Payment test item',

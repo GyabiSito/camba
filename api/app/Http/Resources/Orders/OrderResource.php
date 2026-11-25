@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources\Orders;
 
+use App\Enums\OrderStatus;
 use App\Models\OrderItem;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -26,6 +27,8 @@ class OrderResource extends JsonResource
 
         return $this->relationLoaded('items') ? [
             ...$summary,
+            'checkout_retryable' => $this->when($this->checkout_managed && $this->status === OrderStatus::PaymentExpired
+                && $this->paid_at === null && $this->stock_released_at !== null, true),
             'payment_state' => $this->whenHas('payment_state'),
             'payment_rejection' => $this->whenHas('payment_rejection'),
             'contact' => $this->contact,

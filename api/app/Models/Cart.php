@@ -37,4 +37,17 @@ class Cart extends Model
     {
         $this->items()->upsert(['product_id' => $productId, 'quantity' => $quantity], ['cart_id', 'product_id'], ['quantity']);
     }
+
+    /** @param array<int,int> $lines Purchased quantities; the caller holds the cart lock. */
+    public function removePurchasedItems(array $lines): void
+    {
+        foreach ($this->items()->whereIn('product_id', array_keys($lines))->get() as $item) {
+            $remaining = $item->quantity - $lines[$item->product_id];
+            if ($remaining > 0) {
+                $item->forceFill(['quantity' => $remaining])->save();
+            } else {
+                $item->delete();
+            }
+        }
+    }
 }

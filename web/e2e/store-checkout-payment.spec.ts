@@ -40,6 +40,33 @@ test('a failed store-info request does not skip payment or hide retry on the sam
   expect(attempts).toEqual([attempts[0], attempts[0]]);
 });
 
+test('a released Checkout Pro reservation can retry from the same checkout detail', async ({ page }) => {
+  await checkout(page);
+  const attempts: string[] = [];
+  let orders = 0;
+  page.on('request', request => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/v1/orders') orders++;
+  });
+  await page.route('**/api/v1/orders/*/payments', route => {
+    attempts.push(new URL(route.request().url()).pathname);
+    return attempts.length === 1
+      ? route.fulfill({ status: 409, json: { data: { status: 'failed', checkout_url: null } } })
+      : route.fulfill({ status: 201, json: { data: { status: 'ready', checkout_url: sandbox } } });
+  });
+  await page.route(/\/api\/v1\/orders\/[^/?]+$/, async route => {
+    const response = await route.fetch();
+    const { data } = await response.json();
+    await route.fulfill({ response, json: { data: { ...data, status: 'payment_expired', checkout_retryable: true } } });
+  });
+  await page.route(sandbox, route => route.fulfill({ status: 200, body: 'Checkout Pro fixture' }));
+  await page.getByRole('button', { name: 'Confirmar pedido', exact: true }).click();
+  await expect(page.getByText(/liberamos la reserva/)).toBeVisible();
+  await page.getByRole('button', { name: 'Reintentar pago', exact: true }).click();
+  await expect(page).toHaveURL(sandbox);
+  expect(orders).toBe(1);
+  expect(attempts).toEqual([attempts[0], attempts[0]]);
+});
+
 test('Checkout Pro opens from checkout and the owned order waits for verified evidence', async ({
   page,
 }, info) => {

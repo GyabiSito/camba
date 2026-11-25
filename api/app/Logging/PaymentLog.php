@@ -33,14 +33,16 @@ final class PaymentLog
         return self::checkout($order->owner_key, $order->idempotency_key);
     }
 
-    public static function transition(string $stage, Order $order, ?string $previous, string $status, Level $level = Level::Info, ?string $reason = null): void
+    public static function transition(string $stage, Order $order, ?string $previous, string $status, Level $level = Level::Info, ?string $reason = null, ?int $attemptId = null): void
     {
         if ($previous === $status) {
             return;
         }
         $id = $order->id;
         $correlation = self::order($order);
-        DB::afterCommit(static fn () => self::write($level, $stage, $correlation, $id, $reason, previousStatus: $previous, status: $status));
+        $reference = $order->reference;
+        DB::afterCommit(static fn () => self::write($level, $stage, $correlation, $id, $reason,
+            previousStatus: $previous, status: $status, reference: $reference, attemptId: $attemptId));
     }
 
     public static function handled(Throwable $error): bool
@@ -48,7 +50,8 @@ final class PaymentLog
         return isset(self::$handled[$error]);
     }
 
-    public static function failure(string $stage, string $correlationId, Throwable $error, ?int $orderId = null, ?string $reason = null): void
+    public static function failure(string $stage, string $correlationId, Throwable $error, ?int $orderId = null, ?string $reason = null,
+        ?string $reference = null, ?int $attemptId = null): void
     {
         if (self::handled($error)) {
             return;
@@ -70,17 +73,22 @@ final class PaymentLog
             $orderId,
             $reason ?? ($expected ? ($status === 503 ? 'provider_disabled' : 'http_'.$status) : 'internal_error'),
             exceptionClass: $error::class,
+            reference: $reference,
+            attemptId: $attemptId,
         );
     }
 
     /** The stage, reason and states are application codes, never request/provider payloads. */
     public static function write(Level $level, string $stage, string $correlationId, ?int $orderId = null, ?string $reason = null,
-        ?string $exceptionClass = null, ?string $previousStatus = null, ?string $status = null): void
+        ?string $exceptionClass = null, ?string $previousStatus = null, ?string $status = null,
+        ?string $reference = null, ?int $attemptId = null): void
     {
         $context = array_filter([
             'stage' => $stage,
             'correlation_id' => $correlationId,
             'order_id' => $orderId,
+            'reference' => $reference !== null && Str::isUuid($reference) ? $reference : null,
+            'attempt_id' => $attemptId,
             'reason' => $reason,
             'exception_class' => $exceptionClass,
             'previous_status' => $previousStatus,

@@ -13,7 +13,7 @@ class RecordOrderMail
     public function created(Order $order): void
     {
         $admin = $this->eligibility->soleAdministrator();
-        $this->record($order, CommerceNotice::ADMIN_ORDER_CREATED, $order->created_at, [
+        $this->record($order, CommerceNotice::ADMIN_ORDER_CREATED, $order->checkout_managed ? $order->paid_at : $order->created_at, [
             'source_hash' => $admin ? $this->eligibility->administratorFingerprint($admin) : null,
             ...($admin ? [] : ['state' => 'cancelled', 'available_at' => null, 'error_code' => 'no_eligible_admin']),
         ]);

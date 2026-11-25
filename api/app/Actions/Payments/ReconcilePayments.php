@@ -109,10 +109,11 @@ class ReconcilePayments
             }
             // A worker can die after the provider accepted a POST. Never replay that POST.
             $interrupted = PaymentAttempt::query()->where('order_id', $id)->where('status', PaymentAttemptStatus::Initiating->value)
-                ->where('updated_at', '<', now()->subSeconds(30))->update(['status' => PaymentAttemptStatus::Uncertain->value]);
-            if ($interrupted) {
+                ->where('updated_at', '<', now()->subSeconds(30))->first();
+            if ($interrupted !== null) {
+                $interrupted->forceFill(['status' => PaymentAttemptStatus::Uncertain])->save();
                 PaymentLog::transition('payment.attempt.changed', $order, PaymentAttemptStatus::Initiating->value,
-                    PaymentAttemptStatus::Uncertain->value, Level::Warning, 'interrupted_attempt',
+                    PaymentAttemptStatus::Uncertain->value, Level::Warning, 'interrupted_attempt', $interrupted->id,
                 );
             }
 
@@ -126,7 +127,16 @@ class ReconcilePayments
         $ids = Payment::query()->where('order_id', $id)->pluck('provider_payment_id')->all();
         $complete = true;
         try {
-            $ids = array_values(array_unique([...$ids, ...$this->client->searchIds($order->reference)]));
+            $references = $order->checkout_managed
+                ? PaymentAttempt::query()->where('order_id', $id)->where('expires_at', '>=', now()->subDay())
+                    ->pluck('id')->map(fn (int $attempt) => CheckoutProClient::attemptReference($order->reference, $attempt))->all()
+                : [$order->reference];
+            foreach ($references as $reference) {
+                $ids = array_values(array_unique([...$ids, ...$this->client->searchIds($reference)]));
+                if (count($ids) > 12) {
+                    break;
+                }
+            }
         } catch (RuntimeException|InvalidArgumentException $error) {
             PaymentLog::failure('payment.reconcile.lookup', $correlation, $error, $id, 'provider_unavailable');
             $complete = false;

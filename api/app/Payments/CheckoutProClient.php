@@ -13,7 +13,7 @@ class CheckoutProClient
     private const API = 'https://api.mercadopago.com';
 
     /** @param list<array{sku:string,name:string,quantity:int,unit_price_cents:int}> $lines */
-    public function preference(string $reference, array $lines, int $shippingCents, DateTimeInterface $expires): array
+    public function preference(string $reference, array $lines, int $shippingCents, DateTimeInterface $expires, ?int $attemptId = null): array
     {
         $origin = $this->publicOrigin();
         if ($origin === null) {
@@ -35,10 +35,11 @@ class CheckoutProClient
         $returnUrl = $origin.'/pedidos/'.rawurlencode($reference).'?retorno=mercadopago';
         $payload = $this->request('POST', '/checkout/preferences', [
             'items' => $items,
-            'external_reference' => $reference,
+            'external_reference' => $attemptId === null ? $reference : self::attemptReference($reference, $attemptId),
             'back_urls' => ['success' => $returnUrl, 'pending' => $returnUrl, 'failure' => $returnUrl],
             'notification_url' => $origin.'/api/v1/webhooks/mercadopago?source_news=webhooks',
             'auto_return' => 'approved',
+            'binary_mode' => true,
             'expires' => true,
             'expiration_date_to' => $expires->format('Y-m-d\TH:i:s.vP'),
         ]);
@@ -82,11 +83,23 @@ class CheckoutProClient
         }
         $instant = CarbonImmutable::parse($updatedAt)->utc();
 
+        $attemptId = null;
+        if (preg_match('/\A([0-9a-f-]{36})_attempt_([1-9][0-9]{0,17})\z/', $reference, $parts)) {
+            $reference = $parts[1];
+            $attemptId = (int) $parts[2];
+        }
+
         return [
             'id' => $id, 'reference' => $reference, 'status' => $status,
             'amount_cents' => (int) $money[1] * 100 + (int) str_pad($money[2] ?? '', 2, '0'),
             'updated_at' => $instant->format('Y-m-d\TH:i:s.v\Z'),
+            ...($attemptId === null ? [] : ['attempt_id' => $attemptId]),
         ];
+    }
+
+    public static function attemptReference(string $reference, int $attemptId): string
+    {
+        return $reference.'_attempt_'.$attemptId;
     }
 
     /** @return list<string> Look these IDs up individually before treating them as evidence. */

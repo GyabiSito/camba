@@ -42,7 +42,7 @@ class AdminOrderController
             'date_to' => ['sometimes', 'date_format:Y-m-d', ...($request->filled('date_from') ? ['after_or_equal:date_from'] : [])],
         ]);
         $stage = $filters['fulfilment_status'] ?? null;
-        $query = Order::query();
+        $query = Order::query()->commercial();
         foreach (['status', 'shipping_method'] as $key) {
             if (isset($filters[$key])) {
                 $query->where($key, $filters[$key]);

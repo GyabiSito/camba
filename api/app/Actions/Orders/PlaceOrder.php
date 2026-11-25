@@ -7,6 +7,8 @@ use App\Actions\Notices\RecordOrderMail;
 use App\Enums\OrderStatus;
 use App\Models\Cart;
 use App\Models\Order;
+use App\Models\OrderPayment;
+use App\Payments\CheckoutProClient;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -17,6 +19,7 @@ class PlaceOrder
         private readonly QuoteCheckout $quote,
         private readonly ResolveAddressGeography $geography,
         private readonly RecordOrderMail $notices,
+        private readonly CheckoutProClient $payments,
     ) {}
 
     public function execute(?int $userId, string $sessionId, array $input): Order
@@ -52,6 +55,13 @@ class PlaceOrder
 
                 return $existing;
             }
+            $managed = $this->payments->checkoutAvailable();
+            if ($managed && ($pending = Order::query()->owned($userId, $sessionId)->where('checkout_managed', true)
+                ->where('request_hash', $fingerprint)->whereNull('paid_at')
+                ->whereIn('status', [OrderStatus::PendingPayment, OrderStatus::PaymentExpired])
+                ->latest('id')->lockForUpdate()->first())) {
+                return $pending;
+            }
 
             if ($address !== null) {
                 $locality = $this->geography->execute($address['department_id'], $address['locality_id'], 'address.locality_id');
@@ -73,6 +83,9 @@ class PlaceOrder
                 'idempotency_key' => $input['idempotency_key'],
                 'request_hash' => $fingerprint,
                 'status' => OrderStatus::PendingPayment,
+                'checkout_managed' => $managed,
+                'checkout_cart_id' => $managed ? $cart->id : null,
+                'payment_id' => $managed ? OrderPayment::query()->create()->id : null,
                 'currency' => $quote['currency'],
                 'subtotal_cents' => $quote['subtotal_cents'],
                 'shipping_cents' => $shipping['shipping_cents'],
@@ -82,21 +95,17 @@ class PlaceOrder
                 'contact' => $contact,
                 'address' => $address,
                 'guest_access_expires_at' => $userId === null ? now()->addHours(config('checkout.guest_access_hours')) : null,
-                'reservation_expires_at' => now()->addMinutes(config('checkout.reservation_minutes')),
+                'reservation_expires_at' => now()->addMinutes(config($managed
+                    ? 'checkout.checkout_pro_reservation_minutes' : 'checkout.reservation_minutes')),
             ]);
             $order->items()->forceCreateMany($quote['items']);
             foreach ($quote['items'] as $index => $line) {
                 $products[$index]->decrement('stock', $line['quantity']);
             }
-            foreach ($cart->items()->whereIn('product_id', array_keys($lines))->get() as $item) {
-                $remaining = $item->quantity - $lines[$item->product_id];
-                if ($remaining > 0) {
-                    $item->forceFill(['quantity' => $remaining])->save();
-                } else {
-                    $item->delete();
-                }
+            if (! $managed) {
+                $cart->removePurchasedItems($lines);
+                $this->notices->created($order);
             }
-            $this->notices->created($order);
 
             return $order;
         }, 3);
