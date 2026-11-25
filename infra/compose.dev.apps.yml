@@ -11,6 +11,7 @@ x-api: &api-runtime
     - ../api:/var/www/html
     - api-vendor:/var/www/html/vendor
     - api-storage:/var/www/html/storage
+    - ../api/storage/logs/pagos:/var/www/html/storage/logs/pagos
     - api-bootstrap-cache:/var/www/html/bootstrap/cache
     - ../web/projects/admin/public/demo:/demo-assets:ro
     - ./dev/postgres/role-health.php:/camba-dev/role-health.php:ro
