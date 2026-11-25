@@ -18,10 +18,10 @@ S6. «Entregá el cambio aplicado, el SHA probado y los comandos exactos para le
 
 ## Tasks
 
-- T1 — S1–S3/S6 · runtime/recovery writer, disjoint surfaces · integrated as `5a1968e`; build and recovery verified. Risk: item 5 (production image, Compose and recovery wiring).
-- T2 — S3/S5 · integration/concurrency writer, disjoint surfaces · `2dc3d53` with fixture correction `7c75092`; real PostgreSQL integration, independent connections, and demo seed group passed. Risk: item 5 (CI) and item 4 (proving the existing locking invariants on the new engine).
-- T3 — S4 · legacy rehearsal writer, disjoint surface · integrated as `d6a1097`; isolated synthetic checks passed. Risk: item 1 (guard against accidental imported-data writes outside disposable storage).
-- T4 — S4–S6 · parent integration, exact-SHA production Compose rehearsal, independent checks and VPS runbook · runtime and Chromium flows passed on integrated SHA `7c75092`; provenance recheck after style/doc normalization. Risk: item 5 (candidate assembly and reference-only bootstrap).
+- [x] T1 — S1–S3/S6 · runtime/recovery writer, disjoint surfaces · integrated as `5a1968e`; build and recovery verified. Risk: item 5 (production image, Compose and recovery wiring).
+- [x] T2 — S3/S5 · integration/concurrency writer, disjoint surfaces · `2dc3d53` with fixture correction `7c75092` and `e6ae372`; real PostgreSQL integration, independent connections, and demo seed group passed. Risk: item 5 (CI) and item 4 (proving the existing locking invariants on the new engine).
+- [x] T3 — S4 · legacy rehearsal writer, disjoint surface · integrated as `d6a1097`; isolated synthetic checks passed. Risk: item 1 (guard against accidental imported-data writes outside disposable storage). Real conversion awaits a suitable export as allowed in S4.
+- [x] T4 — S4–S6 · parent integration · exact-SHA production Compose/Chromium rehearsal, independent checks and VPS runbook passed; final source tested `e6ae372`. Risk: item 5 (candidate assembly and reference-only bootstrap).
 
 ## Log
 
@@ -66,3 +66,7 @@ L10 — PostgreSQL integration RED after 171 tests (2,477 assertions): one payme
 L11 — The timestamp fixture fix is `7c75092`. The exact-source Compose/browser rehearsal exited 0 again against new isolated project `camba-pg-candidate-b495d97733`; it remains running on 44970/44971. The runtime files are byte-identical to the independently checked `2dc3d53`. All 18 migrations and geography checks passed; browser and persisted assertions repeated successfully. Earlier temporary candidate projects were stopped without deleting volumes.
 
 L12 — PostgreSQL 18.7 full suite GREEN: 171 cases, 2,488 assertions, zero failures and one opt-in legacy staging case skipped; that opt-in case passed separately against its own PostgreSQL database (21 assertions). Six contention cases passed (135 assertions). Dedicated PostgreSQL seed group passed (3 cases, 51 assertions) after the local runner mounted the existing demo photos read-only; the hosted runner already has the checkout layout. Fixture-focused GREEN: 1 case, 20 assertions. CI scope/required-gate shell probes and release executor mock regression passed. No GitHub-hosted run or VPS deploy was attempted.
+
+L13 — Corrected the final legacy test style finding and the local demo asset-mount instructions in `e6ae372`. Rebuilt exact `e6ae372c333a0d406db21cfb720f73eec3a8ab01` OCI artifacts and repeated startup, migrations, browser checkout and persisted checks with exit 0. Left `camba-pg-candidate-eff888410d` up at ports 44970/44971 with the synthetic order `b5ad5030-f3e1-4845-b695-8f9cc26e390b`. No runtime paths changed after the separately independently checked candidate.
+
+L14 — Post-normalization full Pint passed (207 files) and the touched staging test class passed in isolated SQLite (11 cases, 93 assertions, one opt-in PostgreSQL case, already run against real PostgreSQL). The sole remaining data operation is conversion/reconciliation with a suitable authorized MySQL export and matching media.
