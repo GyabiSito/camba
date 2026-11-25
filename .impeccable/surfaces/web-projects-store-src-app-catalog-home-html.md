@@ -1,8 +1,8 @@
 ---
 version: 1
 slug: "web-projects-store-src-app-catalog-home-html"
-primary_target: "web/projects/store/src/app/catalog/home.html"
-related_targets: ["web/projects/store/src/app/catalog/home.css","web/projects/store/src/app/catalog/browse.ts"]
+primary_target: "web/projects/store/src/app/features/home/home.html"
+related_targets: ["web/projects/store/src/app/features/home/home.css","web/projects/store/src/app/features/home/home.ts"]
 ---
 
 # Public storefront home

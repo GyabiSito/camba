@@ -17,11 +17,13 @@ test('store captures real catalog data and offers a visible keyboard skip link',
     (url) => url.pathname === '/tienda' && url.searchParams.get('q') === 'Remera lisa',
   );
   await expect(page.getByRole('link', { name: 'Remera lisa', exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'Contacto', exact: true }).click();
-  await expect(page).toHaveURL((url) => url.pathname === '/tienda' && url.searchParams.get('q') === 'Remera lisa' && url.hash === '#canales');
-  await expect(page.getByRole('link', { name: 'hola@camba.test' })).toHaveAttribute(
-    'href',
-    'mailto:hola@camba.test',
+  await page.getByRole('banner').getByRole('link', { name: 'Contacto', exact: true }).click();
+  await expect(page).toHaveURL(/\/contacto$/);
+  await expect(page.getByRole('heading', { name: 'Contactanos', level: 1 })).toBeInViewport();
+  await expect(page.getByRole('main').locator('store-contact')).toHaveCount(1);
+  await page.goBack();
+  await expect(page).toHaveURL(
+    (url) => url.pathname === '/tienda' && url.searchParams.get('q') === 'Remera lisa',
   );
   await page
     .getByRole('navigation', { name: 'Tienda', exact: true })

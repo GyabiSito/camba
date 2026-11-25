@@ -2,7 +2,7 @@ import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { HttpErrorResponse, HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { inject, PLATFORM_ID, REQUEST } from '@angular/core';
 import { of, throwError } from 'rxjs';
-import type { Buyer } from '../../../store/src/app/shopper/shopper';
+import type { Buyer } from '../data-access/buyer-contract';
 import { demoBuyer } from './buyer';
 import { demoCatalog } from './catalog';
 

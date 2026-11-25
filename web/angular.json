@@ -190,8 +190,8 @@
                   "with": "projects/store/src/attach-demo.enabled.ts"
                 },
                 {
-                  "replace": "projects/store/src/app/catalog/editorial-config.ts",
-                  "with": "projects/store/src/app/catalog/editorial-config.enabled.ts"
+                  "replace": "projects/store/src/app/features/home/editorial-config.ts",
+                  "with": "projects/store/src/app/features/home/editorial-config.enabled.ts"
                 }
               ],
               "security": { "allowedHosts": ["127.0.0.1", "localhost"] },
@@ -208,8 +208,8 @@
             "editorial": {
               "fileReplacements": [
                 {
-                  "replace": "projects/store/src/app/catalog/editorial-config.ts",
-                  "with": "projects/store/src/app/catalog/editorial-config.enabled.ts"
+                  "replace": "projects/store/src/app/features/home/editorial-config.ts",
+                  "with": "projects/store/src/app/features/home/editorial-config.enabled.ts"
                 }
               ],
               "security": { "allowedHosts": ["127.0.0.1", "localhost"] },

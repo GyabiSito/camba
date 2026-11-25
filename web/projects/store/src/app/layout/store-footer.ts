@@ -3,7 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { ApiClient } from '@camba/shared';
 import { catchError, map, of } from 'rxjs';
-import type { Classification } from '../catalog/catalog-data';
+import type { StoreClassification as Classification } from '@camba/shared';
 
 @Component({
   imports: [RouterLink],

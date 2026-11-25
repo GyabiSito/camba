@@ -164,3 +164,6 @@ export function apiMessage(error: unknown, fallback = 'No se pudo completar la s
   }
   return fallback;
 }
+
+export type { AdminClassification, AdminProduct, AdminProductPhoto, Page, ProductImage, StoreClassification, StoreProduct } from './data-access/catalog-contracts';
+export type { Buyer } from './data-access/buyer-contract';

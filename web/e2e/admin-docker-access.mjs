@@ -44,6 +44,17 @@ async function signIn(page, origin, email, expected) {
   console.log(`${origin} ${expected === 200 ? 'admin' : 'buyer'}: CSRF 204 → POST 204 → session ${expected}`);
 }
 
+async function checkCanvasGuard(page, origin, reason) {
+  const target = '/portada/vista-previa/lienzo';
+  await page.goto(origin + target);
+  await expect(page.getByLabel('Contraseña', { exact: true })).toBeVisible();
+  const redirected = new URL(page.url());
+  assert.equal(redirected.pathname, '/ingresar');
+  assert.equal(redirected.searchParams.get('next'), target);
+  if (reason === undefined) assert.equal(redirected.searchParams.has('reason'), false);
+  else assert.equal(redirected.searchParams.get('reason'), reason);
+}
+
 async function checkCsrf(context, origin) {
   for (const source of [{}, { Origin: 'http://localhost:4999' }]) {
     const nonStateful = await context.request.post(origin + paths[1], {
@@ -88,6 +99,7 @@ try {
 
   for (const origin of [canonical, 'http://localhost:4300']) {
     const context = await browser.newContext();
+    await checkCanvasGuard(await context.newPage(), origin);
     const anonymous = await context.request.get(`${origin}${paths[2]}`, {
       headers: { Accept: 'application/json', Referer: `${origin}/` },
     });
@@ -106,9 +118,12 @@ try {
   assert((await products.json()).data.length > 0);
   const admin = await shared.newPage();
   await signIn(admin, canonical, 'cliente.diseno@camba.test', 403);
+  await checkCanvasGuard(admin, canonical, 'ineligible');
   const buyer = await shop.request.get(`${store}/api/v1/auth/me`, { headers: { Referer: `${store}/` } });
   assert.equal(buyer.status(), 200);
   assert.equal((await buyer.json()).data.role, 'buyer');
+  await shop.goto(`${store}/cuenta`);
+  await expect(shop.getByRole('heading', { name: 'Datos personales', exact: true })).toBeVisible();
   await signIn(admin, canonical, 'admin.diseno@camba.test', 200);
   const sharedAdmin = await shop.request.get(`${store}/api/v1/auth/me`, { headers: { Referer: `${store}/` } });
   assert.equal(sharedAdmin.status(), 200);

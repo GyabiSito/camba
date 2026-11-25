@@ -28,7 +28,7 @@ Desde `web`, con la Tienda Docker en `http://127.0.0.1:4200`:
 node --test e2e/storefront-support-pages.mjs
 ```
 
-El recorrido prueba SSR sin JavaScript, recarga, títulos visibles al navegar desde el pie, restauración con Atrás, anclas, filtros de catálogo, teclado y diseño de Contactanos con y sin movimiento reducido. Guarda las capturas en `web/test-results/storefront-support-pages/`.
+El recorrido prueba las cinco páginas independientes en SSR sin JavaScript, recarga, títulos visibles al navegar desde el pie, restauración con Atrás, anclas, filtros de catálogo, teclado y diseño de Contactanos con y sin movimiento reducido. Guarda las capturas en `web/test-results/storefront-support-pages/`. La [arquitectura de frontend](FRONTEND_ARCHITECTURE.md) registra los componentes y rutas.
 
 Para comprobar el formulario, usá una instancia de prueba con **un correo de soporte sintético** y SMTP hacia Mailpit. `POST /api/v1/contact` acepta nombre, correo, teléfono opcional y mensaje. El destinatario sale de Configuración; el correo provisto se usa solo para responder. La API devuelve 204 después de que el transporte acepta el mensaje, 422 por datos inválidos, 429 al superar cinco intentos por minuto e IP y 503 si falta el destinatario o falla el transporte. No hay un envío simulado ni un reintento automático.
 

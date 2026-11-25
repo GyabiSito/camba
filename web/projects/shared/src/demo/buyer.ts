@@ -1,4 +1,4 @@
-import type { Buyer } from '../../../store/src/app/shopper/shopper';
+import type { Buyer } from '../data-access/buyer-contract';
 
 export const demoBuyer = {
   id: 2,

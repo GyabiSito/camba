@@ -41,6 +41,12 @@ async function shot(page, name) {
   await page.screenshot({ path: `${output}/${name}.png`, fullPage: true, animations: 'disabled' });
 }
 
+async function cartItems(page) {
+  const response = await page.request.get(store + '/api/v1/cart', { headers: { Referer: store + '/' } });
+  assert.equal(response.status(), 200);
+  return (await response.json()).data.items;
+}
+
 try {
   await mkdir(output, { recursive: true });
   const shop = await open(store);
@@ -76,7 +82,7 @@ try {
   await expect(addresses.getByRole('button', { name: /^Editar / })).toHaveCount(2);
   await shot(shop, '02-cuenta');
   await shop.getByRole('link', { name: 'Mis pedidos' }).click();
-  await expect(shop.getByText('Reserva vencida', { exact: true })).toBeVisible();
+  await expect(shop.getByText('Reserva vencida', { exact: true }).first()).toBeVisible();
   await shot(shop, '03-historial');
   let paidReference;
   for (const state of ['Pago confirmado', 'Pendiente de pago', 'Reserva vencida']) {
@@ -96,27 +102,46 @@ try {
     await expect(shop).toHaveURL(store + '/pedidos');
   }
 
-  await shop.goto(store + '/carrito');
-  const cart = shop.getByRole('list', { name: 'Productos', exact: true });
-  await expect(cart.getByRole('listitem')).toHaveCount(2);
+  const originalCart = await cartItems(shop);
+  const shopping = originalCart.length ? shop : await open(store);
+  if (shopping !== shop) {
+    // The long-lived demo buyer may have already checked out. Use a fresh guest cart instead.
+    await shopping.goto(store + '/producto/' + galleryProduct.slug);
+    const added = shopping.waitForResponse(r => r.url().includes('/api/v1/cart/items/') && r.request().method() === 'POST');
+    await shopping.getByRole('button', { name: 'Agregar al carrito', exact: true }).click();
+    assert((await added).ok());
+  }
+  await shopping.goto(store + '/carrito');
+  const cart = shopping.getByRole('list', { name: 'Productos', exact: true });
+  await expect(cart.getByRole('listitem')).toHaveCount(originalCart.length || 1);
   for (const item of await cart.getByRole('listitem').all()) {
     await photo(item.locator('store-product-photo img'));
     await expect(item.getByRole('spinbutton')).toBeVisible();
   }
-  await shot(shop, '04-carrito');
-  await shop.getByRole('link', { name: 'Continuar la compra', exact: true }).click();
-  await shop.getByRole('radio', { name: /Retiro/ }).check();
-  const summary = shop.getByRole('complementary', { name: 'Resumen de la compra' });
+  await shot(shopping, '04-carrito');
+  await shopping.getByRole('link', { name: 'Continuar la compra', exact: true }).click();
+  await shopping.getByRole('radio', { name: /Retiro/ }).check();
+  const summary = shopping.getByRole('complementary', { name: 'Resumen de la compra' });
   await expect(summary).toContainText('Sin costo');
-  await shop.getByRole('radio', { name: /Entrega a domicilio/ }).check();
-  await shop.getByLabel('Usar una dirección guardada').selectOption({ index: 1 });
-  await expect(shop.getByLabel('Calle', { exact: true })).not.toHaveValue('');
+  if (shopping === shop) {
+    await shopping.getByRole('radio', { name: /Entrega a domicilio/ }).check();
+    await shopping.getByLabel('Usar una dirección guardada').selectOption({ index: 1 });
+    await expect(shopping.getByLabel('Calle', { exact: true })).not.toHaveValue('');
+  }
   await expect(summary.getByText('Total', { exact: true })).toBeVisible();
-  await expect(shop.getByRole('button', { name: 'Confirmar pedido' })).toBeEnabled();
-  await shot(shop, '05-checkout');
+  await expect(shopping.getByRole('button', { name: 'Confirmar pedido' })).toBeVisible();
+  await shot(shopping, '05-checkout');
+  if (shopping !== shop) {
+    await shopping.goto(store + '/carrito');
+    await shopping.getByRole('button', { name: /^Quitar / }).click();
+    await expect(shopping.getByRole('heading', { name: 'Tu carrito está vacío' })).toBeVisible();
+    await shopping.close();
+  }
 
   const backoffice = await open(admin);
   await login(backoffice, 'admin.diseno@camba.test');
+  await expect(backoffice.getByRole('heading', { name: 'Inicio', exact: true })).toBeVisible();
+  await backoffice.getByRole('link', { name: 'Productos', exact: true }).click();
   await expect(backoffice.getByRole('heading', { name: 'Productos', exact: true })).toBeVisible();
   for (const status of ['published', 'draft', 'archived']) {
     const res = await backoffice.request.get(admin + '/api/v1/admin/products?status=' + status, {
@@ -125,9 +150,7 @@ try {
     assert.equal(res.status(), 200);
     assert((await res.json()).data.some((item) => item.status === status));
   }
-  const item = backoffice.getByRole('link', { name: galleryProduct.name, exact: true });
-  const adminProduct = await item.getAttribute('href').catch(() => null);
-  await backoffice.goto(admin + (adminProduct ?? '/productos/' + galleryProduct.id));
+  await backoffice.goto(admin + '/productos/' + galleryProduct.id);
   await expect(
     backoffice.getByRole('heading', { name: galleryProduct.name, exact: true }),
   ).toBeVisible();
@@ -142,8 +165,23 @@ try {
   await expect(backoffice.getByText(paidReference, { exact: true })).toBeVisible();
   await shot(backoffice, '07-admin-pedido');
 
-  await shop.goto(store + '/carrito');
-  await expect(cart.getByRole('listitem')).toHaveCount(2);
+  for (const [path, title] of [
+    ['/productos/categorias', 'Categorías'],
+    ['/productos/marcas', 'Marcas'],
+    ['/productos/carga-por-fotos', 'Carga por fotos'],
+    ['/pedidos', 'Pedidos'],
+    ['/pedidos/avisos', 'Avisos operativos'],
+    ['/configuracion', 'Configuración'],
+    ['/configuracion/historial', 'Historial de configuración'],
+    ['/portada', 'Portada'],
+    ['/portada/vista-previa', 'Vista previa'],
+  ]) {
+    assert.equal((await backoffice.goto(admin + path))?.status(), 200, path);
+    await expect(backoffice.getByRole('heading', { name: title, level: 1, exact: true })).toBeVisible();
+  }
+  await expect(backoffice.frameLocator('#homepage-canvas').locator('store-home')).toBeVisible();
+
+  assert.deepEqual(await cartItems(shop), originalCart, 'Preserve the existing buyer cart');
   assert.deepEqual(fail, []);
   console.log(
     'Store and admin verified on PostgreSQL; seeded cart preserved. Order:',

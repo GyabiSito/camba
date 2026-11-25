@@ -1,9 +1,9 @@
 ﻿import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { homeCategoryCards, homeCrop, homeHref, homeImage, homeSectionExists, homeSrcset, legacyHomeDocument, publicationHome } from '../projects/store/src/app/catalog/home-config.ts';
+import { homeCategoryCards, homeCrop, homeHref, homeImage, homeSectionExists, homeSrcset, legacyHomeDocument, publicationHome } from '../projects/store/src/app/features/home/home-config.ts';
 import type { HomePublication } from '../projects/shared/src/homepage.ts';
-import type { Product } from '../projects/store/src/app/catalog/catalog-data.ts';
+import type { StoreProduct as Product } from '../projects/shared/src/data-access/catalog-contracts.ts';
 
 const product = (id: number, categoryId = 1): Product => ({ id, sku: 'SKU-' + id, slug: 'item-' + id, name: 'Item ' + id,
   description: null, price_cents: 12345 + id, stock: 2, in_stock: true,
@@ -15,25 +15,29 @@ const published = (): HomePublication<Product> => ({ document: legacyHomeDocumen
   categories: products.filter(item => item.id !== 2).map(item => item.category), products });
 
 test('draft preview belongs only to Admin; Store wildcard retains server-side 404 resolution', () => {
-  const routes = readFileSync(new URL('../projects/store/src/app/catalog/routes.ts', import.meta.url), 'utf8');
+  const routes = readFileSync(new URL('../projects/store/src/app/features/catalog/catalog.routes.ts', import.meta.url), 'utf8');
   const server = readFileSync(new URL('../projects/store/src/app/app.routes.server.ts', import.meta.url), 'utf8');
-  const resolvers = readFileSync(new URL('../projects/store/src/app/catalog/catalog-data.ts', import.meta.url), 'utf8');
+  const resolvers = readFileSync(new URL('../projects/store/src/app/features/home/data-access/home.resolver.ts', import.meta.url), 'utf8');
+  const missing = readFileSync(new URL('../projects/store/src/app/features/catalog/data-access/missing.resolver.ts', import.meta.url), 'utf8');
   assert.doesNotMatch(routes + server, /portada\/vista-previa/);
   assert.doesNotMatch(resolvers, /admin\/homepage\/preview|resolveHomePreview/);
   assert.match(routes, /path: '\*\*'.*resolveMissing/);
-  assert.match(resolvers, /markStatus\(inject\(RESPONSE_INIT.*404/);
+  assert.match(missing, /status = 404/);
   assert.match(resolvers, /api\.publicGet<[^\n]+\('\/api\/v1\/homepage'\)/);
 });
 
 test('Admin preview loads private data locally and uses the existing renderer inside a real viewport', () => {
-  const read = (name: string) => readFileSync(new URL('../projects/admin/src/app/homepage/preview/' + name, import.meta.url), 'utf8');
+  const read = (name: string) => readFileSync(new URL('../projects/admin/src/app/features/homepage/preview/' + name, import.meta.url), 'utf8');
   const routes = read('routes.ts');
   const canvas = read('homepage-preview-canvas.ts');
   const wrapper = read('homepage-preview.ts');
-  assert.match(routes, /api\.get<[^\n]+\('\/api\/v1\/admin\/homepage\/preview'\)/);
-  assert.match(routes, /api\.get<[^\n]+\('\/api\/v1\/admin\/homepage'\)/);
+  const api = read('../data-access/homepage-api.ts');
+  assert.match(routes, /api\.preview\(\)/);
+  assert.match(api, /endpoint = '\/api\/v1\/admin\/homepage'/);
+  assert.match(api, /this\.endpoint}\s*\/preview/);
+  assert.match(api, /this\.api\.get<Data<HomeEditorState>>\(this\.endpoint\)/);
   assert.doesNotMatch(routes, /publicGet|TransferState/);
-  assert.match(canvas, /import \{ StoreHome \}/);
+  assert.match(canvas, /import \{[^}]*\bStoreHome\b[^}]*\}/);
   assert.match(canvas, /<store-home/);
   assert.match(canvas, /stopImmediatePropagation\(\)/);
   assert.match(wrapper, /src="\/portada\/vista-previa\/lienzo"/);

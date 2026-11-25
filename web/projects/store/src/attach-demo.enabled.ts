@@ -4,7 +4,9 @@ import { resolve } from 'node:path';
 import { json, Router, type Express } from 'express';
 import { demoBuyer } from '../../shared/src/demo/buyer';
 import { demoProduct } from '../../shared/src/demo/catalog';
-import type { Address, Cart, Line, Order, Shipping } from './app/shopper/shopper';
+import type { Address } from './app/shared/data-access/address';
+import type { Cart } from './app/features/cart';
+import type { Line, Order, Shipping } from './app/features/orders';
 
 const deliveryCents = 19_000;
 const pickup = 'Mostrador Camba';

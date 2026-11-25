@@ -2,8 +2,9 @@ import { DOCUMENT } from '@angular/common';
 import { Component, DestroyRef, afterNextRender, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { isActive, Router, RouterLink, RouterLinkActive } from '@angular/router';
-import { ApiClient, CART_CHANGED } from '@camba/shared';
+import { CART_CHANGED } from '@camba/shared';
 import { catchError, fromEvent, of, startWith, switchMap } from 'rxjs';
+import { CartApi } from '../features/cart';
 
 @Component({
   selector: 'store-header',
@@ -12,7 +13,7 @@ import { catchError, fromEvent, of, startWith, switchMap } from 'rxjs';
   styleUrl: './store-header.css',
 })
 export class StoreHeader {
-  private readonly api = inject(ApiClient);
+  private readonly api = inject(CartApi);
   private readonly document = inject(DOCUMENT);
   private readonly scope = inject(DestroyRef);
   protected readonly home = isActive('/', inject(Router), { paths: 'exact', queryParams: 'ignored',
@@ -25,7 +26,7 @@ export class StoreHeader {
       if (!view) return;
       fromEvent(view, CART_CHANGED).pipe(
         startWith(null),
-        switchMap(() => this.api.get<{ data: { items: { quantity: number }[] } }>('/api/v1/cart')
+        switchMap(() => this.api.getCart()
           .pipe(catchError(() => of(null)))),
         takeUntilDestroyed(this.scope),
       ).subscribe((result) => {

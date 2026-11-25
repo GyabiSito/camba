@@ -5,6 +5,12 @@ test('renders the public catalog on the server and preserves selection across th
   page,
   request,
 }, testInfo) => {
+  const replayErrors: string[] = [];
+  page.on('console', message => {
+    if (message.type() === 'error' && message.text().includes('preventDefault` called during event replay')) {
+      replayErrors.push(message.text());
+    }
+  });
   const home = await request.get('/');
   expect(home.status()).toBe(200);
   const homeHtml = await home.text();
@@ -35,6 +41,7 @@ test('renders the public catalog on the server and preserves selection across th
   await page.setViewportSize({ width: 320, height: 800 });
   await page.goto('/tienda');
   await page.getByRole('searchbox', { name: 'Buscar en la tienda' }).fill('Remera');
+  await page.getByRole('button', { name: /^Filtros/ }).click();
   await page.getByLabel('Categoría').selectOption('remeras');
   await page.getByLabel('Orden').selectOption('price_asc');
   await page.getByRole('button', { name: 'Aplicar', exact: true }).click();
@@ -72,6 +79,7 @@ test('renders the public catalog on the server and preserves selection across th
   await expect(page.getByLabel('Marca')).toHaveValue('taller');
   await expect(page.getByRole('link', { name: 'Camisa de algodón', exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Remera lisa', exact: true })).toHaveCount(0);
+  expect(replayErrors).toEqual([]);
 });
 
 test('filtered catalog pages preserve controls, product order and browser history', async ({

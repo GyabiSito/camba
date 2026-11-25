@@ -1,5 +1,4 @@
-import type { Classification, Page, Product } from '../../../admin/src/app/catalog/catalog-api';
-import type { Product as StoreProduct } from '../../../store/src/app/catalog/catalog-data';
+import type { AdminClassification as Classification, AdminProduct as Product, Page, StoreProduct } from '../data-access/catalog-contracts';
 
 const shirts: Classification = { id: 1, slug: 'remeras', name: 'Remeras', active: true };
 const overshirts: Classification = { id: 2, slug: 'camisas', name: 'Camisas', active: true };

@@ -39,7 +39,7 @@ The full backend-dependent suite and native review receipt were not run for this
 
 ## Files
 
-- Home and motion: `web/projects/store/src/app/catalog/{home,home-editorial,browse,catalog-data,home-motion,product-media}.*`.
+- Home and motion: `web/projects/store/src/app/features/home/`. The catalog owns its listing; the home preview for Admin uses the public Store entry point documented in [Frontend feature architecture](FRONTEND_ARCHITECTURE.md).
 - Route-specific shell: `web/projects/store/src/app/app.{ts,html,css}`. The non-home header and search destinations were compared with the baseline.
 - Demo assets and build: `web/projects/store/demo-assets/atelier-*`, `web/angular.json`.
 - Checks: `web/e2e/home-editorial*.mjs`; the active storefront catalog spec now expects the new home headings.

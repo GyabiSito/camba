@@ -2,7 +2,7 @@ import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, Elemen
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { useStoreMeta } from '../../../../../core/seo/store-meta';
-import { editorialEnabled } from '../../../../../catalog/editorial-config';
+import { editorialEnabled } from '../../../../home';
 import type { PublicStoreInfo } from '../../../../../shared/data-access/public-store-info';
 import { scrollHelpOnNavigation } from '../../../../../shared/ui/help-article/scroll-help-on-navigation';
 import { CONTACT_SENDER } from '../../../application/contact-sender';
