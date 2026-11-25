@@ -10,7 +10,10 @@ use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -50,6 +53,101 @@ class PaymentLifecycleTest extends TestCase
         ]);
         $this->withCredentials()->withHeader('Origin', 'http://localhost');
         Http::preventStrayRequests();
+    }
+
+    public function test_real_checkout_logs_simulated_payment_and_one_provider_failure_with_no_private_fields(): void
+    {
+        $keep = getenv('CAMBA_PAGOS_DOCKER_PROOF') === '1';
+        if ($keep) {
+            $this->assertSame('sqlite', DB::getDriverName());
+            $this->assertSame(':memory:', DB::getDatabaseName());
+        }
+        $directory = $keep ? storage_path('logs') : sys_get_temp_dir().'/camba-provider-log-'.Str::uuid();
+        config([
+            'logging.channels.pagos.handler_with.directory' => $directory.'/pagos',
+            'logging.default' => 'single',
+            'logging.channels.single.path' => $directory.'/laravel.log',
+            'checkout.pickup_address' => 'QA pickup point',
+        ]);
+
+        try {
+            $success = $this->submitLoggedCheckout('success');
+            $failed = $this->submitLoggedCheckout('failure');
+            Http::fake([
+                'https://api.mercadopago.com/checkout/preferences' => Http::sequence()
+                    ->push(['collector_id' => 234, 'id' => '234-example', 'sandbox_init_point' => self::REDIRECT], 201)
+                    ->push(['message' => 'PROVIDER_PRIVATE_SENTINEL'], 502),
+                'https://api.mercadopago.com/v1/payments/159' => Http::response($this->payment($success, 159, 'approved')),
+            ]);
+            $this->start($success, (string) Str::uuid())->assertCreated()->assertJsonPath('data.status', 'ready');
+            $retryKey = (string) Str::uuid();
+            $this->start($failed, $retryKey)->assertConflict()->assertJsonPath('data.status', 'uncertain');
+            $this->start($failed, $retryKey)->assertConflict()->assertJsonPath('data.status', 'uncertain');
+            foreach (['payment-log-first-observation', 'payment-log-replayed-observation'] as $delivery) {
+                $this->webhook(159, $delivery)->assertOk();
+                $this->artisan('camba:reconcile-payments')->assertSuccessful();
+            }
+            $this->assertSame('paid', $success->fresh()->status->value);
+            $this->assertSame('pending_payment', $failed->fresh()->status->value);
+            $this->assertSame(3, $this->stock($success));
+            Http::assertSentCount(4);
+
+            $path = $directory.'/pagos/'.now('America/Montevideo')->format('dmY').'.log';
+            $for = static fn (Order $order): string => hash_hmac('sha256', 'checkout:'.$order->owner_key.':'.$order->idempotency_key, (string) config('app.key'));
+            $ids = [$for($success), $for($failed)];
+            $contents = File::get($path);
+            $records = collect(explode("\n", trim($contents)))->map(fn (string $line) => json_decode($line, true, flags: JSON_THROW_ON_ERROR))
+                ->filter(fn (array $entry) => in_array($entry['context']['correlation_id'] ?? null, $ids, true));
+            $this->assertCount(2, $records->where('message', 'order.created'));
+            $this->assertCount(2, $records->where('message', 'payment.started'));
+            $paid = $records->where('message', 'order.status_changed')->sole();
+            $this->assertSame('paid', $paid['context']['status']);
+            $this->assertSame($success->id, $paid['context']['order_id']);
+            $this->assertSame('INFO', $paid['level_name']);
+            $this->assertSame('approved', $records->where('message', 'payment.status_changed')->sole()['context']['status']);
+            $error = $records->where('message', 'payment.preference.failed')->sole();
+            $this->assertSame($failed->id, $error['context']['order_id']);
+            $this->assertSame('ERROR', $error['level_name']);
+            $this->assertSame('provider_unavailable', $error['context']['reason']);
+            $this->assertNotEmpty($error['context']['exception_class']);
+
+            $logged = $records->toJson();
+            foreach (['buyer-log@example.test', 'PROVIDER_PRIVATE_SENTINEL', 'fake-local-test', 'local-signature-test', $retryKey, $success->reference, $failed->reference, '234-example'] as $sensitive) {
+                $this->assertStringNotContainsString($sensitive, $logged);
+            }
+            $default = File::exists($directory.'/laravel.log') ? File::get($directory.'/laravel.log') : '';
+            foreach ([...$ids, 'PROVIDER_PRIVATE_SENTINEL'] as $marker) {
+                $this->assertStringNotContainsString($marker, $default);
+            }
+            if ($keep) {
+                fwrite(STDOUT, "\n$path\n".json_encode($paid, JSON_THROW_ON_ERROR)."\n".json_encode($error, JSON_THROW_ON_ERROR)."\n");
+            }
+        } finally {
+            Log::forgetChannel('pagos');
+            Log::forgetChannel('single');
+            if (! $keep) {
+                File::deleteDirectory($directory);
+            }
+        }
+    }
+
+    private function submitLoggedCheckout(string $variant): Order
+    {
+        $category = Category::query()->firstOrCreate(['slug' => 'test'], ['name' => 'Test']);
+        $product = Product::query()->forceCreate([
+            'sku' => 'LOG-'.$variant, 'slug' => 'payment-log-'.$variant, 'name' => 'Payment log fixture',
+            'price_cents' => 1200, 'stock' => 5, 'status' => 'published', 'category_id' => $category->id,
+        ]);
+        $items = [['product_id' => $product->id, 'quantity' => 2]];
+        $quote = $this->postJson('/api/v1/checkout/quote', ['items' => $items])->assertOk();
+        $cookie = $quote->getCookie(config('session.cookie'));
+        $this->withCookie($cookie->getName(), $cookie->getValue());
+        $reference = $this->postJson('/api/v1/orders', [
+            'items' => $items, 'shipping_method' => 'pickup', 'quote_token' => $quote->json('data.shipping_options.0.quote_token'),
+            'contact' => ['name' => 'QA checkout', 'email' => 'buyer-log@example.test'],
+        ], ['Idempotency-Key' => (string) Str::uuid()])->assertCreated()->json('data.reference');
+
+        return Order::where('reference', $reference)->sole();
     }
 
     public function test_webhook_dedupe_precedes_ack_and_out_of_order_events_cannot_reopen_paid_order(): void

@@ -17,8 +17,8 @@ S5 — Entregá la ruta del archivo que generaste, un ejemplo sanitizado de una 
 ## Tasks
 
 - [x] T1 · S1/S4 · Monolog daily file and persistent storage · `65d9ad7`; isolated rollover 1/7, resolved Compose mounts checked. Risk item 5 (delivery/storage).
-- [x] T2 · S2/S3 · checkout, rejection, correlation and committed order creation · inline; checkout/rotation suites 16/354. Risk item 2 (customer data redaction).
-- [ ] T3 · S2/S3 · payment provider, transitions and deduplication · inline; depends on checkout identity/telemetry shape. Risk items 2 and 4 (payload redaction and existing lifecycle locks).
+- [x] T2 · S2/S3 · checkout, rejection, correlation and committed order creation · `bc0debb`; checkout/rotation suites 16/354. Risk item 2 (customer data redaction).
+- [x] T3 · S2/S3 · payment provider, transitions and deduplication · inline; normalized checkout/payment/rollover suite 33/619. Risk items 2 and 4 (payload redaction and existing lifecycle locks).
 - [ ] T4 · S1–S5 · Docker fake-provider proof, isolated fault/rollover, independent verification and sanitized handoff · inline integration; delegate independent verifier for the named risks.
 
 ## Log
@@ -48,3 +48,7 @@ RED: the channel does not exist. GREEN: one Laravel-resolved logger wrote exactl
 ### L4 — T2 checkout proof
 
 RED: the real stale-quote/confirm/retry HTTP regression created no dedicated log. GREEN: 16 checkout/channel tests and 354 assertions. Before order creation, quote attempts get their own UUID and valid confirmation attempts derive a non-reversible HMAC from the existing idempotency key and owner key; subsequent order events derive the same HMAC without a migration. HTTP responses are left unchanged. Only committed new orders log creation, not idempotent replays or rolled-back orders. The exact exception object is marked once to avoid unsanitized default exception reporting, and non-payment logs still reach the configured default channel.
+
+### L5 — T3 payment proof
+
+RED: the fake purchase/payment replay test observed real checkout order creation but no payment-start logs. GREEN: checkout, channel and payment lifecycle suites 33 cases and 619 assertions. Record provider errors at preference/reconciliation boundaries, new durable issue codes only, and committed payment/attempt/order state transitions. Order HMAC uses Laravel's application key and namespaces the owner/idempotency tuple; no original identifiers or payloads. A failed provider lookup cycle emits one error even if multiple subordinate lookups fail. Separate concurrent edits to the Mercado Pago configuration/example/docs/client tests are unrelated and not staged or altered.

@@ -5,6 +5,7 @@ namespace App\Actions\Payments;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\ProductStatus;
+use App\Logging\PaymentLog;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PaymentAttempt;
@@ -12,6 +13,7 @@ use App\Models\PaymentObservation;
 use App\Models\Product;
 use DateTimeInterface;
 use Illuminate\Support\Facades\DB;
+use Monolog\Level;
 
 class ApplyPaymentEvidence
 {
@@ -32,6 +34,8 @@ class ApplyPaymentEvidence
             if ($lease !== null && $order->payment_reconcile_token !== $lease) {
                 return 'lease_lost';
             }
+
+            $previous = $order->status;
 
             $matched = true;
             foreach ($evidence as $payment) {
@@ -62,6 +66,7 @@ class ApplyPaymentEvidence
             }
 
             $order->save();
+            PaymentLog::transition('order.status_changed', $order, $previous->value, $order->status->value);
 
             return $result;
         }, 3);
@@ -85,6 +90,7 @@ class ApplyPaymentEvidence
             return false;
         }
         $comparison = $payment === null ? 1 : strcmp($date, $payment->provider_updated_at);
+        $previous = $payment?->status;
         if ($payment === null) {
             $payment = Payment::query()->forceCreate([
                 'order_id' => $order->id,
@@ -109,6 +115,10 @@ class ApplyPaymentEvidence
             return true;
         }
         $payment->forceFill(['status' => $state, 'provider_updated_at' => $date])->save();
+        $rejected = in_array($state, [PaymentStatus::Rejected, PaymentStatus::Cancelled], true);
+        PaymentLog::transition('payment.status_changed', $order, $previous?->value, $state->value,
+            $rejected ? Level::Warning : Level::Info, $rejected ? 'provider_'.$state->value : null,
+        );
         if ($state === PaymentStatus::Approved) {
             $this->applyApproval($order, $id);
         } elseif (in_array($state, [PaymentStatus::Refunded, PaymentStatus::ChargedBack], true)) {
@@ -200,6 +210,12 @@ class ApplyPaymentEvidence
 
     private function flag(Order $order, string $issue): void
     {
-        $order->payment_issues = array_values(array_unique([...($order->payment_issues ?? []), $issue]));
+        $issues = $order->payment_issues ?? [];
+        $order->payment_issues = array_values(array_unique([...$issues, $issue]));
+        if (! in_array($issue, $issues, true)) {
+            $id = $order->id;
+            $correlation = PaymentLog::order($order);
+            DB::afterCommit(static fn () => PaymentLog::write(Level::Warning, 'payment.evidence.flagged', $correlation, $id, $issue));
+        }
     }
 }

@@ -3,10 +3,24 @@
 namespace App\Http\Requests\Payments;
 
 use App\Http\Requests\Orders\OrderSessionRequest;
+use App\Logging\PaymentLog;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class StartPaymentRequest extends OrderSessionRequest
 {
+    protected function failedValidation(Validator $validator)
+    {
+        try {
+            parent::failedValidation($validator);
+        } catch (ValidationException $error) {
+            PaymentLog::failure('payment.start', PaymentLog::attempt(), $error);
+
+            throw $error;
+        }
+    }
+
     protected function prepareForValidation(): void
     {
         parent::prepareForValidation();

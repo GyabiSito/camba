@@ -2,15 +2,28 @@
 
 namespace App\Http\Controllers\Payments;
 
+use App\Logging\PaymentLog;
 use App\Payments\CheckoutProClient;
 use App\Payments\PaymentWebhookSignature;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class PaymentWebhookController
 {
     public function store(Request $request, PaymentWebhookSignature $signature): Response
+    {
+        try {
+            return $this->accept($request, $signature);
+        } catch (Throwable $error) {
+            PaymentLog::failure('payment.webhook', PaymentLog::attempt(), $error);
+
+            throw $error;
+        }
+    }
+
+    private function accept(Request $request, PaymentWebhookSignature $signature): Response
     {
         $content = $request->getContent();
         abort_if(strlen($content) > 16384 || strlen((string) $request->server('QUERY_STRING')) > 2048

@@ -4,6 +4,7 @@ namespace App\Logging;
 
 use App\Models\Order;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -24,12 +25,22 @@ final class PaymentLog
 
     public static function checkout(string $ownerKey, string $idempotencyKey): string
     {
-        return hash_hmac('sha256', 'checkout:'.$idempotencyKey, $ownerKey);
+        return hash_hmac('sha256', 'checkout:'.$ownerKey.':'.$idempotencyKey, (string) config('app.key'));
     }
 
     public static function order(Order $order): string
     {
         return self::checkout($order->owner_key, $order->idempotency_key);
+    }
+
+    public static function transition(string $stage, Order $order, ?string $previous, string $status, Level $level = Level::Info, ?string $reason = null): void
+    {
+        if ($previous === $status) {
+            return;
+        }
+        $id = $order->id;
+        $correlation = self::order($order);
+        DB::afterCommit(static fn () => self::write($level, $stage, $correlation, $id, $reason, previousStatus: $previous, status: $status));
     }
 
     public static function handled(Throwable $error): bool
@@ -57,7 +68,7 @@ final class PaymentLog
             $stage.($expected ? '.rejected' : '.failed'),
             $correlationId,
             $orderId,
-            $reason ?? ($expected ? 'http_'.$status : 'internal_error'),
+            $reason ?? ($expected ? ($status === 503 ? 'provider_disabled' : 'http_'.$status) : 'internal_error'),
             exceptionClass: $error::class,
         );
     }
