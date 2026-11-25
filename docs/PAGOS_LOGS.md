@@ -20,7 +20,7 @@ $mounts = docker inspect camba-v2-demo-pg-api-1 --format '{{json .Mounts}}' | Co
 $storage = ($mounts | Where-Object Destination -eq '/var/www/html/storage').Name
 $vendor = ($mounts | Where-Object Destination -eq '/var/www/html/vendor').Name
 if (-not $storage -or -not $vendor) { throw 'Expected the named volumes of the local demo.' }
-$copy = 'set -eu; cp -R /input/app /input/bootstrap /input/config /input/database /input/public /input/resources /input/routes /input/tests /input/artisan /input/composer.json /input/phpunit.xml .; mkdir -p storage/framework/views storage/framework/testing storage/logs'
+$copy = 'set -eu; cp -R /input/app /input/bootstrap /input/config /input/database /input/lang /input/public /input/resources /input/routes /input/tests /input/artisan /input/composer.json /input/phpunit.xml .; mkdir -p storage/framework/views storage/framework/testing storage/logs'
 $proof = 'php vendor/bin/phpunit --do-not-cache-result tests/Feature/Payments/PaymentLifecycleTest.php --filter test_real_checkout_logs_simulated_payment'
 docker run --rm --pull never --network none --entrypoint sh -w /work `
   --mount "type=bind,source=$api,target=/input,readonly" `

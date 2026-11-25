@@ -18,8 +18,8 @@ S5 — Entregá la ruta del archivo que generaste, un ejemplo sanitizado de una 
 
 - [x] T1 · S1/S4 · Monolog daily file and persistent storage · `65d9ad7`; isolated rollover 1/7, resolved Compose mounts checked. Risk item 5 (delivery/storage).
 - [x] T2 · S2/S3 · checkout, rejection, correlation and committed order creation · `bc0debb`; checkout/rotation suites 16/354. Risk item 2 (customer data redaction).
-- [x] T3 · S2/S3 · payment provider, transitions and deduplication · inline; normalized checkout/payment/rollover suite 33/619. Risk items 2 and 4 (payload redaction and existing lifecycle locks).
-- [ ] T4 · S1–S5 · Docker fake-provider proof, isolated fault/rollover, independent verification and sanitized handoff · inline integration; delegate independent verifier for the named risks.
+- [x] T3 · S2/S3 · payment provider, transitions and deduplication · `a9aea1f`; normalized checkout/payment/rollover suite 33/619. Risk items 2 and 4 (payload redaction and existing lifecycle locks).
+- [x] T4 · S1–S5 · Docker fake-provider proof 1/42, same-logger rollover 1/7, entire Orders/Payments suite 44/698, independent verifier approved all specs · inline integration plus independent verifier for the named risks.
 
 ## Log
 
@@ -52,3 +52,11 @@ RED: the real stale-quote/confirm/retry HTTP regression created no dedicated log
 ### L5 — T3 payment proof
 
 RED: the fake purchase/payment replay test observed real checkout order creation but no payment-start logs. GREEN: checkout, channel and payment lifecycle suites 33 cases and 619 assertions. Record provider errors at preference/reconciliation boundaries, new durable issue codes only, and committed payment/attempt/order state transitions. Order HMAC uses Laravel's application key and namespaces the owner/idempotency tuple; no original identifiers or payloads. A failed provider lookup cycle emits one error even if multiple subordinate lookups fail. Separate concurrent edits to the Mercado Pago configuration/example/docs/client tests are unrelated and not staged or altered.
+
+### L6 — Docker verification
+
+The committed code at `a9aea1fb9aa11f9886215dd42b931880c9a02b46` was copied from a Git archive into test containers with network disabled. The first harness run omitted `api/lang` and failed only the Spanish-message assertion; copying `lang` corrected the harness and reproduced the normal response. All Orders and Payments tests passed (44 cases, 698 assertions), including rollover using one live logger. Pint passed on 15 scoped PHP files. The focused fake-provider run mounted the existing `camba-v2-demo-pg_api-storage` volume and passed (1 case, 42 assertions). It created real orders in SQLite memory via the checkout endpoints, reconciled one fake payment to `paid`, logged one failed provider preference on the other, replayed without duplicate state/error entries, and found no matching entries in `laravel.log`. After the test container was removed, the existing worker could still read `/var/www/html/storage/logs/pagos/25112026.log` in the shared writable volume. No access to real provider, no live-data changes or service restarts.
+
+### L7 — Independent check
+
+The verifier found no functional, privacy or concurrency blocker after the `lang` documentation correction. Its independent readback matched the sanitized paid/failure records and confirmed they were absent from the default log; API, scheduler and worker share writable `camba-v2-demo-pg_api-storage`. The source-only archive remains in system temp because cleanup was denied; no credentials or logs are in the archive. No untracked or unstaged changes from the concurrent Mercado Pago task were staged.
