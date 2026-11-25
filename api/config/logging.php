@@ -1,5 +1,7 @@
 <?php
 
+use App\Logging\PaymentDailyFileHandler;
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -71,6 +73,15 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'days' => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
+        ],
+
+        'pagos' => [
+            'driver' => 'monolog',
+            'name' => 'pagos',
+            'level' => 'info',
+            'handler' => PaymentDailyFileHandler::class,
+            'handler_with' => ['directory' => storage_path('logs/pagos')],
+            'formatter' => JsonFormatter::class,
         ],
 
         'slack' => [

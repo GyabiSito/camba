@@ -44,6 +44,7 @@ x-backend: &backend
   volumes:
     - public-media:/var/www/html/storage/app/public
     - private-files:/var/www/html/storage/app/private
+    - payment-logs:/var/www/html/storage/logs/pagos
   security_opt: [no-new-privileges:true]
   cap_drop: [ALL]
   restart: unless-stopped
@@ -170,3 +171,4 @@ volumes:
   redis:
   public-media:
   private-files:
+  payment-logs:

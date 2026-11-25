@@ -36,7 +36,7 @@ COPY --from=application /var/www/html /var/www/html
 WORKDIR /var/www/html
 RUN cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \
     && install -d -o www-data -g www-data storage/app/public storage/app/private \
-        storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs \
+        storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs storage/logs/pagos \
     && chown www-data:www-data bootstrap/cache
 
 COPY <<'INI' /usr/local/etc/php/conf.d/camba.ini
