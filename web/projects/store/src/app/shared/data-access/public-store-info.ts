@@ -9,8 +9,12 @@ export interface PublicStoreInfo {
   support_phone: string | null;
   pickup_address: string | null;
   delivery_cents: number | null;
+  checkout_pro_available?: boolean;
 }
 
-export const resolvePublicStoreInfo: ResolveFn<PublicStoreInfo | null> = () => inject(ApiClient)
-  .publicGet<{ data: PublicStoreInfo }>('/api/v1/store-info')
-  .pipe(map(({ data }) => data), catchError(() => of(null)));
+export function readPublicStoreInfo() {
+  return inject(ApiClient).publicGet<{ data: PublicStoreInfo }>('/api/v1/store-info')
+    .pipe(map(({ data }) => data), catchError(() => of(null)));
+}
+
+export const resolvePublicStoreInfo: ResolveFn<PublicStoreInfo | null> = readPublicStoreInfo;

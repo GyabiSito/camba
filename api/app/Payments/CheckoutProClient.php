@@ -15,11 +15,8 @@ class CheckoutProClient
     /** @param list<array{sku:string,name:string,quantity:int,unit_price_cents:int}> $lines */
     public function preference(string $reference, array $lines, int $shippingCents, DateTimeInterface $expires): array
     {
-        $origin = rtrim((string) config('app.url'), '/');
-        $originParts = parse_url($origin);
-        if (($originParts['scheme'] ?? null) !== 'https' || empty($originParts['host']) ||
-            isset($originParts['user']) || isset($originParts['pass']) || isset($originParts['query']) ||
-            isset($originParts['fragment']) || ! empty($originParts['path'])) {
+        $origin = $this->publicOrigin();
+        if ($origin === null) {
             throw new RuntimeException('Checkout Pro needs a public HTTPS storefront origin.');
         }
         $items = array_map(fn (array $line) => [
@@ -134,9 +131,36 @@ class CheckoutProClient
 
     public function isConfigured(): bool
     {
-        $token = config('mercadopago.access_token');
+        return self::credentialPresent(config('mercadopago.access_token'))
+            && self::isNumericId(config('mercadopago.collector_id'));
+    }
 
-        return is_string($token) && trim($token) !== '' && self::isNumericId(config('mercadopago.collector_id'));
+    public function checkoutAvailable(): bool
+    {
+        return $this->isConfigured()
+            && self::credentialPresent(config('mercadopago.webhook_secret'))
+            && $this->publicOrigin() !== null;
+    }
+
+    private static function credentialPresent(mixed $value): bool
+    {
+        return is_string($value) && ! in_array(trim($value), ['', 'X'], true);
+    }
+
+    private function publicOrigin(): ?string
+    {
+        $origin = rtrim((string) config('app.url'), '/');
+        $parts = parse_url($origin);
+        $host = strtolower(trim($parts['host'] ?? '', '[].'));
+        if (($parts['scheme'] ?? null) !== 'https' || $host === '' ||
+            $host === 'localhost' || str_ends_with($host, '.localhost') ||
+            (filter_var($host, FILTER_VALIDATE_IP) && ! filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_GLOBAL_RANGE)) ||
+            isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) ||
+            isset($parts['fragment']) || ! empty($parts['path'])) {
+            return null;
+        }
+
+        return $origin;
     }
 
     private function request(string $method, string $path, array $data = []): array

@@ -10,18 +10,18 @@ COPY angular.json tsconfig.json ./
 COPY projects ./projects
 
 FROM build AS build-store
-RUN npm exec -- ng build store
+RUN npm exec -- ng build store --configuration production
 
 FROM build AS build-store-editorial
-ARG CAMBA_DEV_ENABLE_PAYMENTS=false
+ARG CAMBA_DEV_ENABLE_PAYMENTS=true
 RUN if [ "$CAMBA_DEV_ENABLE_PAYMENTS" = true ]; then \
         npm exec -- ng build store --configuration production,editorial; \
     else \
-        npm exec -- ng build store --configuration production,editorial,no-payment; \
+        npm exec -- ng build store --configuration production,editorial,editorial-no-payment; \
     fi
 
 FROM build AS build-admin
-RUN npm exec -- ng build admin
+RUN npm exec -- ng build admin --configuration production
 
 FROM ${NODE_IMAGE} AS store
 WORKDIR /app

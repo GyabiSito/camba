@@ -6,7 +6,7 @@ import { firstValueFrom, timer } from 'rxjs';
 import { httpStatus } from '../../shared/data-access/api-contracts';
 import { fulfilmentStatus, Order, orderStatus } from './data-access/order.models';
 import { OrdersApi } from './data-access/orders.api';
-import { paymentsEnabled } from '../../shared/payment-availability';
+import { checkoutProAvailability, paymentsEnabled } from '../../shared/payment-availability';
 
 @Component({
   imports: [RouterLink],
@@ -14,7 +14,7 @@ import { paymentsEnabled } from '../../shared/payment-availability';
   styleUrls: ['../../shared/shopper.css', '../../shared/members-design.css'],
 })
 export class OrderPage {
-  protected readonly paymentsEnabled = paymentsEnabled;
+  protected readonly checkoutAvailable = checkoutProAvailability();
   private readonly route = inject(ActivatedRoute);
   private readonly client = inject(OrdersApi);
   private readonly destroyRef = inject(DestroyRef);
@@ -42,12 +42,12 @@ export class OrderPage {
     return order?.payment_state === 'rejected' && (!this.returned()
       || (previous !== undefined && !!order.payment_rejection && order.payment_rejection !== previous));
   });
-  protected readonly canResumePayment = computed(() => paymentsEnabled && this.returned()
+  protected readonly canResumePayment = computed(() => this.checkoutAvailable() && this.returned()
     && this.returnCheckFinished() && !this.returnMentionsPayment && !this.rejectionConfirmed()
     && this.order()?.payment_state !== 'pending');
   protected readonly mayOpenPayment = computed(() => {
     const order = this.order();
-    return paymentsEnabled && order?.status === 'pending_payment' && order.payment_state !== 'pending'
+    return this.checkoutAvailable() && order?.status === 'pending_payment' && order.payment_state !== 'pending'
       && (!this.returned() || this.rejectionConfirmed() || this.canResumePayment());
   });
   protected readonly money = formatMoney;

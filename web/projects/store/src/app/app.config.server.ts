@@ -18,7 +18,7 @@ const serverConfig: ApplicationConfig = {
         new URL(
           process.env['CAMBA_SSR_API_ORIGIN'] ??
             process.env['CAMBA_DEV_API_ORIGIN'] ??
-            'http://127.0.0.1:43802',
+            'http://127.0.0.1:8000',
         ).origin,
     },
   ],

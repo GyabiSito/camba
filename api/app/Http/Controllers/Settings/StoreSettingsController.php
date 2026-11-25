@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Models\StoreSettings;
+use App\Payments\CheckoutProClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -11,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 
 class StoreSettingsController
 {
-    public function publicInfo(): JsonResponse
+    public function publicInfo(CheckoutProClient $checkout): JsonResponse
     {
         $email = trim((string) config('store.public_contact.email'));
         $phone = trim((string) config('store.public_contact.phone'));
@@ -21,6 +22,7 @@ class StoreSettingsController
             ...Arr::only(StoreSettings::loadValues(), ['business_name', 'pickup_address', 'delivery_cents']),
             'support_email' => filter_var($email, FILTER_VALIDATE_EMAIL) ?: null,
             'support_phone' => strlen($phone) <= 40 && preg_match('/\A\+?[0-9]{3,15}\z/', $dial) ? $phone : null,
+            'checkout_pro_available' => $checkout->checkoutAvailable(),
         ]]);
     }
 

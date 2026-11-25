@@ -45,6 +45,7 @@ app.get('/api/v1/store-info', (_req, res) =>
       support_phone: null,
       pickup_address: null,
       delivery_cents: null,
+      checkout_pro_available: !disabled,
     },
   }),
 );

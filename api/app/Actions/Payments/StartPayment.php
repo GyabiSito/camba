@@ -44,12 +44,7 @@ class StartPayment
             if ($existing !== null) {
                 return [null, $existing];
             }
-            abort_unless(
-                is_string(config('mercadopago.access_token')) && trim(config('mercadopago.access_token')) !== ''
-                    && CheckoutProClient::isNumericId(config('mercadopago.collector_id')),
-                503,
-                'Payment checkout is unavailable.',
-            );
+            abort_unless($this->client->checkoutAvailable(), 503, 'Payment checkout is unavailable.');
             $attempt = PaymentAttempt::query()->forceCreate([
                 'order_id' => $order->id,
                 'idempotency_key' => $idempotencyKey,

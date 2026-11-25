@@ -53,6 +53,12 @@
           },
           "configurations": {
             "production": {
+              "fileReplacements": [
+                {
+                  "replace": "projects/admin/src/environments/environment.ts",
+                  "with": "projects/admin/src/environments/environment.production.ts"
+                }
+              ],
               "budgets": [
                 {
                   "type": "initial",
@@ -68,12 +74,22 @@
               "outputHashing": "all"
             },
             "development": {
+              "fileReplacements": [
+                {
+                  "replace": "projects/admin/src/environments/environment.ts",
+                  "with": "projects/admin/src/environments/environment.development.ts"
+                }
+              ],
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
             },
             "demo": {
               "fileReplacements": [
+                {
+                  "replace": "projects/admin/src/environments/environment.ts",
+                  "with": "projects/admin/src/environments/environment.development.ts"
+                },
                 {
                   "replace": "projects/shared/src/demo-config.ts",
                   "with": "projects/shared/src/demo-config.enabled.ts"
@@ -150,7 +166,6 @@
             ],
             "styles": ["projects/store/src/styles.css"],
             "server": "projects/store/src/main.server.ts",
-            "define": { "CAMBA_PAYMENTS_ENABLED": "true" },
             "outputMode": "server",
             "security": {
               "allowedHosts": []
@@ -161,6 +176,12 @@
           },
           "configurations": {
             "production": {
+              "fileReplacements": [
+                {
+                  "replace": "projects/store/src/environments/environment.ts",
+                  "with": "projects/store/src/environments/environment.production.ts"
+                }
+              ],
               "budgets": [
                 {
                   "type": "initial",
@@ -176,16 +197,30 @@
               "outputHashing": "all"
             },
             "development": {
+              "fileReplacements": [
+                {
+                  "replace": "projects/store/src/environments/environment.ts",
+                  "with": "projects/store/src/environments/environment.development.ts"
+                }
+              ],
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
             },
             "no-payment": {
-              "define": { "CAMBA_PAYMENTS_ENABLED": "false" }
+              "fileReplacements": [
+                {
+                  "replace": "projects/store/src/environments/environment.ts",
+                  "with": "projects/store/src/environments/environment.no-payment.ts"
+                }
+              ]
             },
             "demo": {
-              "define": { "CAMBA_PAYMENTS_ENABLED": "false" },
               "fileReplacements": [
+                {
+                  "replace": "projects/store/src/environments/environment.ts",
+                  "with": "projects/store/src/environments/environment.no-payment.ts"
+                },
                 {
                   "replace": "projects/shared/src/demo-config.ts",
                   "with": "projects/shared/src/demo-config.enabled.ts"
@@ -213,6 +248,10 @@
             "editorial": {
               "fileReplacements": [
                 {
+                  "replace": "projects/store/src/environments/environment.ts",
+                  "with": "projects/store/src/environments/environment.development.ts"
+                },
+                {
                   "replace": "projects/store/src/app/features/home/editorial-config.ts",
                   "with": "projects/store/src/app/features/home/editorial-config.enabled.ts"
                 }
@@ -224,6 +263,18 @@
                   "glob": "atelier-*.webp",
                   "input": "projects/store/demo-assets",
                   "output": "/demo-home"
+                }
+              ]
+            },
+            "editorial-no-payment": {
+              "fileReplacements": [
+                {
+                  "replace": "projects/store/src/environments/environment.ts",
+                  "with": "projects/store/src/environments/environment.no-payment.ts"
+                },
+                {
+                  "replace": "projects/store/src/app/features/home/editorial-config.ts",
+                  "with": "projects/store/src/app/features/home/editorial-config.enabled.ts"
                 }
               ]
             }

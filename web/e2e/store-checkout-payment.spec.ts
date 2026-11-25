@@ -3,6 +3,9 @@ import { expect, test, type Page } from '@playwright/test';
 const sandbox = 'https://sandbox.mercadopago.com.uy/checkout/v1/redirect?pref_id=fixture';
 
 async function checkout(page: Page) {
+  await page.route('**/api/v1/store-info', route =>
+    route.fulfill({ json: { data: { checkout_pro_available: true } } }),
+  );
   await page.goto('/producto/remera-lisa');
   await page.getByRole('button', { name: 'Agregar al carrito' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Seguir comprando' }).click();
@@ -61,7 +64,7 @@ test('Checkout Pro opens from checkout and the owned order waits for verified ev
   );
 
   await page.screenshot({ path: info.outputPath('checkout.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Pagar con Mercado Pago', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirmar pedido', exact: true }).click();
   await expect(page).toHaveURL(sandbox);
   expect(starts).toBe(1);
   await page.getByRole('link', { name: 'Volver a Camba' }).click();
@@ -115,7 +118,7 @@ test('an abandoned Checkout Pro payment can reopen the same order after checking
     contentType: 'text/html',
     body: `<a href="${origin}/pedidos/${started.at(-1)}?retorno=mercadopago">Volver sin pagar</a>`,
   }));
-  await page.getByRole('button', { name: 'Pagar con Mercado Pago', exact: true }).click();
+  await page.getByRole('button', { name: 'Confirmar pedido', exact: true }).click();
   await expect(page).toHaveURL(sandbox);
   await page.getByRole('link', { name: 'Volver sin pagar' }).click();
   const reopen = page.getByRole('button', { name: 'Volver a Mercado Pago' });

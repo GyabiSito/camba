@@ -720,7 +720,11 @@ paths:
       description: The public email and phone come from Laravel runtime configuration. The internal contact form recipient is not exposed.
       externalDocs: { url: docs/settings.md }
       responses:
-        '200': { description: Public business contact and enabled shipping information; no private controls or secrets }
+        '200':
+          description: >
+            Public business contact and shipping information. data.checkout_pro_available
+            is a configuration boolean, not a Mercado Pago connectivity check. No provider
+            credentials, seller IDs or private controls are returned.
   /api/v1/admin/settings:
     get:
       operationId: getStoreSettings

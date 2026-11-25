@@ -3,6 +3,11 @@ import { reqHandler } from './server/server.mjs';
 
 // Local Docker build only: the browser keeps one origin for Laravel sessions and assets.
 const routingOrigin = 'http://store-preview.invalid';
+const apiOrigin = new URL(process.env.CAMBA_SSR_API_ORIGIN ?? 'http://api:8000');
+if (apiOrigin.protocol !== 'http:' || apiOrigin.pathname !== '/' ||
+    apiOrigin.username || apiOrigin.password || apiOrigin.search || apiOrigin.hash) {
+  throw new Error('CAMBA_SSR_API_ORIGIN must be an internal HTTP origin.');
+}
 const apiPaths = /^\/(?:api|sanctum|storage|email\/verify)(?:\/|$)/;
 const hopHeaders = [
   'connection', 'keep-alive', 'proxy-connection', 'proxy-authorization',
@@ -18,9 +23,9 @@ function forwardHeaders(headers) {
 }
 
 function forwardApi(req, res, path) {
-  // The target is fixed to this Compose service; nothing from the request selects an upstream.
+  // The target is environment configuration; nothing from the request selects an upstream.
   const upstream = send({
-    hostname: 'api', port: 8000, method: req.method, path,
+    hostname: apiOrigin.hostname, port: apiOrigin.port || 80, method: req.method, path,
     headers: forwardHeaders(req.headers),
   }, (reply) => {
     res.writeHead(reply.statusCode ?? 502, forwardHeaders(reply.headers));

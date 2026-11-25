@@ -54,7 +54,7 @@ docker compose @camba exec -T api php artisan db:seed --class=LocalEditorialCata
 docker compose @camba up -d --build --no-deps --wait store
 ```
 
-En Docker podés consultar el estado del pedido, pero no iniciar pagos: el stack no tiene credenciales de Mercado Pago. Los correos `.test` y las direcciones son sintéticos.
+En Docker podés consultar el estado del pedido. Si Laravel no tiene una configuración de prueba completa para Checkout Pro, la pantalla lo indica y permite confirmar el pedido sin pagar. Los correos `.test` y las direcciones son sintéticos.
 
 ### Actualizar el directorio de direcciones
 

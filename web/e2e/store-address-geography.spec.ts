@@ -222,7 +222,7 @@ test('guest delivery ignores obsolete location lists and quotes at 320px; pickup
   const sent = page.waitForRequest(
     (request) => request.url().endsWith('/api/v1/orders') && request.method() === 'POST',
   );
-  await page.getByRole('button', { name: 'Pagar con Mercado Pago' }).click();
+  await page.getByRole('button', { name: 'Confirmar pedido' }).click();
   const order = (await sent).postDataJSON();
   expect(order).toMatchObject({
     shipping_method: 'delivery',
@@ -266,7 +266,7 @@ test('checkout prefills valid saved geography and requires correction of unmatch
   await expect(page.getByLabel('Calle', { exact: true })).toHaveValue('Los Fresnos');
   await expect(department(page)).toHaveValue('');
   await expect(locality(page)).toBeDisabled();
-  await page.getByRole('button', { name: 'Pagar con Mercado Pago' }).click();
+  await page.getByRole('button', { name: 'Confirmar pedido' }).click();
   await expect(page.getByRole('alert')).toContainText('Elegí un departamento y una localidad');
 });
 

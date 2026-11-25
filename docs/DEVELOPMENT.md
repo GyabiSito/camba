@@ -28,7 +28,21 @@ Use the [local demo commands and fixture logins](../README.md#demo-local) to lau
 
 The frontends proxy Laravel on their own origins. Do not mix `localhost` and `127.0.0.1` in a single cookie journey. Separate browser profiles keep the demo buyer and admin sessions independent. PostgreSQL 18.7 is pinned by image digest and joins only an internal Docker network with no published port. The three Laravel roles share that network and the database; this demo does not reuse MySQL or any existing application volume.
 
-The Docker store builds with `production,editorial,no-payment`: it copies the local editorial photos without enabling frontend mock data, and offers order status checks without starting a payment. The offline `demo` configuration enables the editorial photos and fixtures, also without a payment provider. Rebuild just `store` to update its sources; the admin remains on its development server.
+### Angular environments and Docker builds
+
+Each app imports `src/environments/environment.ts`; `angular.json` replaces it for the selected configuration.
+
+| Build | Configuration | Environment in that app |
+| --- | --- | --- |
+| Local Store (4200) | `production,editorial` (optimized with local photos) | `environment.development.ts` |
+| Local Store with `CAMBA_DEV_ENABLE_PAYMENTS=false` | `production,editorial,editorial-no-payment` | `environment.no-payment.ts` |
+| Local Admin (4300) | `ng serve admin`, `development` | `environment.development.ts` |
+| Production Store and Admin images | `production` | `environment.production.ts` |
+| Offline Store / Admin | `development,demo` | Store `environment.no-payment.ts` / Admin `environment.development.ts` |
+
+The browser stays same-origin for API, CSRF and session cookies. Standalone dev proxy requests use `CAMBA_DEV_API_ORIGIN` (default `http://127.0.0.1:8000`). Docker supplies the internal target. Store SSR and the local Store preview proxy use its runtime `CAMBA_SSR_API_ORIGIN`; the public canonical origin remains `CAMBA_PUBLIC_STORE_ORIGIN`. Neither internal routing nor payment credentials are placed in browser configuration.
+
+Local Store can show Checkout Pro actions by default, but Laravel must advertise `checkout_pro_available`. When it is false the checkout explains why it will not open Mercado Pago and still allows confirming an unpaid order. See [Checkout Pro configuration and tests](../api/docs/payments.md). Rebuild only `store` for Store source/configuration changes; restart the existing Admin development server when its Angular build configuration changes.
 
 With the seeded stack running, run `node e2e/storefront-unified-docker.mjs` from `web/` to check both review widths, the checkout and all three seeded order states without placing an order. The separate `node e2e/docker-editorial-parity.mjs` check adds and removes only the editorial shirt; run it against the untouched two-line demo cart when nobody else is editing it.
 

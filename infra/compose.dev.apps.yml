@@ -114,7 +114,7 @@ services:
       context: ../web
       target: store-editorial-local
       args:
-        CAMBA_DEV_ENABLE_PAYMENTS: ${CAMBA_DEV_ENABLE_PAYMENTS:-false}
+        CAMBA_DEV_ENABLE_PAYMENTS: ${CAMBA_DEV_ENABLE_PAYMENTS:-true}
     environment:
       CAMBA_SSR_API_ORIGIN: http://api:8000
       CAMBA_PUBLIC_STORE_ORIGIN: ${CAMBA_DEV_APP_URL:-http://127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200}}

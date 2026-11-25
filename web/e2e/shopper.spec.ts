@@ -34,6 +34,10 @@ async function signInBuyer(page: Page) {
 }
 
 test('a guest reviews the server quote before placing an order', async ({ page }, info) => {
+  // Simulate previously available configuration so the actual 503 tests recovery on the same order.
+  await page.route('**/api/v1/store-info', route =>
+    route.fulfill({ json: { data: { checkout_pro_available: true } } }),
+  );
   await page.setViewportSize({ width: 320, height: 800 });
   await addToCart(page, 'remera-lisa');
   await page.goto('/carrito');
@@ -58,7 +62,7 @@ test('a guest reviews the server quote before placing an order', async ({ page }
     firstReference = (await committed.json()).data.reference;
     await route.abort();
   });
-  await page.getByRole('button', { name: 'Pagar con Mercado Pago' }).click();
+  await page.getByRole('button', { name: 'Confirmar pedido' }).click();
   await expect(page.getByRole('alert')).toContainText('No pudimos comprobar si el pedido se creó');
   const placed = page.waitForResponse(
     (response) =>
@@ -389,7 +393,7 @@ test('a guest sees the API delivery rate and confirms a persisted delivery order
     (response) =>
       response.url().endsWith('/api/v1/orders') && response.request().method() === 'POST',
   );
-  await page.getByRole('button', { name: 'Pagar con Mercado Pago' }).click();
+  await page.getByRole('button', { name: 'Confirmar pedido' }).click();
   const order = await ordering;
   expect(order.status()).toBe(201);
   expect(order.request().postDataJSON()).toMatchObject({

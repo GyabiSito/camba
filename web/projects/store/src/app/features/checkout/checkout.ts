@@ -5,7 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { apiMessage, CART_CHANGED, formatMoney } from '@camba/shared';
 import { catchError, distinctUntilChanged, firstValueFrom, map, of, switchMap } from 'rxjs';
 import { AddressFields } from '../../shared/ui/address-fields';
-import { paymentsEnabled } from '../../shared/payment-availability';
+import { checkoutProAvailability } from '../../shared/payment-availability';
 import { Address, addressGeography, makeAddressForm, resetAddressForm } from '../../shared/data-access/address';
 import { Buyer } from '@camba/shared';
 import { AccountApi } from '../account';
@@ -22,7 +22,7 @@ import { httpStatus } from '../../shared/data-access/api-contracts';
   styleUrls: ['../../shared/shopper.css', '../../shared/purchase-design.css'],
 })
 export class CheckoutPage {
-  protected readonly paymentsEnabled = paymentsEnabled;
+  protected readonly checkoutAvailable = checkoutProAvailability();
   private readonly accounts = inject(AccountApi);
   private readonly cartApi = inject(CartApi);
   private readonly checkoutApi = inject(CheckoutApi);
@@ -243,7 +243,7 @@ export class CheckoutPage {
   }
 
   protected async placeOrder() {
-    if (this.busy() || this.savingAddress()) return;
+    if (this.busy() || this.savingAddress() || this.checkoutAvailable() === undefined) return;
     this.orderError.set('');
     if (!this.pending) {
       const quote = this.quote();
@@ -289,7 +289,7 @@ export class CheckoutPage {
       this.uncertain.set(false);
       window.dispatchEvent(new Event(CART_CHANGED));
       let paymentOpeningFailed = false;
-      if (paymentsEnabled && data.status === 'pending_payment') {
+      if (this.checkoutAvailable() && data.status === 'pending_payment') {
         this.openingPayment.set(true);
         try {
           if (await this.ordersApi.redirectToPayment(data.reference, this.pending.key, window)) return;

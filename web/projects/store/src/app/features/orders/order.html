@@ -46,7 +46,7 @@
                 <span>Si no completaste el pago, podés volver a Mercado Pago.</span>
               } @else if (current.payment_state === 'pending' || returned()) {
                 Podés consultar el estado desde acá. No hagas otro pago.
-              } @else if (paymentsEnabled) {
+              } @else if (checkoutAvailable()) {
                 Si ya intentaste pagar, consultá el estado antes de volver a abrir el pago.
               }
             </p>

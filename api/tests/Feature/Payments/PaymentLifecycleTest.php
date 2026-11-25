@@ -3,6 +3,7 @@
 namespace Tests\Feature\Payments;
 
 use App\Models\Category;
+use App\Models\CommerceNotice;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PaymentAttempt;
@@ -200,6 +201,12 @@ class PaymentLifecycleTest extends TestCase
         $this->travel(2)->minutes();
         $this->artisan('camba:reconcile-payments')->assertSuccessful();
         $this->assertSame('paid', $order->fresh()->status->value);
+        $this->assertDatabaseCount('payment_webhook_events', 0);
+        $this->getJson('/api/v1/orders/'.$order->reference)->assertOk()->assertJsonPath('data.status', 'paid');
+        $paidNotices = fn () => CommerceNotice::query()->where('subject_type', 'order')
+            ->where('subject_id', $order->id)->where('kind', 'order_paid')->orderBy('channel')->pluck('channel')->all();
+        $this->artisan('camba:notices')->assertSuccessful();
+        $this->assertSame(['mail', 'panel'], $paidNotices());
         $this->assertContains('multiple_approved_payments', $order->fresh()->payment_issues);
         $this->assertDatabaseCount('payments', 2);
         $this->assertSame(1, $this->stock($order));
@@ -207,6 +214,37 @@ class PaymentLifecycleTest extends TestCase
         Http::assertSentCount(4);
         Http::assertSent(fn (Request $request) => str_contains($request->url(), '/payments/search')
             && str_contains($request->url(), 'external_reference='.$order->reference));
+        $this->webhook(159, 'late-after-scheduler')->assertOk();
+        $this->webhook(159, 'late-after-scheduler')->assertOk();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertDatabaseCount('payment_webhook_events', 1);
+        $this->assertDatabaseCount('payments', 2);
+        $this->assertDatabaseCount('payment_observations', 2);
+        $this->artisan('camba:notices')->assertSuccessful();
+        $this->assertSame(['mail', 'panel'], $paidNotices());
+        $this->assertSame(1, $this->stock($order));
+        $this->actingAs(User::factory()->create(['role' => 'admin']), 'web')
+            ->getJson('/api/v1/admin/orders/'.$order->reference)->assertOk()
+            ->assertJsonPath('data.status', 'paid');
+    }
+
+    public function test_invalid_checkout_configuration_does_not_poison_the_same_order(): void
+    {
+        $order = $this->reservedOrder();
+        $key = (string) Str::uuid();
+        Http::fake(['https://api.mercadopago.com/checkout/preferences' => Http::response([
+            'collector_id' => 234, 'id' => '234-example', 'sandbox_init_point' => self::REDIRECT,
+        ], 201)]);
+
+        config(['app.url' => 'http://127.0.0.1:4200']);
+        $this->start($order, $key)->assertServiceUnavailable()->assertJsonMissingPath('data.checkout_url');
+        $this->assertDatabaseCount('payment_attempts', 0);
+        Http::assertNothingSent();
+
+        config(['app.url' => 'https://camba.example.test']);
+        $this->start($order, $key)->assertCreated()->assertJsonPath('data.checkout_url', self::REDIRECT);
+        $this->assertDatabaseCount('payment_attempts', 1);
+        Http::assertSentCount(1);
     }
 
     public function test_expiry_requires_complete_fresh_evidence_and_late_payments_never_invent_stock(): void

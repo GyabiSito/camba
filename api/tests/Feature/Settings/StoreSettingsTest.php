@@ -56,6 +56,7 @@ class StoreSettingsTest extends TestCase
         ]])->save();
 
         config([
+            'mercadopago.access_token' => null,
             'checkout.pickup_address' => null,
             'checkout.delivery_cents' => null,
             'store.public_contact.email' => ' hello@example.test ',
@@ -67,6 +68,7 @@ class StoreSettingsTest extends TestCase
             'delivery_cents' => null,
             'support_email' => 'hello@example.test',
             'support_phone' => '+598 (99) 123-456',
+            'checkout_pro_available' => false,
         ]]);
 
         config(['store.public_contact.email' => '']);
@@ -88,5 +90,31 @@ class StoreSettingsTest extends TestCase
         $this->getJson('/api/v1/store-info')->assertOk()
             ->assertJsonPath('data.support_email', 'hello+ventas@example.test')
             ->assertJsonPath('data.support_phone', null);
+    }
+
+    public function test_public_checkout_availability_contains_no_provider_configuration(): void
+    {
+        $configured = [
+            'app.url' => 'https://checkout.example.test',
+            'mercadopago.access_token' => 'synthetic-private-token',
+            'mercadopago.collector_id' => '912345678',
+            'mercadopago.webhook_secret' => 'synthetic-signing-secret',
+            'mercadopago.public_key' => 'synthetic-public-key',
+        ];
+        config($configured);
+        $this->getJson('/api/v1/store-info')->assertOk()
+            ->assertJsonPath('data.checkout_pro_available', true)
+            ->assertDontSee(array_values($configured));
+
+        foreach ([
+            ['mercadopago.access_token' => 'X'],
+            ['mercadopago.collector_id' => null],
+            ['mercadopago.webhook_secret' => 'X'],
+            ['app.url' => 'http://localhost:4200'],
+            ['app.url' => 'https://127.0.0.1:4200'],
+        ] as $missing) {
+            config($missing + $configured);
+            $this->getJson('/api/v1/store-info')->assertOk()->assertJsonPath('data.checkout_pro_available', false);
+        }
     }
 }
