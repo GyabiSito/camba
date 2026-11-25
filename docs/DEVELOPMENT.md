@@ -42,19 +42,20 @@ Run database integration checks in a separate Compose project. This creates an e
 $testProject = 'camba-v2-pg-integration'
 $testNetwork = "${testProject}_postgres-private"
 $testApi = (Resolve-Path api).Path
+$testDemoAssets = (Resolve-Path web/projects/admin/public/demo).Path
 docker compose -p $testProject -f infra/compose.dev.yml up -d --wait postgres
 $testEnv = @('-e', 'APP_ENV=testing', '-e', 'APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
     '-e', 'CACHE_STORE=array', '-e', 'SESSION_DRIVER=array', '-e', 'MAIL_MAILER=array', '-e', 'QUEUE_CONNECTION=sync',
     '-e', 'DB_CONNECTION=pgsql', '-e', 'DB_URL=', '-e', 'DB_HOST=postgres', '-e', 'DB_PORT=5432',
     '-e', 'DB_DATABASE=camba_v2_demo_test', '-e', 'DB_USERNAME=camba_v2', '-e', 'DB_PASSWORD=camba-local-db')
-$apiRunner = @('run', '--rm', '--network', $testNetwork, '-v', "${testApi}:/var/www/html", '-w', '/var/www/html',
+$apiRunner = @('run', '--rm', '--network', $testNetwork, '-v', "${testApi}:/var/www/html", '-v', "${testDemoAssets}:/demo-assets:ro", '-w', '/var/www/html',
     '--entrypoint', 'php') + $testEnv + @('camba-v2-dev-php-pg')
 docker @apiRunner vendor/bin/phpunit --do-not-cache-result --filter '~^(?!Tests\\Feature\\Demo\\)~'
 $seedEnv = @('-e', 'APP_ENV=testing', '-e', 'APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
     '-e', 'CACHE_STORE=array', '-e', 'SESSION_DRIVER=array', '-e', 'MAIL_MAILER=array', '-e', 'QUEUE_CONNECTION=sync',
     '-e', 'DB_CONNECTION=pgsql', '-e', 'DB_URL=', '-e', 'DB_HOST=postgres', '-e', 'DB_PORT=5432',
     '-e', 'DB_DATABASE=camba_v2_demo_seed_test', '-e', 'DB_USERNAME=camba_v2', '-e', 'DB_PASSWORD=camba-local-db')
-$seedRunner = @('run', '--rm', '--network', $testNetwork, '-v', "${testApi}:/var/www/html", '-w', '/var/www/html',
+$seedRunner = @('run', '--rm', '--network', $testNetwork, '-v', "${testApi}:/var/www/html", '-v', "${testDemoAssets}:/demo-assets:ro", '-w', '/var/www/html',
     '--entrypoint', 'php') + $seedEnv + @('camba-v2-dev-php-pg')
 docker @seedRunner vendor/bin/phpunit --do-not-cache-result tests/Feature/Demo
 cd web

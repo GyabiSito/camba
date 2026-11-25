@@ -3,6 +3,7 @@
 namespace Tests\Feature\Legacy;
 
 use App\Actions\Catalog\SaveProductImagesAction;
+use App\Actions\Legacy\StageLegacyCatalogAction;
 use App\Enums\ProductStatus;
 use App\Models\Category;
 use App\Models\Product;
@@ -108,7 +109,7 @@ class StageLegacyCatalogTest extends TestCase
             'database' => 'camba_v2_migration', 'username' => 'camba_test', 'password' => 'secret',
         ]]);
         DB::purge('pgsql');
-        $action = app(\App\Actions\Legacy\StageLegacyCatalogAction::class);
+        $action = app(StageLegacyCatalogAction::class);
         $guard = new \ReflectionMethod($action, 'assertDatabase');
         $this->assertFalse($guard->invoke($action));
 
@@ -141,7 +142,7 @@ class StageLegacyCatalogTest extends TestCase
             'database' => 'camba_v2_migration', 'username' => 'camba_test', 'password' => 'secret',
         ]]);
         DB::purge('mysql');
-        $action = app(\App\Actions\Legacy\StageLegacyCatalogAction::class);
+        $action = app(StageLegacyCatalogAction::class);
         try {
             (new \ReflectionMethod($action, 'assertDatabase'))->invoke($action);
             $this->fail('MySQL must not be accepted as the catalog apply target.');

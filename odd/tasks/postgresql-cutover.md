@@ -19,9 +19,9 @@ S6. «Entregá el cambio aplicado, el SHA probado y los comandos exactos para le
 ## Tasks
 
 - T1 — S1–S3/S6 · runtime/recovery writer, disjoint surfaces · integrated as `5a1968e`; build and recovery verified. Risk: item 5 (production image, Compose and recovery wiring).
-- T2 — S3/S5 · integration/concurrency writer, disjoint surfaces · code integrated, exact final suite running. Risk: item 5 (CI) and item 4 (proving the existing locking invariants on the new engine).
+- T2 — S3/S5 · integration/concurrency writer, disjoint surfaces · `2dc3d53` with fixture correction `7c75092`; real PostgreSQL integration, independent connections, and demo seed group passed. Risk: item 5 (CI) and item 4 (proving the existing locking invariants on the new engine).
 - T3 — S4 · legacy rehearsal writer, disjoint surface · integrated as `d6a1097`; isolated synthetic checks passed. Risk: item 1 (guard against accidental imported-data writes outside disposable storage).
-- T4 — S4–S6 · parent integration, exact-SHA production Compose rehearsal, independent checks and VPS runbook · initial proof passed on `c11344c`; final integrated candidate pending. Risk: item 5 (candidate assembly and reference-only bootstrap).
+- T4 — S4–S6 · parent integration, exact-SHA production Compose rehearsal, independent checks and VPS runbook · runtime and Chromium flows passed on integrated SHA `7c75092`; provenance recheck after style/doc normalization. Risk: item 5 (candidate assembly and reference-only bootstrap).
 
 ## Log
 
@@ -62,3 +62,7 @@ L8 — The old MySQL contention class skipped all six on real PostgreSQL (RED). 
 L9 — Integrated `2dc3d53` rebuilt and passed the Compose/Chromium rehearsal at ports 44970/44971. An independent read-only verifier confirmed source labels, private network, non-superuser ownership, migrations, geography, persisted money/stock/relationships, worker and scheduler, and a guest 401 on the Admin order. No code or permissions blocker found.
 
 L10 — PostgreSQL integration RED after 171 tests (2,477 assertions): one payment eligibility fixture tried to insert a 27-character `toISOString()` value in `CHAR(24)`. The production provider parser already emits a 24-character UTC millisecond timestamp. Use its existing wire format in the fixture; no schema, runtime payment behavior, or assertion changes. Re-run the affected test and full integration groups.
+
+L11 — The timestamp fixture fix is `7c75092`. The exact-source Compose/browser rehearsal exited 0 again against new isolated project `camba-pg-candidate-b495d97733`; it remains running on 44970/44971. The runtime files are byte-identical to the independently checked `2dc3d53`. All 18 migrations and geography checks passed; browser and persisted assertions repeated successfully. Earlier temporary candidate projects were stopped without deleting volumes.
+
+L12 — PostgreSQL 18.7 full suite GREEN: 171 cases, 2,488 assertions, zero failures and one opt-in legacy staging case skipped; that opt-in case passed separately against its own PostgreSQL database (21 assertions). Six contention cases passed (135 assertions). Dedicated PostgreSQL seed group passed (3 cases, 51 assertions) after the local runner mounted the existing demo photos read-only; the hosted runner already has the checkout layout. Fixture-focused GREEN: 1 case, 20 assertions. CI scope/required-gate shell probes and release executor mock regression passed. No GitHub-hosted run or VPS deploy was attempted.
