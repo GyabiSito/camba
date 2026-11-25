@@ -48,6 +48,7 @@ test('Checkout Pro opens from checkout and the owned order waits for verified ev
           ...data,
           status: state === 'approved' ? 'paid' : 'pending_payment',
           payment_state: state === 'approved' ? null : state,
+          payment_rejection: state === 'rejected' ? 'a'.repeat(64) : undefined,
         },
       },
     });
@@ -87,13 +88,42 @@ test('Checkout Pro opens from checkout and the owned order waits for verified ev
   expect(starts).toBe(2);
   expect(orders).toBe(1);
 
-  state = null;
   await page.getByRole('link', { name: 'Volver a Camba' }).click();
   await expect(page.getByRole('heading', { name: 'Estamos confirmando el pago' })).toBeVisible();
+  await expect(page.getByText('Pago rechazado', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Reintentar pago|Volver a Mercado Pago/ })).toHaveCount(0);
+  await expect.poll(() => refreshes).toBe(2);
   state = 'approved';
   await expect(page.getByRole('heading', { name: 'Pedido confirmado' })).toBeVisible();
   await expect(page.getByText('Pago confirmado', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Seguir comprando' })).toHaveAttribute('href', '/tienda');
   await page.screenshot({ path: info.outputPath('retorno-aprobado.png'), fullPage: true });
   expect(starts).toBe(2);
+});
+
+test('an abandoned Checkout Pro payment can reopen the same order after checking', async ({ page }) => {
+  test.setTimeout(90_000);
+  await checkout(page);
+  const origin = new URL(page.url()).origin;
+  const started: string[] = [];
+  await page.route('**/api/v1/orders/*/payments', async (route) => {
+    started.push(new URL(route.request().url()).pathname.split('/').at(-2)!);
+    await route.fulfill({ status: 200, json: { data: { status: 'ready', checkout_url: sandbox } } });
+  });
+  await page.route('**/api/v1/orders/*/payments/refresh', route => route.fulfill({ status: 202 }));
+  await page.route(sandbox, (route) => route.fulfill({
+    contentType: 'text/html',
+    body: `<a href="${origin}/pedidos/${started.at(-1)}?retorno=mercadopago">Volver sin pagar</a>`,
+  }));
+  await page.getByRole('button', { name: 'Pagar con Mercado Pago', exact: true }).click();
+  await expect(page).toHaveURL(sandbox);
+  await page.getByRole('link', { name: 'Volver sin pagar' }).click();
+  const reopen = page.getByRole('button', { name: 'Volver a Mercado Pago' });
+  await expect(page.getByRole('heading', { name: 'Estamos confirmando el pago' })).toBeVisible();
+  await expect(reopen).toHaveCount(0);
+  await expect(reopen).toBeEnabled({ timeout: 45_000 });
+  await expect(page.getByText('Si no completaste el pago, podés volver a Mercado Pago.')).toBeVisible();
+  await reopen.click();
+  await expect(page).toHaveURL(sandbox);
+  expect(started).toEqual([started[0], started[0]]);
 });

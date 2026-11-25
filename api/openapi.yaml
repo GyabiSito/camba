@@ -368,7 +368,8 @@ paths:
           description: >
             This session's private order snapshot. The nullable data.payment_state field
             summarizes verified provider evidence for an unpaid order as pending or rejected,
-            without exposing provider IDs. Only data.status paid confirms the order.
+            without exposing provider IDs. The optional data.payment_rejection fingerprint
+            changes when a new payment is recorded. Only data.status paid confirms the order.
         '400': { description: First-party session required }
         '404': { description: 'Missing, foreign, or expired order' }
   /api/v1/orders/{reference}/payments:

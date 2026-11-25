@@ -14,6 +14,7 @@ export interface Order {
   shipping_cents: number; total_cents: number; shipping_method: Shipping['method'];
   reservation_expires_at: string; created_at: string; guest_access_expires_at?: string | null;
   payment_state?: 'pending' | 'rejected' | null;
+  payment_rejection?: string;
   items?: Line[]; pickup_address?: string | null;
   address?: (Omit<Address, 'id' | 'phone' | keyof AddressGeography> & Partial<Pick<Address, keyof AddressGeography>>) | null;
   tracking?: string | null;

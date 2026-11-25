@@ -33,12 +33,18 @@ class BuyerPaymentStateTest extends TestCase
         ]]);
         $apply('999888777001', 'rejected', '01');
         $read()->assertJsonPath('data.payment_state', 'rejected')->assertDontSee('999888777001');
+        $previousRejection = $read()->json('data.payment_rejection');
+        $this->assertMatchesRegularExpression('/\A[0-9a-f]{64}\z/', (string) $previousRejection);
+        $this->assertSame($previousRejection, $read()->json('data.payment_rejection'));
 
-        $apply('999888777002', 'pending', '02');
-        $apply('999888777001', 'cancelled', '03');
+        $apply('999888777002', 'rejected', '02');
+        $this->assertNotSame($previousRejection, $read()->json('data.payment_rejection'));
+
+        $apply('999888777003', 'pending', '03');
+        $apply('999888777001', 'cancelled', '04');
         $read()->assertJsonPath('data.status', 'pending_payment')->assertJsonPath('data.payment_state', 'pending');
 
-        $apply('999888777002', 'approved', '04');
+        $apply('999888777003', 'approved', '05');
         $read()->assertJsonPath('data.status', 'paid')->assertJsonPath('data.payment_state', null);
 
         $this->actingAs(User::factory()->create(), 'web')

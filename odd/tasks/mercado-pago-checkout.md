@@ -16,6 +16,7 @@ Runners: Laravel PHPUnit with blocking HTTP fake and isolated SQLite; Angular bu
 
 - T1 · S4/S6 · inline · implemented and verified: RED→GREEN, independent synthetic probes and real container config (booleans only). Risk: item 2.
 - T2 · S1–S5/S7 · delegated read-only mapping, inline implementation, independent verification; simulated payment journey verified, real sandbox blocked on test credentials and authorized HTTPS. Risk: items 2, 4 and 5 (browser-return evidence, payment orchestration and runtime opt-in).
+- T3 · S2/S3/S5 · bounded inline correction to `be44fce` from native review; RED→GREEN for historical rejection and abandonment. Risk: items 2 and 4 (reopening while confirmation is unresolved).
 
 ## Log
 
@@ -55,3 +56,8 @@ Komorebi local HEAD 50987b3 uses Checkout Pro Preferences, validated hosted navi
 - Docker API ran Laravel Payments and Orders suites on in-memory SQLite: 46 tests / 720 assertions. This covers non-owner access, amount/stock and authoritative state, signed webhook replay, reconciliation before webhook, admin order detail and correlated, sanitized log events. Pint and the UI detector passed. Independently verified 25 verified-evidence-vs-rejection combinations and performed the parent spot check.
 - Browser proof: 2 Chromium journeys (isolated API and raw payment navigation stub); only one order, failed opening stays on that order, browser “approved” before evidence is not confirmation, no pay action while pending, same-order rejection retry, paid once server evidence changes. Inspected 1586/1280 desktop and 390px mobile screenshots under `web/test-results/mercado-pago-checkout/`; no actual external provider calls.
 - Live `storage/logs/pagos/25112026.log` has correlated creation, start, status, and provider error records; verified by aggregate counters only. Sandbox preference validity/reuse, callbacks and signed delivery over public HTTPS remain provider acceptance work; do not turn on live payments.
+
+### L4 — Native correction
+
+- Four reviewers returned two distinct blockers: an earlier rejected payment hid reconciliation of a later attempt, and an abandoned checkout could never reopen the same preference from the return page. The API supplies an opaque fingerprint of already-verified rejection records; the return still requests reconciliation, ignores the old rejection, and only offers voluntary reopening after the bounded check when no submitted payment was indicated. The server's ownership, eligibility and one-preference checks are unchanged.
+- Both Chromium regressions and the API check failed before the fix. After it: Docker Laravel Payments and Orders (46 tests / 726 assertions), Pint and three Chromium checkout tests passed. The default Store Docker image rebuilt; no real provider calls or live database changes.

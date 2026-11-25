@@ -6,7 +6,6 @@ use App\Actions\Geography\ResolveAddressGeography;
 use App\Actions\Orders\PlaceOrder;
 use App\Actions\Orders\QuoteCheckout;
 use App\Enums\OrderStatus;
-use App\Enums\PaymentStatus;
 use App\Http\Requests\Orders\CheckoutRequest;
 use App\Http\Requests\Orders\OrderSessionRequest;
 use App\Http\Resources\Orders\OrderResource;
@@ -75,12 +74,15 @@ class OrderController
             ->with('items')->where('reference', $reference)->firstOrFail();
         $order->payment_state = null;
         if ($order->status === OrderStatus::PendingPayment) {
-            $states = Payment::query()->where('order_id', $order->id)->pluck('status');
+            $payments = Payment::query()->where('order_id', $order->id)->orderBy('id')->get(['id', 'status']);
             $order->payment_state = match (true) {
-                $states->contains(fn (PaymentStatus $state): bool => $state->blocksExpiry()) => 'pending',
-                $states->isNotEmpty() => 'rejected',
+                $payments->contains(fn (Payment $payment): bool => $payment->status->blocksExpiry()) => 'pending',
+                $payments->isNotEmpty() => 'rejected',
                 default => null,
             };
+            if ($order->payment_state === 'rejected') {
+                $order->payment_rejection = hash_hmac('sha256', implode(',', $payments->modelKeys()), (string) config('app.key'));
+            }
         }
 
         return $this->uncacheable((new OrderResource($order))->response());

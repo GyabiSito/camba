@@ -27,6 +27,7 @@ class OrderResource extends JsonResource
         return $this->relationLoaded('items') ? [
             ...$summary,
             'payment_state' => $this->whenHas('payment_state'),
+            'payment_rejection' => $this->whenHas('payment_rejection'),
             'contact' => $this->contact,
             'address' => $this->address,
             'pickup_address' => $this->pickup_address,
