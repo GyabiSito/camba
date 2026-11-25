@@ -1,0 +1,157 @@
+{
+  "tool": "build-phase",
+  "version": 2,
+  "startedAt": "2026-11-18T18:35:04.795Z",
+  "comp": ".impeccable/mocks/mesa-catalogo.png",
+  "direction": "09d60482",
+  "breakpoint": "1586x992",
+  "artifact": null,
+  "phase": "hero",
+  "phases": {
+    "comps": {
+      "status": "closed",
+      "openedAt": "2026-11-18T18:35:04.795Z",
+      "closedAt": "2026-11-18T18:38:29.926Z",
+      "attempts": 2,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "3 comps, 1 approved",
+        "approved": ".impeccable/mocks/mesa-catalogo.png",
+        "at": "2026-11-18T18:38:29.926Z"
+      },
+      "forced": null
+    },
+    "spec": {
+      "status": "closed",
+      "openedAt": "2026-11-18T18:38:29.940Z",
+      "closedAt": "2026-11-18T18:46:17.794Z",
+      "attempts": 1,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "108 regions, 8 plates, 52 text regions measured",
+        "at": "2026-11-18T18:46:17.794Z"
+      },
+      "forced": null
+    },
+    "plates": {
+      "status": "closed",
+      "openedAt": "2026-11-18T18:46:17.794Z",
+      "closedAt": "2026-11-18T18:59:08.562Z",
+      "attempts": 2,
+      "notes": [],
+      "gate": {
+        "ok": true,
+        "reasons": [],
+        "summary": "8/8 plates",
+        "at": "2026-11-18T18:59:08.562Z"
+      },
+      "forced": null
+    },
+    "hero": {
+      "status": "open",
+      "openedAt": "2026-11-18T18:59:08.562Z",
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": {
+        "ok": false,
+        "reasons": [
+          "plate assets/plates/image-cotton.png (region image-cotton) is not referenced by any source file this scan can see: the page draws that region in code while the produced plate sits unused. Place the plate (an <img>, a background-image, or an inlined data URI named for it) and recapture. If the plate IS referenced from a file the scan missed (your page is not index.html, or the reference lives in a stylesheet outside the project walk), re-run with --artifact <your page>: its linked stylesheets are followed exactly.",
+          "plate assets/plates/image-plain.png (region image-plain) is not referenced by any source file this scan can see: the page draws that region in code while the produced plate sits unused. Place the plate (an <img>, a background-image, or an inlined data URI named for it) and recapture. If the plate IS referenced from a file the scan missed (your page is not index.html, or the reference lives in a stylesheet outside the project walk), re-run with --artifact <your page>: its linked stylesheets are followed exactly.",
+          "plate assets/plates/image-straight.png (region image-straight) is not referenced by any source file this scan can see: the page draws that region in code while the produced plate sits unused. Place the plate (an <img>, a background-image, or an inlined data URI named for it) and recapture. If the plate IS referenced from a file the scan missed (your page is not index.html, or the reference lives in a stylesheet outside the project walk), re-run with --artifact <your page>: its linked stylesheets are followed exactly.",
+          "plate assets/plates/image-classic.png (region image-classic) is not referenced by any source file this scan can see: the page draws that region in code while the produced plate sits unused. Place the plate (an <img>, a background-image, or an inlined data URI named for it) and recapture. If the plate IS referenced from a file the scan missed (your page is not index.html, or the reference lives in a stylesheet outside the project walk), re-run with --artifact <your page>: its linked stylesheets are followed exactly.",
+          "plate assets/plates/image-pocket.png (region image-pocket) is not referenced by any source file this scan can see: the page draws that region in code while the produced plate sits unused. Place the plate (an <img>, a background-image, or an inlined data URI named for it) and recapture. If the plate IS referenced from a file the scan missed (your page is not index.html, or the reference lives in a stylesheet outside the project walk), re-run with --artifact <your page>: its linked stylesheets are followed exactly.",
+          "plate assets/plates/image-twill.png (region image-twill) is not referenced by any source file this scan can see: the page draws that region in code while the produced plate sits unused. Place the plate (an <img>, a background-image, or an inlined data URI named for it) and recapture. If the plate IS referenced from a file the scan missed (your page is not index.html, or the reference lives in a stylesheet outside the project walk), re-run with --artifact <your page>: its linked stylesheets are followed exactly.",
+          "plate assets/plates/image-over.png (region image-over) is not referenced by any source file this scan can see: the page draws that region in code while the produced plate sits unused. Place the plate (an <img>, a background-image, or an inlined data URI named for it) and recapture. If the plate IS referenced from a file the scan missed (your page is not index.html, or the reference lives in a stylesheet outside the project walk), re-run with --artifact <your page>: its linked stylesheets are followed exactly.",
+          "plate assets/plates/detail-photo.png (region detail-photo) is not referenced by any source file this scan can see: the page draws that region in code while the produced plate sits unused. Place the plate (an <img>, a background-image, or an inlined data URI named for it) and recapture. If the plate IS referenced from a file the scan missed (your page is not index.html, or the reference lives in a stylesheet outside the project walk), re-run with --artifact <your page>: its linked stylesheets are followed exactly."
+        ],
+        "at": "2026-11-18T22:02:29.035Z"
+      },
+      "forced": null,
+      "records": 1
+    },
+    "sections": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    },
+    "motion": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    },
+    "responsive": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    },
+    "review": {
+      "status": "pending",
+      "openedAt": null,
+      "closedAt": null,
+      "attempts": 0,
+      "notes": [],
+      "gate": null,
+      "forced": null
+    }
+  },
+  "finish": null,
+  "plates": {
+    "image-cotton": {
+      "status": "ok",
+      "score": 0.7675,
+      "size": "1254x1254"
+    },
+    "image-plain": {
+      "status": "ok",
+      "score": 0.7787,
+      "size": "1254x1254"
+    },
+    "image-straight": {
+      "status": "ok",
+      "score": 0.8367,
+      "size": "1254x1254"
+    },
+    "image-classic": {
+      "status": "ok",
+      "score": 0.4511,
+      "size": "1254x1254"
+    },
+    "image-pocket": {
+      "status": "ok",
+      "score": 0.7522,
+      "size": "1254x1254"
+    },
+    "image-twill": {
+      "status": "ok",
+      "score": 0.7623,
+      "size": "1254x1254"
+    },
+    "image-over": {
+      "status": "ok",
+      "score": 0.8117,
+      "size": "1254x1254"
+    },
+    "detail-photo": {
+      "status": "ok",
+      "score": 0.7023,
+      "size": "1254x1254"
+    }
+  }
+}

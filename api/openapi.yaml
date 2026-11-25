@@ -97,24 +97,23 @@ paths:
   /api/v1/auth/reset-password:
     post:
       operationId: resetPassword
-      description: Consumes a valid reset token and invalidates the account's prior sessions.
+      description: Consumes the protected context from the reset email's link and invalidates the account's prior sessions. The server resolves the account; do not submit an email address.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [email, token, password, password_confirmation]
+              required: [token, password, password_confirmation]
               properties:
-                email: { type: string, format: email, maxLength: 254 }
-                token: { type: string, maxLength: 255 }
+                token: { type: string, maxLength: 1024, description: Opaque value of the reset link fragment's reset parameter }
                 password: { type: string, format: password, minLength: 12, description: Maximum 72 UTF-8 bytes }
                 password_confirmation: { type: string, format: password }
       responses:
         '204': { description: Password changed }
         '400': { description: First-party session is unavailable }
         '419': { description: Missing or invalid CSRF token }
-        '422': { description: 'Invalid fields, invalid token or expired token' }
+        '422': { description: 'Invalid fields or an invalid, expired, or already used reset link' }
         '429': { description: Too many requests }
   /api/v1/auth/logout:
     post:
@@ -166,6 +165,19 @@ paths:
         '401': { description: No authenticated session }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Invalid name or attempt to change a protected field }
+  /api/v1/geography/departments:
+    get:
+      operationId: listGeographicDepartments
+      responses:
+        '200': { $ref: '#/components/responses/GeographyOptions' }
+  /api/v1/geography/departments/{department}/localities:
+    get:
+      operationId: listDepartmentLocalities
+      parameters:
+        - { name: department, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { $ref: '#/components/responses/GeographyOptions' }
+        '404': { description: Unknown department }
   /api/v1/account/addresses:
     get:
       operationId: listAddresses
@@ -193,12 +205,12 @@ paths:
             schema:
               allOf:
                 - { $ref: '#/components/schemas/AddressInput' }
-                - { required: [recipient, department, locality, street, number] }
+                - { required: [recipient, department_id, locality_id, street, number] }
       responses:
         '201': { $ref: '#/components/responses/AddressEnvelope' }
         '401': { description: No authenticated session }
         '419': { description: Missing or invalid CSRF token }
-        '422': { description: Invalid address fields or caller-supplied owner }
+        '422': { description: Invalid address fields or mismatched department and locality IDs }
   /api/v1/account/addresses/{address}:
     parameters:
       - { name: address, in: path, required: true, schema: { type: integer } }
@@ -222,7 +234,7 @@ paths:
         '401': { description: No authenticated session }
         '404': { description: Address not found for the current account }
         '419': { description: Missing or invalid CSRF token }
-        '422': { description: Invalid address fields or caller-supplied owner }
+        '422': { description: Invalid address fields or a missing or mismatched geographic pair }
     delete:
       operationId: deleteAddress
       security: [{ sessionCookie: [] }]
@@ -292,11 +304,12 @@ paths:
               required: [items]
               properties:
                 items: { $ref: '#/components/schemas/CheckoutItems' }
+                address: { $ref: '#/components/schemas/GeographyPair' }
       responses:
         '200': { description: Current UYU prices and options with server-authenticated quote tokens }
         '400': { description: First-party session required }
         '419': { description: Missing or invalid CSRF token }
-        '422': { description: Invalid or unavailable items }
+        '422': { description: Invalid or unavailable items or mismatched department and locality IDs }
   /api/v1/orders:
     get:
       operationId: listOwnOrders
@@ -331,7 +344,11 @@ paths:
                     name: { type: string }
                     email: { type: string, format: email }
                     phone: { type: string }
-                address: { $ref: '#/components/schemas/AddressInput' }
+                address:
+                  description: Required for delivery and omitted for pickup. The server resolves the order snapshot names.
+                  allOf:
+                    - { $ref: '#/components/schemas/AddressInput' }
+                    - { required: [recipient, department_id, locality_id, street, number], not: { required: [phone] } }
       responses:
         '200': { description: Existing same-owner order for a valid same-payload replay }
         '201': { description: Order snapshot and inventory reservation created; payment is still pending }
@@ -405,10 +422,16 @@ paths:
       parameters:
         - { name: status, in: query, schema: { type: string, enum: [pending_payment, paid, payment_expired, payment_review, refunded, charged_back] } }
         - { name: fulfilment_status, in: query, description: '`needs_preparation` matches unstarted and preparing without changing payment status.', schema: { type: string, enum: [unstarted, preparing, ready_for_pickup, shipped, completed, needs_preparation] } }
+        - { name: q, in: query, description: Case-insensitive match on the order reference or the buyer name or email recorded at checkout. An eight-digit hexadecimal UUID prefix or full UUID searches by reference., schema: { type: string, maxLength: 120 } }
+        - { name: shipping_method, in: query, schema: { type: string, enum: [delivery, pickup] } }
+        - { name: date_from, in: query, description: Inclusive order date in the configured store timezone., schema: { type: string, format: date } }
+        - { name: date_to, in: query, description: Inclusive order date in the configured store timezone. Must not precede date_from., schema: { type: string, format: date } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
       responses:
-        '200': { description: Paginated latest order summaries for operations }
+        '200': { description: Latest matching order summaries (25 per page) and the total after applying all filters }
         '401': { description: No authenticated session }
         '403': { description: Verified administrator required }
+        '422': { description: Invalid filter values }
   /api/v1/admin/orders/{reference}:
     parameters:
       - { name: reference, in: path, required: true, schema: { type: string, format: uuid } }
@@ -429,9 +452,10 @@ paths:
                   payment:
                     type: object
                     properties:
+                      can_request_refresh: { type: boolean, description: Mercado Pago is configured and the order has a checkout attempt or a recorded provider payment }
                       paid_at: { type: string, format: date-time, nullable: true }
                       last_checked_at: { type: string, format: date-time, nullable: true, description: The local reconciliation timestamp }
-                      next_check_at: { type: string, format: date-time, nullable: true }
+                      next_check_at: { type: string, format: date-time, nullable: true, description: Null if reconciliation is unavailable or no check is scheduled }
                       last_result: { type: string, nullable: true, enum: [verified, conflicting_evidence, provider_incomplete, provider_candidate_limit, null] }
                       issues: { type: array, items: { type: string }, description: Allowlisted operational issue codes }
                       attempt:
@@ -489,6 +513,7 @@ paths:
         '401': { description: No authenticated session }
         '403': { description: Verified administrator required }
         '404': { description: Order not found }
+        '409': { description: Mercado Pago is not configured or the order has no provider evidence }
         '419': { description: Missing or invalid CSRF token }
   /api/v1/webhooks/mercadopago:
     post:
@@ -537,10 +562,14 @@ paths:
       externalDocs: { url: docs/notices.md }
       parameters:
         - { name: state, in: query, schema: { type: string, enum: [active, resolved, failed, uncertain] } }
+        - { name: kind, in: query, description: Notice kind key from the response's kinds dictionary, schema: { type: string } }
+        - { name: q, in: query, description: Notice title or displayed order reference (full or short); product and import IDs also accepted, schema: { type: string, maxLength: 120 } }
+        - { name: date_from, in: query, description: Inclusive lower day for updated_at in the store timezone, schema: { type: string, format: date } }
+        - { name: date_to, in: query, description: Inclusive upper day for updated_at in the store timezone, schema: { type: string, format: date } }
         - { name: page, in: query, schema: { type: integer, minimum: 1 } }
       responses:
         '200':
-          description: Paginated operational notices with no buyer contact data
+          description: Filtered, paginated operational notices ordered by updated_at and ID descending, with no buyer contact data
           content:
             application/json:
               schema:
@@ -553,6 +582,7 @@ paths:
                       properties:
                         order_reference: { type: string, format: uuid, nullable: true, description: Reference for an existing order subject only }
                   meta: { type: object }
+                  kinds: { type: object, additionalProperties: { type: string }, description: Public labels keyed by operational notice kind }
                   links: { type: object }
         '401': { description: No authenticated session }
         '403': { description: Verified administrator required }
@@ -682,6 +712,7 @@ paths:
   /api/v1/store-info:
     get:
       operationId: getStoreInfo
+      description: The public email and phone come from Laravel runtime configuration. The internal contact form recipient is not exposed.
       externalDocs: { url: docs/settings.md }
       responses:
         '200': { description: Public business contact and enabled shipping information; no private controls or secrets }
@@ -707,8 +738,8 @@ paths:
               additionalProperties: false
               properties:
                 business_name: { type: string, maxLength: 120 }
-                support_email: { type: [string, 'null'], format: email }
-                support_phone: { type: [string, 'null'], maxLength: 40 }
+                support_email: { type: [string, 'null'], format: email, description: Internal contact form recipient }
+                support_phone: { type: [string, 'null'], maxLength: 40, description: Stored administrative value not published by the storefront }
                 pickup_address: { type: [string, 'null'], maxLength: 255 }
                 delivery_cents: { type: [integer, 'null'], minimum: 0, maximum: 2147483647 }
                 remind_payment: { type: boolean }
@@ -795,7 +826,7 @@ paths:
       operationId: getAdminProduct
       security: [{ sessionCookie: [] }]
       responses:
-        '200': { description: Product detail with lifecycle state }
+        '200': { description: 'Product detail with lifecycle state and the configured storefront URL in store_url' }
         '403': { description: Verified administrator required }
         '404': { description: Product not found }
     patch:
@@ -994,6 +1025,10 @@ paths:
     $ref: '#/components/pathItems/AdminClassifications'
   /api/v1/admin/brands:
     $ref: '#/components/pathItems/AdminClassifications'
+  /api/v1/admin/categories/page:
+    $ref: '#/components/pathItems/AdminClassificationPage'
+  /api/v1/admin/brands/page:
+    $ref: '#/components/pathItems/AdminClassificationPage'
   /api/v1/admin/categories/{id}:
     $ref: '#/components/pathItems/AdminClassification'
   /api/v1/admin/brands/{id}:
@@ -1183,26 +1218,87 @@ components:
         properties:
           product_id: { type: integer, minimum: 1 }
           quantity: { type: integer, minimum: 1, maximum: 1000 }
-    AddressInput:
+    GeographyPair:
+      type: object
+      additionalProperties: false
+      required: [department_id, locality_id]
+      properties:
+        department_id: { type: integer, minimum: 1 }
+        locality_id: { type: integer, minimum: 1, description: Directory locality ID scoped to the submitted department }
+    AddressFields:
       type: object
       not: { required: [user_id] }
       properties:
         recipient: { type: string, minLength: 1, maxLength: 120, pattern: '\S' }
-        department: { type: string, minLength: 1, maxLength: 80, pattern: '\S' }
-        locality: { type: string, minLength: 1, maxLength: 120, pattern: '\S' }
         street: { type: string, minLength: 1, maxLength: 160, pattern: '\S' }
         number: { type: string, minLength: 1, maxLength: 20, pattern: '\S' }
         details: { type: [string, 'null'], maxLength: 255 }
         phone: { type: [string, 'null'], maxLength: 30 }
         postal_code: { type: [string, 'null'], maxLength: 12 }
+    AddressInput:
+      allOf:
+        - { $ref: '#/components/schemas/AddressFields' }
+        - type: object
+          properties:
+            department_id: { type: integer, minimum: 1 }
+            locality_id: { type: integer, minimum: 1 }
+            department: false
+            locality: false
+          dependentRequired:
+            department_id: [locality_id]
+            locality_id: [department_id]
     Address:
       allOf:
-        - { $ref: '#/components/schemas/AddressInput' }
+        - { $ref: '#/components/schemas/AddressFields' }
         - type: object
-          required: [id, recipient, department, locality, street, number, details, phone, postal_code]
+          required: [id, recipient, department_id, locality_id, department, locality, street, number, details, phone, postal_code]
           properties:
             id: { type: integer, minimum: 1 }
+            department_id: { type: [integer, 'null'], minimum: 1, description: Null for an unlinked historic address }
+            locality_id: { type: [integer, 'null'], minimum: 1, description: Null requires choosing a locality before new delivery }
+            department: { type: string, description: Current directory name or original text }
+            locality: { type: string, description: Current directory name or original text }
   pathItems:
+    AdminClassificationPage:
+      get:
+        summary: Page of active and inactive classifications, ordered by name and ID
+        security: [{ sessionCookie: [] }]
+        parameters:
+          - { name: q, in: query, description: 'Case-insensitive literal substring of name or slug; percent, underscore and exclamation mark are literal.', schema: { type: string, maxLength: 120 } }
+          - { name: status, in: query, description: 'Omit or send empty for all states. Filters combine before pagination.', schema: { type: string, enum: [active, inactive, ''] } }
+          - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 2147483647, default: 1 } }
+          - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 12 } }
+        responses:
+          '200':
+            description: One classification page with Laravel pagination links and metadata
+            content:
+              application/json:
+                schema:
+                  type: object
+                  required: [data, links, meta]
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, name, slug, active]
+                        properties:
+                          id: { type: integer }
+                          name: { type: string }
+                          slug: { type: string }
+                          active: { type: boolean }
+                    links: { type: object }
+                    meta:
+                      type: object
+                      required: [current_page, last_page, per_page, total]
+                      properties:
+                        current_page: { type: integer }
+                        last_page: { type: integer }
+                        per_page: { type: integer }
+                        total: { type: integer }
+          '401': { description: No authenticated session }
+          '403': { description: Verified administrator required }
+          '422': { description: 'Invalid search, status or pagination' }
     AdminClassifications:
       get:
         security: [{ sessionCookie: [] }]
@@ -1298,6 +1394,22 @@ components:
   securitySchemes:
     sessionCookie: { type: apiKey, in: cookie, name: camba_session }
   responses:
+    GeographyOptions:
+      description: Directory options as stable numeric IDs and display names
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                type: array
+                items:
+                  type: object
+                  required: [id, name]
+                  properties:
+                    id: { type: integer, minimum: 1 }
+                    name: { type: string }
     HomepagePublication:
       description: Rendering data; catalog rows use the existing public product and category shapes, and unavailable references are omitted from these rows.
       content:

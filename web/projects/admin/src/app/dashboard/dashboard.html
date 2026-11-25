@@ -1,0 +1,113 @@
+<header class="ops-heading dashboard-heading">
+  <h1>Inicio</h1>
+  <nav class="ops-actions" aria-label="Acciones rápidas">
+    <a class="button" routerLink="/productos/nuevo">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>Nuevo producto
+    </a>
+    <a class="button button--quiet" routerLink="/productos/importar">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h8l4 4v12H6zM14 4v4h4m-6 9v-6m-2 2 2-2 2 2" /></svg>Carga masiva
+    </a>
+    <a class="button button--quiet" routerLink="/portada">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 9h16M12 9v10" /></svg>Editar portada
+    </a>
+  </nav>
+</header>
+
+@let state = result();
+@if (state?.status === 'loading') {
+  <camba-operation-loading label="Cargando el inicio" [rows]="6" />
+} @else if (state?.status === 'error') {
+  <div class="callout ops-error" role="alert">
+    <p>{{ state.message }}</p>
+    <button class="button button--quiet" type="button" (click)="retry()">Reintentar</button>
+  </div>
+} @else if (state?.status === 'loaded') {
+  @let dashboard = state.value.data;
+  @let sales = dashboard.sales;
+  <section class="dashboard-section priorities-section" aria-labelledby="priorities-heading">
+    <h2 id="priorities-heading">Qué necesita atención</h2>
+    <div class="priorities">
+      @for (priority of priorities; track priority.key) {
+        <a class="priority" [attr.data-priority]="priority.key" [routerLink]="priority.path" [queryParams]="priority.query">
+          <span class="priority-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path [attr.d]="priority.icon" /></svg>
+          </span>
+          <span class="priority-copy">
+            <span class="priority-label">{{ priority.label }}</span>
+            <strong class="numeric">{{ dashboard.priorities[priority.key] }}</strong>
+          </span>
+          <svg class="priority-arrow" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
+        </a>
+      }
+    </div>
+  </section>
+
+  <section class="dashboard-section" aria-labelledby="recent-heading">
+    <header class="section-heading">
+      <h2 id="recent-heading">Pedidos recientes</h2>
+      <a class="ops-link" routerLink="/pedidos">Ver todos los pedidos</a>
+    </header>
+    @if (dashboard.recent_orders.length) {
+      <div class="recent-row recent-labels" aria-hidden="true">
+        <span>Pedido y fecha</span><span class="recent-amount">Total</span><span>Pago</span><span>Modalidad</span><span></span>
+      </div>
+      <ul class="ops-list recent-orders" role="list" aria-label="Últimos cinco pedidos">
+        @for (order of dashboard.recent_orders; track order.reference) {
+          <li class="recent-row">
+            <div class="order-reference">
+              <strong class="numeric">{{ order.reference }}</strong>
+              <time [attr.datetime]="order.created_at">{{ date(order.created_at, sales.timezone) }}</time>
+            </div>
+            <div class="recent-total recent-amount numeric"><span class="sr-only">Total: </span>{{ money(order.total_cents) }}</div>
+            <div class="recent-payment">
+              <span class="sr-only">Pago: </span>
+              <span class="ops-state" [class.ops-state--good]="order.status === 'paid'"
+                [class.ops-state--attention]="order.status === 'payment_review' || order.status === 'charged_back'">
+                {{ orderStatus[order.status] }}
+              </span>
+            </div>
+            <span class="recent-method"><span class="sr-only">Modalidad: </span>{{ order.shipping_method === 'pickup' ? 'Retiro' : 'Envío' }}</span>
+            <a class="button button--quiet order-action" [routerLink]="['/pedidos', order.reference]"
+              [attr.aria-label]="'Ver pedido ' + order.reference">Ver pedido</a>
+          </li>
+        }
+      </ul>
+    } @else {
+      <div class="ops-empty" role="status">
+        <h3>Todavía no hay pedidos</h3>
+        <p>Los próximos pedidos de tu tienda aparecerán acá.</p>
+      </div>
+    }
+  </section>
+
+  <section class="dashboard-section sales-section" aria-labelledby="sales-heading">
+    <h2 id="sales-heading">Ventas confirmadas</h2>
+    <p class="sales-period">Últimos 30 días · <time [attr.datetime]="sales.from">{{ day(sales.from) }}</time> al <time [attr.datetime]="sales.through">{{ day(sales.through) }}</time></p>
+    @if (sales.order_count) {
+      <div class="sales-summary">
+        <strong class="sales-amount numeric">{{ money(sales.total_cents) }}</strong>
+        <span>{{ sales.order_count }} {{ sales.order_count === 1 ? 'pedido pagado' : 'pedidos pagados' }}</span>
+      </div>
+    } @else {
+      <p class="sales-empty">No hubo ventas confirmadas en estos 30 días.</p>
+    }
+    <p class="sales-zone">Zona horaria: {{ sales.timezone }}</p>
+
+    <h3>Últimos seis meses</h3>
+    @let max = maximum(sales.months);
+    @if (hasSales(sales.months)) {
+      <p class="chart-caption">Monto mensual (UYU)</p>
+      <ul class="sales-chart" role="list" aria-label="Ventas mensuales en UYU">
+        @for (bucket of sales.months; track bucket.month) {
+          <li [attr.aria-label]="month(bucket.month, true) + ': ' + money(bucket.total_cents) + ', ' + bucket.order_count + (bucket.order_count === 1 ? ' pedido' : ' pedidos')">
+            <span class="month-amount numeric" [title]="money(bucket.total_cents)" aria-hidden="true">{{ chartAmount(bucket.total_cents) }}</span>
+            <div class="bar-track" aria-hidden="true"><span class="bar" [style.height.%]="bucket.total_cents / (max || 1) * 100"></span></div>
+            <span class="month-label" aria-hidden="true">{{ month(bucket.month) }}</span>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="ops-empty">Todavía no hay ventas confirmadas en estos seis meses.</p>
+    }
+  </section>
+}

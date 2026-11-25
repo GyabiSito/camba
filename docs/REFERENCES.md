@@ -22,6 +22,17 @@ Fecha del relevamiento remoto: 18 de noviembre de 2026. Estos ejemplos orientan 
 
 ## 1. Komorebi: referencia principal de tienda
 
+### Geographic address patterns — local source review
+
+| Checkout inspected | Pattern adapted for Camba v2 |
+| --- | --- |
+| KomorebiStore `fa774fa`, `features/account/ui/pages/addresses/addresses.ts:110–147,217–229,257–274` | Numeric form values, clear the child on department change, restore both choices on edit. V2 loads only the requested department's localities and adds searchable controls. |
+| KomorebiApi `8f2cb69`, `AccountAddressRequest.php:27–59`, `UpdateOrCreateAccountAddressAction.php:23–37` | Check that the two IDs form a real pair. V2 derives the department via the locality FK rather than persisting a second FK on the address. |
+| Earlier Camba front `e231d30`, `billing.component.ts:41–71,75–84,137–144` | The child lookup is scoped to the selected department. Input sent numeric values; the source was a nested JSON file. |
+| Earlier Camba API `1c6e800`, `UyDepartmentSeeder.php:13–33`, migrations `40-create_uy_departments_table.php` and `41-create_uy_towns_table.php:16–28` | Upstream town IDs are unique only within their department. V2 preserves the composite source key and adds a database-generated locality ID. |
+
+V2 uses the original dataset from the storefront checkout as its one seed source. Its additive backfill accepts only unique case-, accent- and whitespace-normalized matches; it neither discards unmatched text nor rewrites issued orders.
+
 URL pública: https://komorebi.com.uy/ . Se inspeccionaron su portada, catálogo y una ficha durante la auditoría de Camba. Se observó navegación concentrada en Tienda, filtros de categorías/marcas y compra con cuenta.
 
 **Limitación:** sus repositorios no aparecen entre los accesibles en esta sesión remota. No se auditó su código aquí. La implementación local debe localizar su checkout y revisar fuentes reales antes de declarar adoptado su patrón de pago, autenticación o administración.

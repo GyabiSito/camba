@@ -7,7 +7,6 @@ use App\Actions\Identity\RegisterBuyerAction;
 use App\Http\Requests\Identity\LoginRequest;
 use App\Http\Requests\Identity\RegisterBuyerRequest;
 use App\Http\Resources\Identity\UserResource;
-use App\Models\CommerceNotice;
 use App\Models\User;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Http\Request;
@@ -86,19 +85,6 @@ class AuthController
             abort_unless(hash_equals(sha1($user->getEmailForVerification()), $hash), 403);
             if ($user->hasVerifiedEmail() || ! $user->markEmailAsVerified()) {
                 return null;
-            }
-
-            if ($user->role === 'buyer') {
-                // The existing notice scheduler only queues this record once the transaction is committed.
-                CommerceNotice::query()->createOrFirst(['dedup_key' => 'mail:buyer_welcome:user:'.$user->id], [
-                    'channel' => 'mail',
-                    'kind' => CommerceNotice::BUYER_WELCOME,
-                    'subject_type' => 'user',
-                    'subject_id' => $user->id,
-                    'source_hash' => hash('sha256', $user->getEmailForVerification()),
-                    'state' => 'pending',
-                    'available_at' => now(),
-                ]);
             }
 
             return $user;

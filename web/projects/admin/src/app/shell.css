@@ -123,3 +123,4 @@
   .account-panel { inset-inline: auto 0; inset-block: calc(100% + .38rem) auto; }
   .admin-body { padding-block-start: 1.3rem; }
 }
+.notice-return { display: inline-flex; align-items: center; min-block-size: 44px; margin-block-end: .65rem; font-weight: 700; }

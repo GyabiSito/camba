@@ -1,8 +1,8 @@
-import { provideHttpClient } from '@angular/common/http';
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter } from '@angular/router';
+import { provideCambaHttp } from '@camba/shared';
 import { routes } from './app.routes';
 
 export const appConfig: ApplicationConfig = {
-  providers: [provideBrowserGlobalErrorListeners(), provideHttpClient(), provideRouter(routes)],
+  providers: [provideBrowserGlobalErrorListeners(), provideCambaHttp('admin'), provideRouter(routes)],
 };

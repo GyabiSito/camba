@@ -264,14 +264,16 @@
       } @else {
         <p class="muted">No hay pagos verificados de Mercado Pago para este pedido.</p>
       }
-      <button
-        class="button button--quiet"
-        type="button"
-        [disabled]="working() !== null"
-        (click)="requestPayment(order)"
-      >
-        {{ working() === 'payment' ? 'Solicitando…' : 'Solicitar verificación del pago' }}
-      </button>
+      @if (payment?.can_request_refresh) {
+        <button
+          class="button button--quiet"
+          type="button"
+          [disabled]="working() !== null"
+          (click)="requestPayment(order)"
+        >
+          {{ working() === 'payment' ? 'Solicitando…' : 'Solicitar verificación del pago' }}
+        </button>
+      }
     </section>
   </div>
 }

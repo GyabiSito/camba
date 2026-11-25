@@ -1,0 +1,107 @@
+.cart-dialog {
+  --dialog-border: var(--line, #e8deda);
+  margin: auto;
+  padding: clamp(1rem, 3vw, 1.75rem);
+  inline-size: min(33rem, calc(100% - 2rem));
+  max-inline-size: none;
+  max-block-size: calc(100dvh - 2rem);
+  border: 1px solid var(--dialog-border);
+  border-radius: 0.85rem;
+  background: var(--paper, #fcfaf6);
+  color: var(--ink, #24201e);
+  box-shadow: 0 18px 55px rgb(36 18 21 / 18%);
+}
+
+.cart-dialog::backdrop {
+  background: rgb(36 26 23 / 46%);
+}
+
+.cart-dialog-close {
+  position: absolute;
+  inset: 0.55rem 0.55rem auto auto;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  color: var(--home-action, #821f40);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.cart-dialog-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-inline-end: 2rem;
+}
+
+.cart-dialog-heading svg {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  padding: 0.2rem;
+  background: #e5eee6;
+  color: #31543d;
+  border-radius: 50%;
+}
+
+.cart-dialog-close svg {
+  width: 1.2rem;
+}
+
+.cart-dialog-heading h2 {
+  margin: 0;
+  font-family: var(--display, Georgia, serif);
+  font-size: clamp(1.45rem, 4vw, 2rem);
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.cart-dialog-item {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.85rem;
+  margin-block: 1.15rem;
+  padding-block: 1rem;
+  border-block: 1px solid var(--dialog-border);
+}
+
+.cart-dialog-item store-product-photo {
+  aspect-ratio: 4 / 5;
+  border-radius: 0.25rem;
+}
+
+.cart-dialog-item p {
+  margin: 0 0 0.25rem;
+}
+
+.cart-dialog-meta {
+  color: var(--muted, #635956);
+  font-size: 0.875rem;
+}
+
+.cart-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 0.65rem;
+}
+
+.cart-dialog .cart-dialog-secondary {
+  background: transparent;
+  color: var(--home-action, #821f40);
+}
+
+.cart-dialog :is(button, a):focus-visible {
+  outline: 3px solid var(--home-action, #821f40);
+  outline-offset: 2px;
+}
+
+@media (max-width: 26rem) {
+  .cart-dialog-actions > * {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}

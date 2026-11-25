@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -29,9 +30,17 @@ class AppServiceProvider extends ServiceProvider
     {
         Sanctum::getAccessTokenFromRequestUsing(static fn () => null);
         Gate::define('camba-admin', fn (User $user): bool => $user->role === 'admin' && $user->hasVerifiedEmail());
-        ResetPassword::createUrlUsing(fn (User $user, string $token): string => rtrim(config('app.url'), '/').'/cuenta/restablecer#token='.rawurlencode($token));
+        ResetPassword::createUrlUsing(function (User $user, string $token): string {
+            $context = Crypt::encryptString(json_encode([
+                'password_reset_user' => $user->getKey(),
+                'password_reset_token' => $token,
+            ], JSON_THROW_ON_ERROR));
+
+            return rtrim(config('app.url'), '/').'/cuenta/restablecer#reset='.rawurlencode($context);
+        });
 
         RateLimiter::for('register', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
+        RateLimiter::for('store-contact', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
         RateLimiter::for('password-reset', fn (Request $request) => Limit::perMinute(10)->by($request->ip()));
         RateLimiter::for('verification-notification', fn (Request $request) => Limit::perMinute(3)->by($request->user()->getAuthIdentifier()));
         RateLimiter::for('login', function (Request $request): array {

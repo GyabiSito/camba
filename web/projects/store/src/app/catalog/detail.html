@@ -53,13 +53,40 @@
             {{ item.in_stock ? 'En stock' : 'Sin stock' }}
           </p>
           @if (item.in_stock) {
+            <div class="quantity-field">
+              <label for="product-quantity">Cantidad</label>
+              <input
+                id="product-quantity"
+                class="field"
+                type="number"
+                min="1"
+                [max]="item.stock"
+                step="1"
+                inputmode="numeric"
+                [value]="quantity() ?? 1"
+                [disabled]="cart().kind === 'working'"
+                aria-describedby="product-quantity-note"
+                (change)="setQuantity($event, item.stock)"
+              />
+              <span id="product-quantity-note"
+                >Si cambiás la cantidad, se guarda como el total de esta prenda en tu carrito.
+                Máximo: {{ item.stock }}.</span
+              >
+            </div>
             <button
+              #cartTrigger
               type="button"
               class="button"
               [attr.aria-disabled]="cart().kind === 'working' ? 'true' : null"
-              (click)="add(item)"
+              (click)="add(item, cartDialog)"
             >
-              {{ cart().kind === 'working' ? 'Agregando…' : 'Agregar al carrito' }}
+              {{
+                cart().kind === 'working'
+                  ? 'Guardando…'
+                  : quantity() === null
+                    ? 'Agregar al carrito'
+                    : 'Guardar cantidad en el carrito'
+              }}
             </button>
             @if (cart(); as state) {
               @if (state.kind === 'done') {
@@ -71,6 +98,73 @@
                 <p class="callout cart-feedback" role="alert">{{ state.message }}</p>
               }
             }
+            <dialog
+              #cartDialog
+              class="cart-dialog"
+              aria-labelledby="cart-dialog-title"
+              (close)="cartTrigger.focus()"
+              (keydown)="cycleCartFocus($event, closeButton, cartLink)"
+            >
+              <button
+                #closeButton
+                class="cart-dialog-close"
+                type="button"
+                aria-label="Cerrar"
+                (click)="cartDialog.close()"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                >
+                  <path d="m6 6 12 12M18 6 6 18" />
+                </svg>
+              </button>
+              <div class="cart-dialog-heading">
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                >
+                  <path d="m6 12 4 4 8-8" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <h2 id="cart-dialog-title">
+                  {{ confirmation()?.updated ? 'Carrito actualizado' : 'Agregado al carrito' }}
+                </h2>
+              </div>
+              @if (confirmation(); as confirmed) {
+                <div class="cart-dialog-item">
+                  <store-product-photo
+                    [photo]="item.images[0]"
+                    [name]="confirmed.product.name"
+                    [decorative]="true"
+                    variant="thumb"
+                  />
+                  <div>
+                    <p>{{ confirmed.product.name }}</p>
+                    <p class="cart-dialog-meta">Cantidad: {{ confirmed.quantity }}</p>
+                    <p class="cart-dialog-meta">
+                      {{ amount(confirmed.product.price_cents) }} por unidad
+                    </p>
+                  </div>
+                </div>
+              }
+              <div class="cart-dialog-actions">
+                <button
+                  autofocus
+                  class="button cart-dialog-secondary"
+                  type="button"
+                  (click)="cartDialog.close()"
+                >
+                  Seguir comprando
+                </button>
+                <a #cartLink class="button" routerLink="/carrito">Ver carrito</a>
+              </div>
+            </dialog>
           } @else {
             <p class="stock-note">Este producto no está disponible para comprar por ahora.</p>
           }

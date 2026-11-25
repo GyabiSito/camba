@@ -1,53 +1,88 @@
-<section class="catalog-page catalog-page--work">
+<section class="catalog-page" aria-labelledby="classification-title">
   <a class="back" routerLink="/productos">Volver a productos</a>
-  <header class="page-heading"><h1>Categorías y marcas</h1></header>
+  <header class="page-heading">
+    <div>
+      <h1 id="classification-title">{{ group.label }}</h1>
+      <p class="muted">{{ group.caption }}</p>
+    </div>
+    <button class="button" type="button" (click)="select()"
+      [disabled]="loading() || !!loadError() || saving() || !!edit()">Nueva {{ group.singular }}</button>
+  </header>
+
+  <div class="classification-filters" role="search" [attr.aria-label]="'Filtrar ' + group.label.toLowerCase()">
+    <label class="classification-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m15.5 15.5 4 4" /></svg>
+      <span class="sr-only">Buscar por nombre o identificador</span>
+      <input type="search" maxlength="120" placeholder="Buscar por nombre o identificador" [ngModel]="q" (ngModelChange)="search($event)" />
+    </label>
+    <label class="classification-state">
+      <span>Estado</span>
+      <select [(ngModel)]="status" (ngModelChange)="go(1)">
+        <option value="">Todas</option>
+        <option value="active">Activas</option>
+        <option value="inactive">Inactivas</option>
+      </select>
+    </label>
+    <button class="button button--quiet" type="button" (click)="clearFilters()" [disabled]="!q && !status">Limpiar filtros</button>
+  </div>
+
+  @if (error()) { <p class="callout alert" role="alert">{{ error() }}</p> }
+  @if (notice()) { <p class="callout" role="status">{{ notice() }}</p> }
+  @if (edit(); as current) {
+    <form class="surface classification-form" (submit)="save($event)">
+      <label class="field">{{ current.id ? 'Editar nombre' : 'Nombre de la ' + group.singular }}
+        <input [(ngModel)]="current.name" name="name" maxlength="120" required [disabled]="saving()" />
+      </label>
+      <div class="actions">
+        <button class="button" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar' }}</button>
+        <button class="button button--quiet" type="button" [disabled]="saving()" (click)="edit.set(null); error.set('')">Cancelar</button>
+      </div>
+    </form>
+  }
 
   @if (loading()) {
     <div class="loading-block" aria-hidden="true"><span class="skeleton skeleton-line"></span><span class="skeleton skeleton-line"></span></div>
-    <p class="sr-only" role="status">Cargando categorías y marcas…</p>
+    <p class="sr-only" role="status">Cargando {{ group.label.toLowerCase() }}…</p>
   } @else if (loadError()) {
     <p class="callout alert" role="alert">{{ loadError() }}</p>
     <button class="button button--quiet" type="button" (click)="load()">Reintentar</button>
-  } @else {
-    @if (error()) { <p class="callout alert" role="alert">{{ error() }}</p> }
-    @if (notice()) { <p class="callout" role="status">{{ notice() }}</p> }
-    @for (group of groups; track group.key) {
-      <section class="work-section classification-section" [attr.aria-labelledby]="group.key">
-        <header class="page-heading">
-          <div>
-            <h2 [id]="group.key">{{ group.label }}</h2>
-            <p class="muted">{{ group.key === 'categories' ? 'Cada producto publicado necesita una categoría activa.' : 'Asignar una marca no es obligatorio.' }}</p>
-          </div>
-          <button class="button button--quiet" type="button" (click)="select(group.key)" [disabled]="saving() || !!edit()">Nueva {{ group.singular }}</button>
-        </header>
-        @if (edit(); as current) {
-          @if (current.key === group.key) {
-            <form class="surface" style="padding:1rem" (submit)="save($event)">
-              <label class="field">{{ current.id ? 'Editar nombre' : 'Nombre de la ' + group.singular }}
-                <input [(ngModel)]="current.name" name="name" maxlength="120" required [disabled]="saving()" />
-              </label>
-              <div class="actions" style="margin-block-start:.75rem">
-                <button class="button" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Guardar' }}</button>
-                <button class="button button--quiet" type="button" [disabled]="saving()" (click)="edit.set(null); error.set('')">Cancelar</button>
-              </div>
-            </form>
-          }
-        }
-        @for (item of items()[group.key]; track item.id) {
-          <div class="manage-row classification-row">
-            <div><p><strong>{{ item.name }}</strong></p><p class="muted">Identificador: <code>{{ item.slug }}</code></p></div>
-            <span class="status-pill" [attr.data-status]="item.active ? 'active' : 'inactive'">{{ item.active ? 'Activa' : 'Inactiva' }}</span>
-            <div class="actions">
-              <button class="button button--quiet" type="button" [disabled]="saving() || !!edit()"
-                [attr.aria-label]="'Editar ' + item.name" (click)="select(group.key, item)">Editar</button>
-              <button class="button button--quiet" type="button" [disabled]="saving() || !!edit()"
-                [attr.aria-label]="(item.active ? 'Desactivar ' : 'Activar ') + item.name" (click)="toggle(group.key, item)">{{ item.active ? 'Desactivar' : 'Activar' }}</button>
-            </div>
-          </div>
-        } @empty {
-          <p class="muted">Todavía no hay {{ group.label.toLowerCase() }}.</p>
-        }
-      </section>
+  } @else if (result(); as page) {
+    @if (page.data.length) {
+      <div class="inventory">
+        <table [attr.aria-label]="group.label" role="table">
+          <thead role="rowgroup">
+            <tr role="row">
+              <th scope="col" role="columnheader">Nombre</th>
+              <th scope="col" role="columnheader">Identificador</th>
+              <th scope="col" role="columnheader">Estado</th>
+              <th class="classification-actions" scope="col" role="columnheader">Acciones</th>
+            </tr>
+          </thead>
+          <tbody role="rowgroup">
+            @for (item of page.data; track item.id) {
+              <tr role="row">
+                <th class="classification-name" scope="row" role="rowheader">{{ item.name }}</th>
+                <td role="cell"><span class="mobile-label">Identificador</span><code>{{ item.slug }}</code></td>
+                <td role="cell">
+                  <span class="mobile-label">Estado</span>
+                  <span class="status-pill" [attr.data-status]="item.active ? 'active' : 'inactive'">{{ item.active ? 'Activa' : 'Inactiva' }}</span>
+                </td>
+                <td class="classification-actions" role="cell">
+                  <div class="actions row-actions">
+                    <button class="button button--quiet" type="button" [disabled]="saving() || !!edit()"
+                      [attr.aria-label]="'Editar ' + item.name" (click)="select(item)">Editar</button>
+                    <button class="button button--quiet" type="button" [disabled]="saving() || !!edit()"
+                      [attr.aria-label]="(item.active ? 'Desactivar ' : 'Activar ') + item.name" (click)="toggle(item)">{{ item.active ? 'Desactivar' : 'Activar' }}</button>
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p class="muted">{{ q || status ? 'No hay coincidencias. Probá cambiar o limpiar los filtros.' : 'Todavía no hay ' + group.label.toLowerCase() + '.' }}</p>
     }
+    <admin-catalog-pagination [meta]="page.meta" [label]="'Páginas de ' + group.label.toLowerCase()" (pageChange)="go($event)" />
   }
 </section>

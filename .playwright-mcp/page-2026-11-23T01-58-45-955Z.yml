@@ -1,0 +1,71 @@
+- generic [ref=e2]:
+  - link "Saltar al contenido" [ref=e3] [cursor=pointer]:
+    - /url: ./cuenta#contenido
+  - banner [ref=e4]:
+    - navigation "Tienda" [ref=e5]:
+      - link "Inicio" [ref=e6] [cursor=pointer]:
+        - /url: /
+      - link "Tienda" [ref=e7] [cursor=pointer]:
+        - /url: /tienda
+    - link "Camba, inicio" [ref=e8] [cursor=pointer]:
+      - /url: /
+    - navigation "Tu compra" [ref=e9]:
+      - link "Buscar" [ref=e10] [cursor=pointer]:
+        - /url: /tienda
+      - link "Mi cuenta" [ref=e15] [cursor=pointer]:
+        - /url: /cuenta
+      - link "Carrito" [ref=e20] [cursor=pointer]:
+        - /url: /carrito
+  - main [ref=e24]:
+    - region "Ingresá a tu cuenta" [ref=e27]:
+      - generic [ref=e28]:
+        - heading "Ingresá a tu cuenta" [level=1] [ref=e29]
+        - paragraph [ref=e30]: Ingresá para gestionar tus datos, direcciones y compras. Si tu sesión venció, podés volver a iniciar sesión.
+      - group [ref=e33]:
+        - generic [ref=e34]:
+          - text: Correo electrónico
+          - textbox "Correo electrónico" [ref=e35]
+        - generic [ref=e36]:
+          - text: Contraseña
+          - textbox "Contraseña" [ref=e37]
+        - generic [ref=e38]:
+          - button "Ingresar" [ref=e39] [cursor=pointer]
+          - button "Olvidé mi contraseña" [ref=e40] [cursor=pointer]
+      - paragraph [ref=e42]:
+        - text: ¿Todavía no tenés cuenta?
+        - button "Crear cuenta" [ref=e43] [cursor=pointer]
+      - generic [ref=e44]:
+        - paragraph [ref=e45]: Los pedidos hechos como invitado se consultan en la sesión en que se crearon. No se transfieren al ingresar.
+        - link "Ver compras como invitado" [ref=e46] [cursor=pointer]:
+          - /url: /pedidos
+  - contentinfo [ref=e48]:
+    - generic [ref=e49]:
+      - region "Camba" [ref=e50]:
+        - heading "Camba" [level=2] [ref=e51]
+        - paragraph [ref=e53]: Ropa y accesorios para combinar a tu manera.
+        - navigation "Editorial de Camba" [ref=e54]:
+          - link "Armá el look" [ref=e55] [cursor=pointer]:
+            - /url: /#look-title
+      - navigation "Explorá" [ref=e58]:
+        - heading "Explorá" [level=2] [ref=e59]
+        - list [ref=e60]:
+          - listitem [ref=e61]:
+            - link "Ver tienda" [ref=e62] [cursor=pointer]:
+              - /url: /tienda
+          - listitem [ref=e63]:
+            - link "Camisas" [ref=e64] [cursor=pointer]:
+              - /url: /tienda?category=camisas
+          - listitem [ref=e65]:
+            - link "Pantalones" [ref=e66] [cursor=pointer]:
+              - /url: /tienda?category=pantalones
+          - listitem [ref=e67]:
+            - link "Remeras" [ref=e68] [cursor=pointer]:
+              - /url: /tienda?category=remeras
+      - region "Ayuda" [ref=e69]:
+        - heading "Ayuda" [level=2] [ref=e70]
+        - paragraph [ref=e71]: En la ficha de cada producto podés ver el precio y la disponibilidad.
+        - paragraph [ref=e72]: Las opciones de entrega aparecen después del carrito, antes de confirmar el pedido.
+    - generic [ref=e73]:
+      - generic [ref=e74]: © Camba
+      - link "Volver arriba" [ref=e75] [cursor=pointer]:
+        - /url: "#arriba"

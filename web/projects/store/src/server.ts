@@ -7,6 +7,7 @@ import {
 import express from 'express';
 import compression from 'compression';
 import { join } from 'node:path';
+import { attachDemoShopper } from './attach-demo';
 
 const app = express();
 const angular = new AngularNodeAppEngine();
@@ -14,6 +15,7 @@ app.disable('x-powered-by');
 app.get('/healthz', (_request, response) => {
   response.set('Cache-Control', 'no-store').send('ok');
 });
+attachDemoShopper(app);
 app.use(compression({
   filter: (request, response) => !request.headers.range && !response.hasHeader('Set-Cookie') &&
     compression.filter(request, response),

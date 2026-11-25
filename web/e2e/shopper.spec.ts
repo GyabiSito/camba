@@ -20,6 +20,9 @@ async function addToCart(page: Page, slug: string) {
   );
   await page.getByRole('button', { name: /agregar al carrito/i }).click();
   expect((await added).status()).toBe(200);
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: 'Seguir comprando' }).click();
 }
 
 async function signInBuyer(page: Page) {
@@ -105,7 +108,6 @@ test('two tabs each add a unit of the same product without losing an increment',
   page,
 }) => {
   await addToCart(page, 'remera-lisa');
-  await expect(page.getByText('Producto agregado al carrito.', { exact: true })).toBeVisible();
   const other = await context.newPage();
   await openProduct(other, 'remera-lisa');
 
@@ -131,7 +133,7 @@ test('two tabs each add a unit of the same product without losing an increment',
         );
         await tab.getByRole('button', { name: /agregar al carrito/i }).click();
         expect((await saved).status()).toBe(200);
-        await expect(tab.getByText('Producto agregado al carrito.', { exact: true })).toBeVisible();
+        await expect(tab.getByRole('dialog').getByRole('heading', { name: 'Carrito actualizado' })).toBeVisible();
       }),
     );
   } finally {
@@ -189,11 +191,12 @@ test('a buyer edits profile and saves reminder preferences after signing in', as
   await name.fill('Nombre de prueba actualizado');
   await page.getByRole('button', { name: 'Guardar nombre' }).click();
   await expect(page.getByText('Tus datos se guardaron.')).toBeVisible();
-  await page.getByText('Direcciones guardadas', { exact: true }).click();
   await page.getByRole('button', { name: 'Agregar dirección' }).click();
   await page.getByLabel('Nombre de quien recibe').fill('Persona de Prueba');
-  await page.getByLabel('Departamento').fill('Montevideo');
-  await page.getByLabel('Localidad').fill('Montevideo');
+  await page.getByRole('combobox', { name: 'Departamento', exact: true }).fill('Montevideo');
+  await page.getByRole('option', { name: 'Montevideo', exact: true }).click();
+  await page.getByRole('combobox', { name: 'Localidad', exact: true }).fill('Montevideo');
+  await page.getByRole('option', { name: 'Montevideo', exact: true }).click();
   await page.getByLabel('Calle').fill('Calle de prueba');
   await page.getByLabel('Número de puerta').fill('10');
   await page.getByRole('button', { name: 'Guardar dirección' }).click();
@@ -202,7 +205,6 @@ test('a buyer edits profile and saves reminder preferences after signing in', as
   await page.getByLabel('Número de puerta').fill('12');
   await page.getByRole('button', { name: 'Guardar dirección' }).click();
   await expect(page.getByText('Calle de prueba 12', { exact: true })).toBeVisible();
-  await page.getByText('Recordatorios por correo', { exact: true }).click();
   const reminders = page.getByRole('checkbox', { name: 'Pagos pendientes' });
   const wasChecked = await reminders.isChecked();
   const save = page.getByRole('button', { name: 'Guardar preferencias' });
@@ -216,13 +218,11 @@ test('a buyer edits profile and saves reminder preferences after signing in', as
   await name.fill(originalName);
   await page.getByRole('button', { name: 'Guardar nombre' }).click();
   await expect(page.getByText('Tus datos se guardaron.')).toBeVisible();
-  await page.getByText('Recordatorios por correo', { exact: true }).click();
   await expect(reminders).toBeVisible();
   expect(await reminders.isChecked()).toBe(!wasChecked);
   await reminders.setChecked(wasChecked);
   await save.click();
   await expect(page.getByText('Preferencias guardadas.')).toBeVisible();
-  await page.getByText('Direcciones guardadas', { exact: true }).click();
   await page.getByRole('button', { name: 'Eliminar Calle de prueba 12' }).click();
   await page.getByRole('button', { name: 'Eliminar dirección' }).click();
   await expect(page.getByText('Dirección eliminada.')).toBeVisible();
@@ -369,8 +369,10 @@ test('a guest sees the API delivery rate and confirms a persisted delivery order
   };
   const fields = page.getByRole('group', { name: 'Dirección de entrega' });
   await fields.getByLabel('Nombre de quien recibe').fill(address.recipient);
-  await fields.getByLabel('Departamento').fill(address.department);
-  await fields.getByLabel('Localidad').fill(address.locality);
+  await fields.getByRole('combobox', { name: 'Departamento', exact: true }).fill(address.department);
+  await fields.getByRole('option', { name: address.department, exact: true }).click();
+  await fields.getByRole('combobox', { name: 'Localidad', exact: true }).fill(address.locality);
+  await fields.getByRole('option', { name: address.locality, exact: true }).click();
   await fields.getByLabel('Calle').fill(address.street);
   await fields.getByLabel('Número de puerta').fill(address.number);
   await fields.getByLabel('Apartamento o indicaciones (opcional)').fill(address.details);
@@ -391,9 +393,14 @@ test('a guest sees the API delivery rate and confirms a persisted delivery order
   expect(order.status()).toBe(201);
   expect(order.request().postDataJSON()).toMatchObject({
     shipping_method: 'delivery',
-    address,
+    address: {
+      recipient: address.recipient, street: address.street, number: address.number, details: address.details,
+      department_id: 2, locality_id: expect.any(Number),
+    },
     quote_token: delivery.quote_token,
   });
+  expect(order.request().postDataJSON().address).not.toHaveProperty('department');
+  expect(order.request().postDataJSON().address).not.toHaveProperty('locality');
   const { data: placed } = await order.json();
   expect(placed).toMatchObject({
     shipping_method: 'delivery',

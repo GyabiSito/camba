@@ -2,7 +2,9 @@ import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http
 import { isPlatformServer } from '@angular/common';
 import { Injectable, InjectionToken, PLATFORM_ID, TransferState, inject, makeStateKey } from '@angular/core';
 import { Observable, catchError, defer, finalize, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
+import { demoMode } from './demo-config';
 
+export { demoMode, provideCambaHttp } from './demo-config';
 export * from './homepage';
 
 export const CAMBA_API_ORIGIN = new InjectionToken<string>('Internal Camba API origin', {
@@ -24,7 +26,7 @@ export class ApiClient {
   private csrfRequest?: Observable<unknown>;
 
   get<T>(path: string, query?: Query): Observable<T> {
-    if (this.server) {
+    if (this.server && !(demoMode && path === '/api/v1/auth/me')) {
       return throwError(() => new Error('Private data must be requested by the browser.'));
     }
     return this.http.get<T>(path, {

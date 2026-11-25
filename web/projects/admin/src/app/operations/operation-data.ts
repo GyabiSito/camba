@@ -4,6 +4,8 @@ import { Observable, catchError, map, of, startWith } from 'rxjs';
 
 export const adminApi = '/api/v1/admin';
 
+export const noticeQueryKeys = ['q', 'state', 'kind', 'date_from', 'date_to', 'page'] as const;
+
 export const orderLabels = {
   pending_payment: 'Pago pendiente',
   paid: 'Pagado',
@@ -19,6 +21,11 @@ export const fulfilmentLabels = {
   ready_for_pickup: 'Listo para retirar',
   shipped: 'Enviado',
   completed: 'Completado',
+} as const;
+
+export const fulfilmentFilterLabels = {
+  needs_preparation: 'Necesita preparación',
+  ...fulfilmentLabels,
 } as const;
 
 export const nextAction = {
@@ -129,6 +136,7 @@ export type OrderDetail = Order & {
 };
 
 export type PaymentEvidence = {
+  can_request_refresh: boolean;
   paid_at: string | null;
   last_checked_at: string | null;
   next_check_at: string | null;

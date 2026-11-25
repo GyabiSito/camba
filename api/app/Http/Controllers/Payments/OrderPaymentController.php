@@ -37,7 +37,7 @@ class OrderPaymentController
 
     public function refreshAsAdmin(OrderSessionRequest $request, string $reference, RequestPaymentRefresh $refresh): Response
     {
-        $refresh->execute(Order::query()->where('reference', $reference)->firstOrFail());
+        $refresh->executeAsAdmin(Order::query()->where('reference', $reference)->firstOrFail());
 
         return response('', 202)->header('Cache-Control', 'private, no-store');
     }

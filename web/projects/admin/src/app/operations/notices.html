@@ -1,0 +1,127 @@
+<a class="ops-back ops-link" routerLink="/pedidos">Volver a pedidos</a>
+<header class="ops-heading">
+  <div>
+    <h1>Avisos operativos</h1>
+    <p>Revisá las incidencias y abrí el pedido, producto o carga correspondiente.</p>
+  </div>
+</header>
+
+<div class="order-filters notice-filters">
+  <label class="field order-search" for="notice-search">
+    Buscar aviso
+    <span class="order-search-control">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
+        <circle cx="10.5" cy="10.5" r="5.5" /><path d="m15 15 5 5" />
+      </svg>
+      <input id="notice-search" type="search" placeholder="Título o referencia" maxlength="120"
+        [ngModel]="searchText" (ngModelChange)="search($event)" (keydown.enter)="applySearch()" />
+    </span>
+  </label>
+  <label class="field" for="notice-state">
+    Estado del aviso
+    <select id="notice-state" [ngModel]="filters().state" (ngModelChange)="filter('state', $event)">
+      @for (item of options; track item.value) { <option [value]="item.value">{{ item.label }}</option> }
+    </select>
+  </label>
+  <label class="field" for="notice-kind">
+    Tipo de aviso
+    <select id="notice-kind" [ngModel]="filters().kind" (ngModelChange)="filter('kind', $event)">
+      <option value="">Todos los tipos</option>
+      @for (item of kindOptions(); track item.value) { <option [value]="item.value">{{ item.label }}</option> }
+    </select>
+  </label>
+  <fieldset class="order-dates">
+    <legend>Fecha del aviso</legend>
+    <label class="field" for="notice-from">Desde
+      <input id="notice-from" type="date" [ngModel]="filters().date_from"
+        [attr.aria-describedby]="dateError() ? 'notice-date-error' : null" (ngModelChange)="filter('date_from', $event)" />
+    </label>
+    <label class="field" for="notice-to">Hasta
+      <input id="notice-to" type="date" [ngModel]="filters().date_to"
+        [attr.aria-describedby]="dateError() ? 'notice-date-error' : null" (ngModelChange)="filter('date_to', $event)" />
+    </label>
+    @if (dateError()) {
+      <p id="notice-date-error" role="alert">La fecha Hasta tiene que ser igual o posterior a Desde.</p>
+    }
+  </fieldset>
+  <div class="order-filter-actions">
+    <button class="link-button" type="button" [disabled]="!hasFilters() && !searchText" (click)="clearFilters()">Limpiar filtros</button>
+  </div>
+</div>
+
+@let result = notices();
+@if (result?.status === 'loading') {
+  <camba-operation-loading label="Cargando avisos" [rows]="4" />
+} @else if (result?.status === 'error') {
+  <div class="callout ops-error" role="alert">
+    <p>{{ result.message }}</p>
+    <button class="button button--quiet" type="button" (click)="retry()">Reintentar</button>
+  </div>
+} @else if (result?.status === 'loaded') {
+  <p class="notice-total" role="status">{{ result.value.meta.total }} {{ result.value.meta.total === 1 ? 'aviso' : 'avisos' }}</p>
+  @if (result.value.data.length) {
+    <table class="notice-table" aria-label="Avisos operativos" role="table">
+      <thead role="rowgroup">
+        <tr role="row">
+          <th scope="col">Aviso</th><th scope="col">Fecha</th><th scope="col">Canal</th><th scope="col">Estado</th><th scope="col">Registro</th>
+        </tr>
+      </thead>
+      <tbody role="rowgroup">
+        @for (notice of result.value.data; track notice.id) {
+          <tr role="row">
+            <th scope="row" role="rowheader">
+              <strong>{{ kinds()[notice.kind] || 'Aviso operativo' }}</strong>
+              <p>{{ description(notice) }}</p>
+            </th>
+            <td class="notice-date numeric" role="cell">
+              <span class="notice-mobile-label" aria-hidden="true">Fecha</span>
+              <time [attr.datetime]="notice.updated_at">{{ date(notice.updated_at) }}</time>
+            </td>
+            <td role="cell">
+              <span class="notice-mobile-label" aria-hidden="true">Canal</span>
+              {{ notice.channel === 'mail' ? 'Correo' : 'Panel' }}
+              @if (notice.channel === 'mail') { <small>Intentos: {{ notice.attempts }}</small> }
+            </td>
+            <td role="cell">
+              <span class="notice-mobile-label" aria-hidden="true">Estado</span>
+              <span class="ops-state" [class.ops-state--good]="notice.state === 'resolved'"
+                [class.ops-state--attention]="notice.state === 'failed' || notice.state === 'uncertain'">
+                {{ states[notice.state] }}
+              </span>
+            </td>
+            <td role="cell">
+              @switch (notice.subject_type) {
+                @case ('order') {
+                  @if (notice.order_reference; as reference) {
+                    <a class="ops-link" [routerLink]="['/pedidos', reference]" [queryParams]="sourceQuery()">Ver pedido {{ reference.slice(0, 8).toUpperCase() }}</a>
+                  } @else { <span class="muted">Pedido no disponible</span> }
+                }
+                @case ('product') {
+                  @if (notice.subject_id; as id) {
+                    <a class="ops-link" [routerLink]="['/productos', id]" [queryParams]="sourceQuery()">Ver producto {{ id }}</a>
+                  }
+                }
+                @case ('import') {
+                  @if (notice.subject_id; as id) {
+                    <a class="ops-link" [routerLink]="['/productos/importar', id]" [queryParams]="sourceQuery()">Ver carga {{ id }}</a>
+                  }
+                }
+                @case ('cart') {
+                  <a class="ops-link" routerLink="/configuracion" [queryParams]="sourceQuery()">Revisar configuración</a>
+                }
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  } @else {
+    <div class="ops-empty">
+      <h2>No hay avisos para mostrar</h2>
+      <p>Probá con otros filtros o volvé a la vista inicial.</p>
+    </div>
+  }
+  @if (result.value.meta.last_page > 1 || result.value.meta.current_page > 1) {
+    <camba-operation-pager [info]="result.value.meta" singular="aviso" plural="avisos" [showTotal]="false" />
+  }
+}

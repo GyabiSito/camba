@@ -9,7 +9,8 @@ test('store captures real catalog data and offers a visible keyboard skip link',
   await expect(page.getByRole('link', { name: 'Saltar al contenido' })).toBeFocused();
   await page.keyboard.press('Enter');
   await expect(page.locator('main')).toBeFocused();
-  const search = page.getByRole('searchbox', { name: 'Buscar productos' });
+  await page.getByRole('banner').getByRole('link', { name: 'Buscar', exact: true }).click();
+  const search = page.getByRole('main').getByRole('searchbox', { name: 'Buscar en la tienda' });
   await search.fill('Remera lisa');
   await search.press('Enter');
   await expect(page).toHaveURL(
@@ -17,8 +18,8 @@ test('store captures real catalog data and offers a visible keyboard skip link',
   );
   await expect(page.getByRole('link', { name: 'Remera lisa', exact: true })).toBeVisible();
   await page.getByRole('link', { name: 'Contacto', exact: true }).click();
-  await expect(page).toHaveURL((url) => url.pathname === '/tienda' && url.searchParams.get('q') === 'Remera lisa' && url.hash === '#contacto');
-  await expect(page.getByRole('link', { name: 'Contacto por correo' })).toHaveAttribute(
+  await expect(page).toHaveURL((url) => url.pathname === '/tienda' && url.searchParams.get('q') === 'Remera lisa' && url.hash === '#canales');
+  await expect(page.getByRole('link', { name: 'hola@camba.test' })).toHaveAttribute(
     'href',
     'mailto:hola@camba.test',
   );

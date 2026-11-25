@@ -1,5 +1,21 @@
 # Camba v2 — instrucciones para Codex local
 
+## Encargo vigente — preparar el frontend para diseño (20/11/2026)
+
+Esta instrucción posterior del usuario tiene prioridad sobre los planes de finalización integral que siguen. **Ahora completar únicamente estos tres puntos; el rediseño viene después.** Trabajar sobre el HEAD local actual y conservar cambios, assets, comps y revisiones existentes.
+
+1. **API sin cambios.** `api/**` queda en solo lectura para consultar contratos, Resources, OpenAPI y pruebas existentes. No modificar código, tests, contratos, dependencias ni configuración del backend; no ejecutar migraciones/seeders ni crear usuarios en la base para esta tarea. Pausar Mercado Pago, SMTP, migración, despliegue y las restantes tareas del encargo anterior.
+2. **Productos simulados en el frontend respetando los contratos actuales.** Inspeccionar los clientes/tipos existentes y las respuestas de la API antes de escribir fixtures. Reutilizar los tipos, campos, nulabilidad, formatos de dinero, estados y envolturas/paginación reales; no inventar otro modelo para las pantallas ni cambiar el contrato para acomodar el mock. Preparar un conjunto pequeño y coherente de productos demo con imágenes locales disponibles, categorías planas y marca opcional: suficientes para recorrer listado, búsqueda/filtros, páginas y detalle, con variedad de textos, precios, stock y galerías. Mantener todas las exclusiones comerciales. No depender de fotos o datos reales del legado.
+3. **Usuarios de prueba del modo frontend.** Preparar un administrador y un comprador ficticios, con inicio/cierre de sesión y roles simulados, además de poder navegar como invitado. Usar correos diferenciados, por ejemplo `admin.diseno@camba.test` y `cliente.diseno@camba.test`, y documentar credenciales exclusivamente demo. No reutilizar credenciales reales, modificar Sanctum, crear permisos en servidor ni debilitar la autenticación de la aplicación real.
+
+Implementar el modo demo en una capa pequeña y sustituible del frontend, activada explícitamente por una configuración/comando local. Reutilizar la organización y dependencias disponibles; no añadir infraestructura de mocking o paquetes si no hacen falta. Catálogo y sesión demo deben funcionar sin levantar API, MySQL, Redis o correo, también en el primer render SSR y tras recargar/hidratar. No permitir que una petición de catálogo/autenticación demo sin resolver termine silenciosamente en la API real.
+
+Las pantallas siguen consumiendo sus servicios/tipos habituales. Los cambios de productos demo que hagan falta para recorrer el admin pueden vivir en memoria, con reinicio sencillo de los datos; no construir un backend paralelo ni ampliar esta entrega a pagos, pedidos, importadores o recordatorios. Mantener el modo real y su configuración; los mocks y el acceso demo deben estar excluidos de la configuración de producción.
+
+**Verificación y cierre de esta tarea:** compilar tienda/admin y comprobar catálogo, ficha, imágenes y acceso por ambos roles en el modo demo con la API desconectada, incluyendo recarga. Verificar que no hay cambios bajo `api/`. Documentar el comando real de arranque, las URLs, las credenciales demo, cómo reiniciar los datos y cómo volver al modo API. Usar solo los checks pertinentes; no reabrir la auditoría general ni revisiones ya cerradas. Dejar el frontend demo disponible y terminar esta preparación, sin iniciar todavía el rediseño ni la antigua lista de tareas de backend/entrega.
+
+El resto de este archivo conserva el contexto general del proyecto para las etapas posteriores.
+
 ## Continuidad obligatoria hasta completar el sistema
 
 Leer también `docs/AUTONOMOUS_EXECUTION.md` antes de empezar o retomar. El usuario exige completar todos los casos de uso y el diseño, sin preguntas rutinarias. Una fase, commit, revisión o candidato pequeño terminado no cierra el encargo: corregir, integrar y seguir automáticamente con la siguiente tarea ejecutable. Mantener la matriz UC01–UC30 y T01–T06 con evidencia real.

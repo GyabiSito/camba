@@ -12,6 +12,9 @@ COPY projects ./projects
 FROM build AS build-store
 RUN npm exec -- ng build store
 
+FROM build AS build-store-editorial
+RUN npm exec -- ng build store --configuration production,editorial,no-payment
+
 FROM build AS build-admin
 RUN npm exec -- ng build admin
 
@@ -22,6 +25,15 @@ COPY --from=build-store --chown=node:node /src/dist/store/ ./
 USER node
 EXPOSE 4000
 CMD ["node", "server/server.mjs"]
+
+FROM ${NODE_IMAGE} AS store-editorial-local
+WORKDIR /app
+ENV NODE_ENV=production HOST=0.0.0.0 PORT=4000
+COPY --from=build-store-editorial --chown=node:node /src/dist/store/ ./
+COPY --chown=node:node store-preview-proxy.mjs ./
+USER node
+EXPOSE 4000
+CMD ["node", "store-preview-proxy.mjs"]
 
 FROM ${NGINX_IMAGE} AS admin
 COPY nginx-admin.conf /etc/nginx/conf.d/default.conf

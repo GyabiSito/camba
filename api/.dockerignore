@@ -9,6 +9,10 @@
 !database/
 !database/migrations/
 !database/migrations/**
+!database/data/
+!database/data/countries.json
+!database/seeders/
+!database/seeders/GeographySeeder.php
 !lang/
 !lang/es.json
 !lang/es/

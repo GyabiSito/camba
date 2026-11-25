@@ -1,11 +1,13 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, Injectable, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, CanActivateFn, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { ActivatedRoute, CanActivateFn, isActive, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ApiClient, apiMessage } from '@camba/shared';
 import { firstValueFrom, map, switchMap, tap } from 'rxjs';
+import { noticeQueryKeys } from './operations/operation-data';
 
 type Admin = { name: string; email: string };
+const sectionMatch = { paths: 'exact', queryParams: 'ignored', matrixParams: 'ignored', fragment: 'ignored' } as const;
 
 @Injectable({ providedIn: 'root' })
 class AdminSession {
@@ -71,7 +73,7 @@ export class AdminLogin {
       await firstValueFrom(this.session.signIn(this.email.trim(), this.password));
       this.password = '';
       const next = this.route.snapshot.queryParamMap.get('next') ?? '';
-      await this.router.navigateByUrl(/^\/(productos|pedidos|configuracion)(?:\/|\?|$)/.test(next) ? next : '/productos');
+      await this.router.navigateByUrl(/^\/(dashboard|productos|pedidos|configuracion|portada)(?:[/?#]|$)/.test(next) ? next : '/dashboard');
     } catch (error) {
       this.error.set(error instanceof HttpErrorResponse && error.status === 403
         ? 'La cuenta no tiene acceso administrativo o el correo no está verificado.'
@@ -91,6 +93,24 @@ export class AdminLogin {
 export class AdminShell {
   private readonly session = inject(AdminSession);
   protected readonly router = inject(Router);
+  protected readonly categoriesActive = isActive('/productos/categorias', this.router, sectionMatch);
+  protected readonly brandsActive = isActive('/productos/marcas', this.router, sectionMatch);
+  private readonly catalogActive = isActive('/productos', this.router, { ...sectionMatch, paths: 'subset' });
+  protected readonly productsActive = computed(() => this.catalogActive() && !this.categoriesActive() && !this.brandsActive());
+  protected readonly noticesActive = isActive('/pedidos/avisos', this.router, sectionMatch);
+  private readonly orderSection = isActive('/pedidos', this.router, { ...sectionMatch, paths: 'subset' });
+  protected readonly ordersActive = computed(() => this.orderSection() && !this.noticesActive());
+  protected readonly noticeReturn = computed(() => {
+    const url = this.router.lastSuccessfulNavigation()?.finalUrl;
+    const path = this.router.url.split(/[?#]/, 1)[0];
+    if (url?.queryParams['from'] !== 'avisos' ||
+      !/^\/(?:pedidos\/[0-9a-f-]{36}|productos\/(?:\d+|importar\/\d+)|configuracion)$/.test(path)) return null;
+
+    return Object.fromEntries(noticeQueryKeys.flatMap(key => {
+      const value = url.queryParamMap.get('notice_' + key);
+      return value === null ? [] : [[key, value]];
+    }));
+  });
   protected readonly user = this.session.user;
   protected readonly initials = computed(() => this.user()?.name.trim().split(/\s+/).slice(0, 2).map((v) => v[0]).join('').toUpperCase() || 'CA');
   protected readonly error = signal('');

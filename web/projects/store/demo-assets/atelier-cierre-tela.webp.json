@@ -1,0 +1,6 @@
+{
+    "source":  "Built-in ImageGen",
+    "use":  "Camba demo only; original editorial textile",
+    "prompt":  "Use case: photorealistic-natural. Create one original fashion textile photograph for the Camba storefront visual demo, landscape close crop approximately 6:5. Real deep wine-burgundy cotton sateen with a softly visible fine weave, arranged in broad asymmetrical diagonal draped folds. Strong but soft warm lateral window light from upper left grazing fabric ridges, deep oxblood shadows, refined natural 35mm grain; convincing folded cloth not liquid, no props. Keep the middle 60% usefully darker and lower contrast for a separate cream logo overlaid in HTML, let sculptural folds flow along left and lower right with controlled burgundy highlights. Show cloth edge to edge and enough framing flexibility for a wide mobile crop. Rich burgundy around #821F40, not bright candy red, rose pink, or purple. Single coherent close-up, highly tactile, warm independent fashion atelier. No text, lettering, logo, graphic, objects, hands or watermark.",
+    "processing":  "WebP scale variant"
+}

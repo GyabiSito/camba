@@ -1,0 +1,26 @@
+.notice-total { margin: 0 0 .55rem; color: var(--muted); text-align: end; font-size: .875rem; }
+.notice-table { width: 100%; border-collapse: collapse; text-align: start; }
+.notice-table th, .notice-table td { padding: .75rem .65rem; border-block-start: 1px solid var(--line); text-align: start; vertical-align: top; }
+.notice-table thead { color: var(--muted); font-size: .875rem; }
+.notice-table tbody th { width: 43%; font-weight: 400; }
+.notice-table tbody th p { margin: .25rem 0 0; color: var(--muted); line-height: 1.45; }
+.notice-table td:last-child { min-inline-size: 10rem; }
+.notice-table .ops-link { min-block-size: 2rem; }
+.notice-table small, .notice-mobile-label { display: block; color: var(--muted); font-size: .8rem; }
+.notice-mobile-label { display: none; }
+.notice-filters .link-button:disabled { opacity: .55; cursor: default; }
+
+@media (min-width: 861px) {
+  .notice-filters { grid-template-columns: minmax(0, 1.6fr) minmax(0, .85fr) minmax(0, 1.15fr); }
+}
+
+@media (max-width: 43rem) {
+  .notice-table, .notice-table tbody { display: block; }
+  .notice-table thead { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); }
+  .notice-table tbody tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: .65rem 1rem; padding: .9rem 0; border-block-start: 1px solid var(--line); }
+  .notice-table tbody th, .notice-table tbody td { padding: 0; border: 0; overflow-wrap: anywhere; }
+  .notice-table tbody th { grid-column: 1 / -1; width: auto; }
+  .notice-table td:last-child { align-self: end; min-inline-size: 0; }
+  .notice-mobile-label { display: block; }
+  .notice-table .ops-link { min-block-size: 44px; }
+}

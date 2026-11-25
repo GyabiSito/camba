@@ -1,11 +1,15 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiClient, apiMessage, CART_CHANGED, formatMoney } from '@camba/shared';
-import { firstValueFrom } from 'rxjs';
+import { catchError, distinctUntilChanged, firstValueFrom, map, of, switchMap } from 'rxjs';
 import { AddressFields } from './address-fields';
+import { paymentsEnabled } from './payment-availability';
 import {
   Address,
+  AddressInput,
+  addressGeography,
   api,
   Buyer,
   Cart,
@@ -14,6 +18,7 @@ import {
   makeAddressForm,
   Order,
   Quote,
+  resetAddressForm,
   Shipping,
 } from './shopper';
 
@@ -22,7 +27,7 @@ type OrderInput = {
   shipping_method: Shipping['method'];
   quote_token: string;
   contact: { name: string; email: string; phone: string };
-  address?: ReturnType<ReturnType<typeof makeAddressForm>['getRawValue']>;
+  address?: AddressInput;
 };
 
 @Component({
@@ -31,17 +36,18 @@ type OrderInput = {
   styleUrls: ['./shopper.css', './purchase-design.css'],
 })
 export class CheckoutPage {
+  protected readonly paymentsEnabled = paymentsEnabled;
   private readonly client = inject(ApiClient);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
   private pending: { key: string; body: OrderInput } | null = null;
   protected readonly quote = signal<Quote | null>(null);
   protected readonly method = signal<Shipping['method'] | null>(null);
-  protected readonly selected = computed(() =>
-    this.quote()?.shipping_options.find((option) => option.method === this.method()),
-  );
   protected readonly buyer = signal<Buyer | null | undefined>(undefined);
   protected readonly addresses = signal<Address[]>([]);
+  protected readonly savedAddress = signal<Address | null>(null);
+  protected readonly savingAddress = signal(false);
+  protected readonly addressFeedback = signal<{ error: boolean; text: string } | null>(null);
   protected readonly empty = signal(false);
   protected readonly loading = signal(true);
   protected readonly busy = signal(false);
@@ -55,6 +61,67 @@ export class CheckoutPage {
     phone: ['', Validators.maxLength(30)],
   });
   protected readonly address = makeAddressForm(this.fb);
+  private readonly geography = toSignal(
+    this.address.valueChanges.pipe(
+      map(() => addressGeography(this.address.getRawValue())),
+      distinctUntilChanged(
+        (a, b) => a?.department_id === b?.department_id && a?.locality_id === b?.locality_id,
+      ),
+    ),
+    { initialValue: null },
+  );
+  private readonly retryDelivery = signal(0);
+  private readonly deliveryRequest = computed(() => {
+    const quote = this.quote();
+    const address = this.geography();
+    if (this.method() !== 'delivery' || !quote || !address) return null;
+    return {
+      address,
+      items: quote.items.map(({ product_id, quantity }) => ({ product_id, quantity })),
+      retry: this.retryDelivery(),
+    };
+  });
+  private readonly deliveryResult = toSignal(
+    toObservable(this.deliveryRequest).pipe(
+      switchMap((request) =>
+        request
+          ? this.client
+              .post<Data<Quote>>(api + '/checkout/quote', {
+                items: request.items,
+                address: request.address,
+              })
+              .pipe(
+                map(({ data }) => {
+                  const option = data.shipping_options.find(({ method }) => method === 'delivery');
+                  return {
+                    request,
+                    option,
+                    error: option ? '' : 'No hay entrega para esta dirección.',
+                  };
+                }),
+                catchError((error: unknown) =>
+                  of({
+                    request,
+                    option: undefined,
+                    error: apiMessage(error, 'No pudimos cotizar el envío. Volvé a intentar.'),
+                  }),
+                ),
+              )
+          : of(null),
+      ),
+    ),
+  );
+  protected readonly deliveryState = computed(() => {
+    const result = this.deliveryResult();
+    return result?.request === this.deliveryRequest() ? result : null;
+  });
+  protected readonly deliveryLoading = computed(
+    () => !!this.deliveryRequest() && !this.deliveryState(),
+  );
+  protected readonly selected = computed(() => {
+    if (this.deliveryRequest()) return this.deliveryState()?.option;
+    return this.quote()?.shipping_options.find((option) => option.method === this.method());
+  });
 
   constructor() {
     void this.getQuote();
@@ -70,7 +137,11 @@ export class CheckoutPage {
       const addresses = await firstValueFrom(
         this.client.get<Data<Address[]>>(api + '/account/addresses'),
       );
-      this.addresses.set(addresses.data);
+      // An address saved while this request was in flight must stay in the selector.
+      this.addresses.update((current) => [
+        ...addresses.data.filter(({ id }) => !current.some((address) => address.id === id)),
+        ...current,
+      ]);
     } catch (error) {
       if (httpStatus(error) === 401) this.buyer.set(null);
       // Saved addresses and prefilled details are optional; the shopper can enter them manually.
@@ -105,7 +176,7 @@ export class CheckoutPage {
         }),
       );
       this.quote.set(data);
-      if (!this.selected())
+      if (!data.shipping_options.some((option) => option.method === this.method()))
         this.method.set(
           data.shipping_options.length === 1 ? data.shipping_options[0].method : null,
         );
@@ -121,32 +192,90 @@ export class CheckoutPage {
   }
 
   protected applyAddress(id: string) {
+    this.addressFeedback.set(null);
     const saved = this.addresses().find((address) => address.id === Number(id));
-    if (!saved) {
-      this.address.reset();
-      return;
-    }
-    this.address.reset({
-      ...saved,
-      details: saved.details ?? '',
-      postal_code: saved.postal_code ?? '',
-    });
-    if (this.contact.controls.phone.pristine && !this.contact.controls.phone.value && saved.phone) {
+    this.savedAddress.set(saved ?? null);
+    resetAddressForm(this.address, saved);
+    if (
+      this.contact.controls.phone.pristine &&
+      !this.contact.controls.phone.value &&
+      saved?.phone
+    ) {
       this.contact.controls.phone.setValue(saved.phone);
     }
   }
 
+  protected async saveAddress() {
+    if (
+      !this.buyer() ||
+      this.method() !== 'delivery' ||
+      this.savedAddress() ||
+      this.savingAddress() ||
+      this.busy() ||
+      this.uncertain()
+    ) {
+      return;
+    }
+
+    this.addressFeedback.set(null);
+    this.address.markAllAsTouched();
+    const fields = this.address.getRawValue();
+    const geography = addressGeography(fields);
+    if (
+      !geography ||
+      this.address.invalid ||
+      !fields.recipient.trim() ||
+      !fields.street.trim() ||
+      !fields.number.trim()
+    ) {
+      this.addressFeedback.set({
+        error: true,
+        text: 'Completá los campos obligatorios de la dirección.',
+      });
+      return;
+    }
+
+    this.savingAddress.set(true);
+    try {
+      const { data } = await firstValueFrom(
+        this.client.post<Data<Address>>(api + '/account/addresses', { ...fields, ...geography }),
+      );
+      this.addresses.update((items) => [...items.filter((item) => item.id !== data.id), data]);
+      this.applyAddress(String(data.id));
+      if (this.deliveryState()?.error) this.refreshDeliveryQuote();
+      this.addressFeedback.set({ error: false, text: 'Dirección guardada' });
+    } catch (error) {
+      this.addressFeedback.set({
+        error: true,
+        text: apiMessage(error, 'No pudimos guardar la dirección. Volvé a intentar.'),
+      });
+    } finally {
+      this.savingAddress.set(false);
+    }
+  }
+
+  protected refreshDeliveryQuote() {
+    this.retryDelivery.update((attempt) => attempt + 1);
+  }
+
   protected async placeOrder() {
-    if (this.busy()) return;
+    if (this.busy() || this.savingAddress()) return;
     this.orderError.set('');
     if (!this.pending) {
       const quote = this.quote();
       const option = this.selected();
+      const fields = this.address.getRawValue();
+      const geography = addressGeography(fields);
+      if (this.method() === 'delivery' && !geography) {
+        this.address.markAllAsTouched();
+        this.orderError.set('Elegí un departamento y una localidad válidos para el envío.');
+        return;
+      }
       if (
         !quote ||
         !option ||
         this.contact.invalid ||
-        (option.method === 'delivery' && this.address.invalid)
+        (geography && option.method === 'delivery' && this.address.invalid)
       ) {
         this.orderError.set('Completá el contacto y elegí cómo recibir tu pedido.');
         return;
@@ -162,7 +291,9 @@ export class CheckoutPage {
           shipping_method: option.method,
           quote_token: option.quote_token,
           contact: this.contact.getRawValue(),
-          ...(option.method === 'delivery' ? { address: this.address.getRawValue() } : {}),
+          ...(option.method === 'delivery' && geography
+            ? { address: { ...fields, ...geography } }
+            : {}),
         },
       };
     }

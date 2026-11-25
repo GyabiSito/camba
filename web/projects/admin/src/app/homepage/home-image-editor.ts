@@ -49,6 +49,7 @@ export class HomeImageEditor {
   readonly uploaded = output<{ key: string; asset: HomeAsset }>();
   protected readonly accepted = acceptedPhotos;
   protected readonly busy = signal(false);
+  isUploading() { return this.busy(); }
   protected readonly error = signal('');
   private readonly api = inject(ApiClient);
   protected entries() { return Object.entries(this.assets()); }

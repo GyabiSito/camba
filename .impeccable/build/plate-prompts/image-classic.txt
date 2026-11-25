@@ -1,0 +1,5 @@
+Use case: product-mockup
+Asset type: synthetic apparel studio photograph for an admin catalog visual demo, not a real product listing.
+Input image: approved mock region crop; use it as the visual reference for the garment's silhouette, placement, proportions, lighting, and colors, never as shipping pixels.
+Produce one high-resolution square PNG product photograph. Match the crop's matte front-view studio presentation, matching its garment placement and scale. Very dark navy long-sleeved classic button-front shirt, open collar, front placket and subtle tonal buttons, straight-on front, sleeves angled gently outward and hanging naturally, centered and large vertically.
+Use soft diffuse lighting with nearly invisible contact shading, understated natural cloth texture and subtle wrinkles. Preserve the warm pale studio backdrop around #ebe9e6, continuous from edge to edge with square corners. No background pattern, border, rounded corners, gradient band, drop-shadow frame, model, mannequin, hanger, logo, watermark, text, UI, or other props. Do not redesign the garment.

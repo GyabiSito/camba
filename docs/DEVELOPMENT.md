@@ -11,7 +11,7 @@ For the current shared demo, use the [complete Docker stack](#complete-developme
 | Store | `npm run start:demo:store` | [Store](http://127.0.0.1:44822/tienda) · [Sign in](http://127.0.0.1:44822/cuenta) | `cliente.diseno@camba.test` |
 | Admin | `npm run start:demo:admin` | [Sign in](http://127.0.0.1:44823/ingresar) | `admin.diseno@camba.test` |
 
-Both demo passwords are `CambaDemo2026!`. These credentials are public fixtures and work only in their respective demo apps. Guests can browse the read-only catalog; sign in as the demo buyer to review the saved addresses, preloaded cart, checkout, mock payment, and orders. The local demo server shares the synthetic buyer state between browser contexts until it restarts. Signing out clears only the session. For the review launch and reset commands, see [Demo local](../README.md#demo-local). Registration, catalog writes and emails are not simulated.
+Both demo passwords are `CambaDemo2026!`. These credentials are public fixtures and work only in their respective demo apps. Guests can browse the read-only catalog; sign in as the demo buyer to review saved addresses, the preloaded cart, checkout and seeded orders. The local demo server shares the synthetic buyer state between browser contexts until it restarts. Signing out clears only the session. For the review launch and reset commands, see [Demo local](../README.md#demo-local). Payments, registration, catalog writes and emails are not simulated in these screens.
 
 To return to API mode, stop using the demo URLs and start the [complete development stack](#complete-development-stack). The normal `development` and `production` Angular configurations do not include the demo data or accounts. With both demo apps running, run `node --test e2e/frontend-demo.mjs` from `web/` for the browser smoke check.
 
@@ -21,12 +21,16 @@ Use the [local demo commands and fixture logins](../README.md#demo-local) to lau
 
 | Local URL or address | Role |
 | --- | --- |
-| `http://127.0.0.1:4200` | Store (SSR development server) |
+| `http://127.0.0.1:4200` | Store (optimized SSR build with local editorial photography) |
 | `http://127.0.0.1:4300` | Admin (CSR development server) |
 | `http://127.0.0.1:48025` | Mailpit messages from local work only |
 | `http://api:8000/ready`, `postgres:5432`, `redis:6379` | Internal API readiness, PostgreSQL and Redis |
 
 The frontends proxy Laravel on their own origins. Do not mix `localhost` and `127.0.0.1` in a single cookie journey. Separate browser profiles keep the demo buyer and admin sessions independent. PostgreSQL 18.7 is pinned by image digest and joins only an internal Docker network with no published port. The three Laravel roles share that network and the database; this demo does not reuse MySQL or any existing application volume.
+
+The Docker store builds with `production,editorial,no-payment`: it copies the local editorial photos without enabling frontend mock data, and offers order status checks without starting a payment. The offline `demo` configuration enables the editorial photos and fixtures, also without a payment provider. Rebuild just `store` to update its sources; the admin remains on its development server.
+
+With the seeded stack running, run `node e2e/storefront-unified-docker.mjs` from `web/` to check both review widths, the checkout and all three seeded order states without placing an order. The separate `node e2e/docker-editorial-parity.mjs` check adds and removes only the editorial shirt; run it against the untouched two-line demo cart when nobody else is editing it.
 
 To stop development without deleting data, run the same Compose file pair with `stop`. Do not run `down -v`.
 

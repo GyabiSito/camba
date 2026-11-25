@@ -4,6 +4,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "start:demo:store": "ng serve store --configuration demo --host 127.0.0.1 --port 44822",
+    "start:demo:admin": "ng serve admin --configuration demo --host 127.0.0.1 --port 44823",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
@@ -22,6 +24,7 @@
     "@angular/platform-server": "22.2.6",
     "@angular/router": "22.2.6",
     "@angular/ssr": "22.2.7",
+    "animejs": "4.5.0",
     "compression": "1.8.2",
     "express": "^5.1.0",
     "rxjs": "~7.8.0",

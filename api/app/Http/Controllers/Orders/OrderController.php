@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Orders;
 
+use App\Actions\Geography\ResolveAddressGeography;
 use App\Actions\Orders\PlaceOrder;
 use App\Actions\Orders\QuoteCheckout;
 use App\Http\Requests\Orders\CheckoutRequest;
@@ -12,8 +13,11 @@ use Illuminate\Http\JsonResponse;
 
 class OrderController
 {
-    public function quote(CheckoutRequest $request, QuoteCheckout $quote): JsonResponse
+    public function quote(CheckoutRequest $request, QuoteCheckout $quote, ResolveAddressGeography $geography): JsonResponse
     {
+        if ($address = $request->validated('address')) {
+            $geography->execute($address['department_id'], $address['locality_id'], 'address.locality_id');
+        }
         [$data] = $quote->execute($request->validated('items'));
 
         return $this->uncacheable(response()->json(['data' => $data]));

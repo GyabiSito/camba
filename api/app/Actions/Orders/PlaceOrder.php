@@ -2,6 +2,8 @@
 
 namespace App\Actions\Orders;
 
+use App\Actions\Geography\ResolveAddressGeography;
+use App\Actions\Notices\RecordOrderMail;
 use App\Enums\OrderStatus;
 use App\Models\Cart;
 use App\Models\Order;
@@ -11,7 +13,11 @@ use Illuminate\Validation\ValidationException;
 
 class PlaceOrder
 {
-    public function __construct(private readonly QuoteCheckout $quote) {}
+    public function __construct(
+        private readonly QuoteCheckout $quote,
+        private readonly ResolveAddressGeography $geography,
+        private readonly RecordOrderMail $notices,
+    ) {}
 
     public function execute(?int $userId, string $sessionId, array $input): Order
     {
@@ -24,8 +30,8 @@ class PlaceOrder
         ];
         $address = $input['shipping_method'] === 'delivery' ? [
             'recipient' => $input['address']['recipient'],
-            'department' => $input['address']['department'],
-            'locality' => $input['address']['locality'],
+            'department_id' => $input['address']['department_id'],
+            'locality_id' => $input['address']['locality_id'],
             'street' => $input['address']['street'],
             'number' => $input['address']['number'],
             'details' => $input['address']['details'] ?? null,
@@ -45,6 +51,12 @@ class PlaceOrder
                 abort_unless(hash_equals($existing->request_hash, $fingerprint), 409, 'This idempotency key was already used for a different checkout.');
 
                 return $existing;
+            }
+
+            if ($address !== null) {
+                $locality = $this->geography->execute($address['department_id'], $address['locality_id'], 'address.locality_id');
+                $address['department'] = $locality->department->name;
+                $address['locality'] = $locality->name;
             }
 
             [$quote, $products] = $this->quote->execute($input['items'], lock: true);
@@ -84,6 +96,7 @@ class PlaceOrder
                     $item->delete();
                 }
             }
+            $this->notices->created($order);
 
             return $order;
         }, 3);

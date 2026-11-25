@@ -6,6 +6,7 @@
 !projects/
 !projects/**
 !nginx-admin.conf
+!store-preview-proxy.mjs
 **/.env*
 **/node_modules
 **/dist

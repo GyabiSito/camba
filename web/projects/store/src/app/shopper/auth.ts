@@ -1,8 +1,9 @@
 import { DOCUMENT } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, output, PLATFORM_ID, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiClient, apiMessage, CART_CHANGED } from '@camba/shared';
 import { firstValueFrom } from 'rxjs';
 import { api } from './shopper';
@@ -94,6 +95,8 @@ type AuthMode = 'login' | 'register' | 'forgot';
                 <button class="button button--quiet" type="button" (click)="switchTo('forgot')">
                   Olvidé mi contraseña
                 </button>
+              } @else if (recoveryPage) {
+                <a class="button button--quiet" routerLink="/cuenta">Volver al ingreso</a>
               } @else {
                 <button class="button button--quiet" type="button" (click)="switchTo('login')">
                   Volver al ingreso
@@ -132,7 +135,8 @@ export class ShopperAuth {
   private readonly client = inject(ApiClient);
   private readonly fb = inject(FormBuilder);
   readonly signedIn = output<void>();
-  protected readonly mode = signal<AuthMode>('login');
+  protected readonly recoveryPage = inject(ActivatedRoute).snapshot.data['requestPasswordReset'] === true;
+  protected readonly mode = signal<AuthMode>(this.recoveryPage ? 'forgot' : 'login');
   protected readonly busy = signal(false);
   protected readonly submitted = signal(false);
   protected readonly message = signal('');
@@ -245,30 +249,17 @@ export class ShopperAuth {
         @if (saved()) {
           <p class="notice" role="status">Contraseña actualizada. Ya podés ingresar.</p>
           <div class="actions"><a class="button" routerLink="/cuenta">Ir al ingreso</a></div>
-        } @else if (!token) {
+        } @else if (!token()) {
           <p class="notice problem" role="alert">
-            Este enlace no está completo. Solicitá otro desde tu cuenta.
+            Este enlace no es válido, ya venció o ya se usó.
           </p>
-          <div class="actions"><a class="button" routerLink="/cuenta">Volver a mi cuenta</a></div>
+          <div class="actions"><a class="button" routerLink="/cuenta/recuperar">Solicitar un nuevo enlace</a></div>
         } @else {
           @if (error()) {
             <p class="notice problem" role="alert">{{ error() }}</p>
           }
           <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
             <fieldset class="stack" [disabled]="busy()">
-              <label class="field"
-                >Correo electrónico
-                <input
-                  id="reset-email"
-                  type="email"
-                  autocomplete="username"
-                  formControlName="email"
-                  maxlength="254"
-                  required
-                  [attr.aria-invalid]="fieldError('email') ? 'true' : null"
-                  [attr.aria-describedby]="fieldError('email') ? 'reset-email-error' : null"
-              /></label>
-              @if (fieldError('email'); as validation) { <p id="reset-email-error" class="field-error">{{ validation }}</p> }
               <label class="field"
                 >Nueva contraseña
                 <input
@@ -304,7 +295,6 @@ export class ShopperAuth {
                 <button class="button" type="submit">
                   {{ busy() ? 'Guardando…' : 'Guardar contraseña' }}
                 </button>
-                <a routerLink="/cuenta" class="button button--quiet">Volver al ingreso</a>
               </div>
             </fieldset>
           </form>
@@ -322,19 +312,17 @@ export class ResetPage {
   protected readonly error = signal('');
   protected readonly submitted = signal(false);
   protected readonly form = inject(FormBuilder).nonNullable.group({
-    email: ['', [Validators.required, Validators.email, Validators.maxLength(254)]],
     password: ['', [Validators.required, Validators.minLength(12), Validators.maxLength(1024)]],
     password_confirmation: ['', [Validators.required, Validators.minLength(12), Validators.maxLength(1024)]],
   });
-  protected token = this.readToken();
+  protected readonly token = signal(this.readToken());
 
-  protected fieldError(field: 'email' | 'password' | 'password_confirmation') {
+  protected fieldError(field: 'password' | 'password_confirmation') {
     if (!this.submitted()) return '';
     const control = this.form.controls[field];
     if (field === 'password_confirmation' && control.value !== this.form.controls.password.value)
       return control.hasError('required') ? 'Confirmá tu contraseña.' : 'Las contraseñas no coinciden.';
-    if (control.hasError('required')) return field === 'email' ? 'Ingresá tu correo electrónico.' : 'Ingresá tu contraseña.';
-    if (control.hasError('email')) return 'Ingresá un correo electrónico válido.';
+    if (control.hasError('required')) return 'Ingresá tu contraseña.';
     if (control.hasError('minlength')) return 'Usá al menos 12 caracteres.';
     if (control.hasError('maxlength')) return 'El texto supera el largo permitido.';
     return '';
@@ -343,13 +331,14 @@ export class ResetPage {
   private readToken() {
     if (!isPlatformBrowser(this.platform) || !this.browser) return null;
     const { hash, pathname, search } = this.browser.location;
-    const token = new URLSearchParams(hash.slice(1)).get('token');
+    const token = new URLSearchParams(hash.slice(1)).get('reset');
     if (hash) this.browser.history.replaceState(this.browser.history.state, '', pathname + search);
-    return token && token.length <= 255 ? token : null;
+    return token && token.length <= 1024 ? token : null;
   }
 
   protected async submit() {
-    if (this.busy() || !this.token) return;
+    const token = this.token();
+    if (this.busy() || !token) return;
     this.error.set('');
     const form = this.form.getRawValue();
     this.submitted.set(true);
@@ -357,18 +346,18 @@ export class ResetPage {
     this.busy.set(true);
     try {
       await firstValueFrom(
-        this.client.post<void>(api + '/auth/reset-password', { ...form, token: this.token }),
+        this.client.post<void>(api + '/auth/reset-password', { ...form, token }),
       );
       this.form.reset();
-      this.token = null;
+      this.token.set(null);
       this.saved.set(true);
     } catch (error) {
-      this.error.set(
-        apiMessage(
-          error,
-          'No pudimos cambiar la contraseña. Revisá los datos o solicitá otro enlace.',
-        ),
-      );
+      if (error instanceof HttpErrorResponse && error.status === 422 && error.error?.errors?.token) {
+        this.form.reset();
+        this.token.set(null);
+      } else {
+        this.error.set(apiMessage(error, 'No pudimos cambiar la contraseña. Volvé a intentar.'));
+      }
     } finally {
       this.busy.set(false);
     }

@@ -105,7 +105,7 @@ async function update(page, quantity) {
 try {
   const backoffice = await open(admin);
   await login(backoffice, 'admin.diseno@camba.test');
-  await expect(backoffice.getByRole('heading', { name: 'Productos', exact: true })).toBeVisible();
+  await expect(backoffice.getByRole('heading', { name: 'Inicio', exact: true })).toBeVisible();
   if (!state.productId) {
     await backoffice.getByRole('link', { name: 'Nuevo producto', exact: true }).click();
     await backoffice.getByLabel('Nombre', { exact: true }).fill(state.productName);

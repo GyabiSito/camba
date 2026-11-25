@@ -205,7 +205,7 @@ try {
       await submit(page, 'Solicitar enlace', '/auth/forgot-password', 202);
       const { link } = await deliveredLink(contexts[0], accounts[0], '/cuenta/restablecer');
       await page.goto(link);
-      await page.getByLabel('Correo electrónico').fill(accounts[0]);
+      await expect(page.getByLabel('Correo electrónico')).toHaveCount(0);
       await expect(page).toHaveURL(store + '/cuenta/restablecer');
       await page.getByLabel('Nueva contraseña').fill(replacement);
       await page.getByLabel('Confirmá la contraseña').fill(replacement);

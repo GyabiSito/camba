@@ -7,6 +7,12 @@ export const shopperRoutes: Routes = [
     loadComponent: () => import('./auth').then((m) => m.ResetPage),
   },
   {
+    path: 'cuenta/recuperar',
+    title: 'Recuperar contraseña · Camba',
+    data: { requestPasswordReset: true },
+    loadComponent: () => import('./auth').then((m) => m.ShopperAuth),
+  },
+  {
     path: 'cuenta',
     title: 'Tu cuenta · Camba',
     loadComponent: () => import('./account').then((m) => m.AccountPage),
@@ -24,11 +30,11 @@ export const shopperRoutes: Routes = [
   {
     path: 'pedidos/:reference',
     title: 'Tu pedido · Camba',
-    loadComponent: () => import('./orders').then((m) => m.OrderPage),
+    loadComponent: () => import('./order').then((m) => m.OrderPage),
   },
   {
     path: 'pedidos',
     title: 'Tus compras · Camba',
-    loadComponent: () => import('./orders').then((m) => m.OrderHistoryPage),
+    loadComponent: () => import('./orders-history').then((m) => m.OrderHistoryPage),
   },
 ];

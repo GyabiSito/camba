@@ -3,15 +3,18 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ApiClient, apiMessage, CART_CHANGED, formatMoney } from '@camba/shared';
 import { firstValueFrom } from 'rxjs';
+import { CatalogCovers } from '../catalog/catalog-covers';
+import { ProductPhoto } from '../catalog/product-media';
 import { api, Cart, CartItem, Data } from './shopper';
 
 @Component({
-  imports: [RouterLink, FormsModule],
+  imports: [RouterLink, FormsModule, ProductPhoto],
   templateUrl: './cart.html',
-  styleUrls: ['./shopper.css', './purchase-design.css'],
+  styleUrls: ['./shopper.css', './purchase-design.css', './cart-media.css'],
 })
 export class CartPage {
   private readonly client = inject(ApiClient);
+  protected readonly covers = inject(CatalogCovers);
   protected readonly items = signal<CartItem[]>([]);
   protected readonly loading = signal(true);
   protected readonly updated = signal(false);
@@ -39,6 +42,7 @@ export class CartPage {
 
   private updateCart(items: CartItem[]) {
     this.items.set(items);
+    for (const item of items) if (item.product?.slug) this.covers.load(item.product.slug);
     const previous = this.quantities();
     this.quantities.set(
       Object.fromEntries(

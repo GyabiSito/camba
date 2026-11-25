@@ -7,10 +7,10 @@ const password = 'Camba-account-test-2026';
 const mailPort = process.env['CAMBA_E2E_MAILPIT_HTTP_PORT'];
 if (process.env['CAMBA_E2E_MAIL_RUN']) test.use({ trace: 'off', screenshot: 'off' });
 
-async function register(page: Page, email: string) {
+async function register(page: Page, email: string, name = 'Cuenta de prueba') {
   await page.goto('/cuenta');
   await page.getByRole('button', { name: 'Crear cuenta' }).click();
-  await page.getByLabel('Nombre completo').fill('Cuenta de prueba');
+  await page.getByLabel('Nombre completo').fill(name);
   await page.getByLabel('Correo electrónico').fill(email);
   await page.getByLabel('Contraseña', { exact: true }).fill(password);
   await page.getByLabel('Confirmá la contraseña').fill(password);
@@ -37,29 +37,29 @@ async function deliveredLink(
 ) {
   const mailpit = `http://127.0.0.1:${mailPort}`;
   let id: string | undefined;
+  let link: string | undefined;
   await expect.poll(async () => {
     const inbox = await request.get(`${mailpit}/api/v1/messages`, { maxRedirects: 0 });
     expect(inbox.ok()).toBe(true);
     const { messages } = await inbox.json() as {
       messages: { ID: string; To: { Address: string }[] }[];
     };
-    id = messages.find((message) =>
+    for (const candidate of messages.filter((message) =>
       message.ID !== previousId && message.To.some(({ Address }) => Address === email),
-    )?.ID;
-    return id;
-  }, { message: `Mailpit did not receive a new message for ${email}`, timeout: 12_000 }).toBeTruthy();
-  if (!id) throw new Error('No delivered message ID');
-  const message = await request.get(`${mailpit}/view/${encodeURIComponent(id)}.txt`, { maxRedirects: 0 });
-  expect(message.ok()).toBe(true);
-  const link = (await message.text()).match(/https?:\/\/[^\s<>]+/g)?.find((value) =>
-    new URL(value).pathname.startsWith(path),
-  );
-  if (!link) throw new Error(`No delivered ${path} link`);
+    )) {
+      const message = await request.get(`${mailpit}/view/${encodeURIComponent(candidate.ID)}.txt`, { maxRedirects: 0 });
+      expect(message.ok()).toBe(true);
+      link = (await message.text()).match(/https?:\/\/[^\s<>]+/g)?.find((value) => new URL(value).pathname.startsWith(path));
+      if (link) { id = candidate.ID; return true; }
+    }
+    return false;
+  }, { message: `Mailpit did not deliver a ${path} link`, timeout: 15_000 }).toBe(true);
+  if (!id || !link) throw new Error(`No delivered ${path} link`);
   expect(new URL(link).origin).toBe(storefront);
   return { id, link };
 }
 
-test('registration shows an unverified account and handles a bad reset link', async ({ page }) => {
+test('registration shows an unverified account and a legacy reset link offers recovery', async ({ page }) => {
   const email = 'registro@camba.test';
   await register(page, email);
 
@@ -76,16 +76,12 @@ test('registration shows an unverified account and handles a bad reset link', as
   await page.getByRole('button', { name: 'Solicitar enlace' }).click();
   await expect(page.getByRole('status')).toContainText('Si existe una cuenta');
   await page.goto('/cuenta/restablecer#token=invalid-test-token');
-  await page.getByLabel('Correo electrónico').fill(email);
   await expect(page).toHaveURL(/\/cuenta\/restablecer$/);
-  await page.getByLabel('Nueva contraseña').fill('Camba-reset-test-2026');
-  await page.getByLabel('Confirmá la contraseña').fill('Camba-reset-test-2026');
-  const result = page.waitForResponse((response) =>
-    response.url().endsWith('/auth/reset-password'),
-  );
-  await page.getByRole('button', { name: 'Guardar contraseña' }).click();
-  expect((await result).status()).toBe(422);
+  await expect(page.getByRole('button', { name: 'Guardar contraseña' })).toHaveCount(0);
   await expect(page.getByRole('alert')).toBeVisible();
+  await page.getByRole('link', { name: 'Solicitar un nuevo enlace' }).click();
+  await expect(page.getByRole('heading', { name: 'Recuperá tu contraseña' })).toBeVisible();
+  await expect(page.getByLabel('Correo electrónico')).toBeVisible();
 });
 
 test('a resent Mailpit link verifies the buyer account', async ({ baseURL, browser, page, request }) => {
@@ -129,7 +125,7 @@ test('a resent Mailpit link verifies the buyer account', async ({ baseURL, brows
   await expect(notice).toBeHidden();
 });
 
-test('a delivered Mailpit reset link replaces the buyer password', async ({ baseURL, page, request }) => {
+test('a delivered Mailpit reset link replaces the buyer password in a new session', async ({ baseURL, browser, page, request }) => {
   test.skip(!mailPort, 'Requires disposable Mailpit SMTP and HTTP ports.');
   const email = `reset-${randomUUID()}@camba.test`;
   const newPassword = 'Camba-new-account-test-2026';
@@ -142,20 +138,47 @@ test('a delivered Mailpit reset link replaces the buyer password', async ({ base
   expect((await forgot).status()).toBe(202);
   const { link } = await deliveredLink(request, baseURL!, email, '/cuenta/restablecer', registration.id);
 
-  await page.goto(link);
-  await page.getByLabel('Correo electrónico').fill(email);
-  await expect(page).toHaveURL(/\/cuenta\/restablecer$/);
-  await page.getByLabel('Nueva contraseña').fill(newPassword);
-  await page.getByLabel('Confirmá la contraseña').fill(newPassword);
-  const reset = page.waitForResponse((response) => response.url().endsWith('/auth/reset-password'));
-  await page.getByRole('button', { name: 'Guardar contraseña' }).click();
-  expect((await reset).status()).toBe(204);
-  await expect(page.getByRole('status')).toContainText('Contraseña actualizada.');
-  await page.getByRole('link', { name: 'Ir al ingreso' }).click();
-  expect(await login(page, email, password)).toBe(422);
-  expect(await login(page, email, newPassword)).toBe(204);
-  await expect(page.getByRole('heading', { name: 'Datos personales' })).toBeVisible();
-  await expect(page.getByText(email, { exact: true })).toBeVisible();
+  const changed = new URL(link);
+  const fragment = new URLSearchParams(changed.hash.slice(1));
+  const token = fragment.get('reset');
+  if (!token) throw new Error('Mailpit did not deliver a protected reset link');
+  expect(changed.search).toBe('');
+  fragment.set('reset', (token[0] === 'A' ? 'B' : 'A') + token.slice(1));
+  changed.hash = fragment.toString();
+
+  const guest = await browser.newContext({ baseURL });
+  try {
+    expect(await guest.cookies()).toHaveLength(0);
+    const resetPage = await guest.newPage();
+    async function resetFrom(url: string, secret: string) {
+      await resetPage.goto('about:blank');
+      await resetPage.goto(url);
+      await expect(resetPage).toHaveURL(/\/cuenta\/restablecer$/);
+      await expect(resetPage.getByLabel('Correo electrónico')).toHaveCount(0);
+      await resetPage.getByLabel('Nueva contraseña').fill(secret);
+      await resetPage.getByLabel('Confirmá la contraseña').fill(secret);
+      const reset = resetPage.waitForResponse((response) => response.url().endsWith('/auth/reset-password'));
+      await resetPage.getByRole('button', { name: 'Guardar contraseña' }).click();
+      const response = await reset;
+      expect(Object.keys(response.request().postDataJSON()).sort()).toEqual(['password', 'password_confirmation', 'token']);
+      return response.status();
+    }
+
+    expect(await resetFrom(changed.href, password)).toBe(422);
+    await expect(resetPage.getByRole('link', { name: 'Solicitar un nuevo enlace' })).toBeVisible();
+    expect(await resetFrom(link, newPassword)).toBe(204);
+    await expect(resetPage.getByRole('status')).toContainText('Contraseña actualizada.');
+    expect(await resetFrom(link, password)).toBe(422);
+    await expect(resetPage.getByRole('link', { name: 'Solicitar un nuevo enlace' })).toBeVisible();
+
+    await resetPage.goto('/cuenta');
+    expect(await login(resetPage, email, password)).toBe(422);
+    expect(await login(resetPage, email, newPassword)).toBe(204);
+    await expect(resetPage.getByRole('heading', { name: 'Datos personales' })).toBeVisible();
+    await expect(resetPage.getByText(email, { exact: true })).toBeVisible();
+  } finally {
+    await guest.close();
+  }
 });
 
 test.describe('Camba transactional mail', () => {
@@ -201,10 +224,10 @@ test.describe('Camba transactional mail', () => {
       const link = plain.match(/https?:\/\/[^\s<>]+/)?.[0] ?? '';
       expect(link.startsWith(baseURL!) && !link.includes('&amp;')).toBe(true);
       expect(html.includes(`href="${link.replaceAll('&', '&amp;')}"`)).toBe(true);
-      return { html, plain, link };
+      return { html, plain, link, view };
     }
 
-    async function captures(name: string, html: string, action: string) {
+    async function captures(name: string, html: string, action: string, visibleBrand = 'Camba') {
       const src = html.match(/<img[^>]+src="([^"]+)"/i)?.[1];
       if (!src) throw new Error('Missing embedded bow');
       const asset = new URL(src, inbox);
@@ -221,10 +244,12 @@ test.describe('Camba transactional mail', () => {
         for (const [width, blocked] of [[600, false], [390, false], [390, true]] as const) {
           await preview.setViewportSize({ width, height: 560 });
           await preview.setContent(blocked ? safe.replace(data, 'about:blank') : safe);
-          await expect(preview.getByText('Camba', { exact: true }).first()).toBeVisible();
+          await expect(preview.getByText(visibleBrand, { exact: true }).first()).toBeVisible();
           await expect(preview.getByRole('link', { name: action })).toBeVisible();
           expect(await preview.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
-          if (!blocked) expect(await preview.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+          const imageWidth = await preview.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth);
+          if (blocked) expect(imageWidth).toBe(0);
+          else expect(imageWidth).toBeGreaterThan(0);
           await preview.screenshot({ path: `${output}/${name}-${width}${blocked ? '-sin-imagenes' : ''}.png`, fullPage: true });
         }
       } finally {
@@ -232,17 +257,34 @@ test.describe('Camba transactional mail', () => {
       }
     }
 
-    await register(page, email);
-    const verification = await received(email, 'Verificá tu correo', 'Verificar mi correo');
-    expect(await welcomeCount()).toBe(0);
+    await register(page, email, 'Lucía Fernández');
+    const [verification, welcome] = await Promise.all([
+      received(email, 'Verificá tu correo', 'Verificar mi correo'),
+      received(email, welcomeSubject, 'Explorá la tienda'),
+    ]);
+    expect(await welcomeCount()).toBe(1);
     expect(new URL(verification.link).pathname.startsWith('/email/verify/')).toBe(true);
     await captures('verificacion', verification.html, 'Verificar mi correo');
-    const verified = await request.get(verification.link, { maxRedirects: 0 });
-    expect(verified.status()).toBe(204);
-    const welcome = await received(email, welcomeSubject, 'Ver tienda');
-    expect(welcome.plain.includes('¡Hola, Cuenta de prueba! Tu correo ya está verificado.')).toBe(true);
-    expect(welcome.link).toBe(baseURL + '/tienda');
-    await captures('bienvenida', welcome.html, 'Ver tienda');
+    expect(welcome.plain).toContain('Hola, Lucía Fernández. Gracias por sumarte a Camba.');
+    expect(welcome.plain).toContain('Te enviamos por separado un enlace para verificar tu correo.');
+    expect(welcome.html).not.toContain('Si el botón no funciona');
+    expect(welcome.html).not.toContain('Ir a Mi cuenta');
+    await captures('bienvenida', welcome.html, 'Explorá la tienda', welcomeSubject);
+    const mailPage = await page.context().newPage();
+    try {
+      const destination = baseURL + '/tienda';
+      expect(welcome.plain).toContain(`Explorá la tienda: ${destination}`);
+      await mailPage.goto(welcome.view + '.html');
+      const link = mailPage.getByRole('link', { name: 'Explorá la tienda', exact: true });
+      await expect(link).toHaveAttribute('href', destination);
+      const navigation = mailPage.waitForResponse(r => r.url() === destination && r.request().isNavigationRequest());
+      await link.click();
+      expect((await navigation).status()).toBe(200);
+      await expect(mailPage).toHaveURL(destination);
+    } finally {
+      await mailPage.close();
+    }
+    expect((await request.get(verification.link, { maxRedirects: 0 })).status()).toBe(204);
     expect((await request.get(verification.link, { maxRedirects: 0 })).status()).toBe(204);
 
     await page.getByRole('button', { name: 'Olvidé mi contraseña' }).click();

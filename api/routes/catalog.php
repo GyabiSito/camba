@@ -33,6 +33,8 @@ Route::prefix('v1/admin')->name('admin.catalog.')->middleware(['auth:sanctum', '
 
     foreach (['categories' => Category::class, 'brands' => Brand::class] as $path => $model) {
         Route::get($path, [ClassificationController::class, 'index'])->defaults('classification', $model)->name("$path.index");
+        Route::get("$path/page", [ClassificationController::class, 'page'])
+            ->defaults('classification', $model)->name("$path.page");
         Route::post($path, [ClassificationController::class, 'store'])->defaults('classification', $model)->name("$path.store");
         Route::patch("$path/{id}", [ClassificationController::class, 'update'])->whereNumber('id')
             ->defaults('classification', $model)->name("$path.update");

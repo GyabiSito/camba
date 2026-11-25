@@ -14,6 +14,7 @@ use App\Models\StoreSettings;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -64,6 +65,40 @@ class CommerceNoticeTest extends TestCase
         ]);
         $this->signIn(User::factory()->create(['role' => 'admin']));
         $this->getJson(self::ADMIN.'?state=uncertain')->assertOk()->assertJsonCount(0, 'data');
+    }
+
+    public function test_admin_filters_the_entire_notice_table_before_paginating(): void
+    {
+        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $order = $this->order(null);
+        $target = CommerceNotice::create([
+            'dedup_key' => 'notice-table:target', 'channel' => 'panel', 'kind' => 'order_created',
+            'subject_type' => 'order', 'subject_id' => $order->id, 'state' => 'active', 'updated_at' => '2026-04-09 03:00:00',
+        ]);
+        $payment = CommerceNotice::create([
+            'dedup_key' => 'notice-table:payment', 'channel' => 'panel', 'kind' => 'order_paid',
+            'subject_type' => 'order', 'subject_id' => $order->id, 'state' => 'resolved', 'updated_at' => '2026-04-10 03:00:00',
+        ]);
+        for ($i = 1; $i <= 24; $i++) {
+            CommerceNotice::create([
+                'dedup_key' => 'notice-table:stock:'.$i, 'channel' => 'panel', 'kind' => 'low_stock',
+                'subject_type' => 'product', 'subject_id' => $i, 'state' => 'active', 'updated_at' => '2026-04-09 12:00:00',
+            ]);
+        }
+
+        $this->getJson(self::ADMIN)->assertOk()->assertJsonPath('meta.total', 26)
+            ->assertJsonPath('data.0.id', $payment->id)->assertJsonMissing(['id' => $target->id]);
+        $this->getJson(self::ADMIN.'?page=2')->assertOk()->assertJsonPath('data.0.id', $target->id);
+
+        $short = strtoupper(substr($order->reference, 0, 8));
+        $this->getJson(self::ADMIN.'?q='.$short)->assertOk()->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('data.1.id', $target->id);
+        $this->getJson(self::ADMIN.'?q='.rawurlencode('PÁGO APROBADO'))->assertOk()->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $payment->id)->assertJsonPath('kinds.order_paid', 'Pago aprobado');
+        $this->getJson(self::ADMIN.'?q='.$short.'&state=active&kind=order_created&date_from=2026-04-09&date_to=2026-04-09')
+            ->assertOk()->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.order_reference', $order->reference);
+        $this->getJson(self::ADMIN.'?kind=order_paid&date_to=2026-04-09')->assertOk()->assertJsonPath('meta.total', 0);
+        $this->getJson(self::ADMIN.'?date_from=2026-04-10&date_to=2026-04-09')->assertUnprocessable();
     }
 
     public function test_committed_orders_and_operational_events_project_once_and_hide_personal_data(): void
@@ -221,10 +256,11 @@ class CommerceNoticeTest extends TestCase
         $this->deliver($stale);
         $this->assertDatabaseHas('commerce_notices', ['id' => $stale, 'state' => 'cancelled']);
 
-        $shipped = $this->order(null, ['status' => 'paid', 'paid_at' => now(), 'fulfilment_status' => 'shipped']);
-        DB::table('order_fulfilment_events')->insert([
-            'order_id' => $shipped->id, 'to_status' => 'shipped', 'note' => 'Operator-only delivery note', 'created_at' => now(),
-        ]);
+        $shipped = $this->order(null, ['status' => 'paid', 'paid_at' => now(), 'shipping_method' => 'delivery', 'fulfilment_status' => 'preparing']);
+        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->patchJson('/api/v1/admin/orders/'.$shipped->reference.'/fulfilment', [
+            'status' => 'shipped', 'note' => 'Operator-only delivery note',
+        ])->assertOk();
         $this->project();
         $id = CommerceNotice::where('kind', 'order_shipped')->value('id');
         $this->deliver($id);
@@ -241,6 +277,68 @@ class CommerceNoticeTest extends TestCase
         $this->assertStringNotContainsString('Ayuda:', $email->getTextBody());
         $this->assertStringNotContainsString('Operator-only delivery note', $email->getTextBody());
         $this->assertStringStartsWith("camba-notice-$id@", $messages->first()->getMessageId());
+    }
+
+    public function test_shipping_and_delivery_are_recorded_once_even_before_the_queue_runs(): void
+    {
+        Queue::fake();
+        config(['mail.default' => 'array']);
+        $buyer = User::factory()->create(['role' => 'buyer']);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $order = $this->order($buyer, ['status' => 'paid', 'paid_at' => now(), 'shipping_method' => 'delivery', 'fulfilment_status' => 'preparing']);
+        $older = $this->order($buyer, ['status' => 'paid', 'paid_at' => now(), 'shipping_method' => 'delivery', 'fulfilment_status' => 'completed']);
+        DB::table('order_fulfilment_events')->insert([
+            ['order_id' => $older->id, 'to_status' => 'shipped', 'created_at' => now()->subMinute()],
+            ['order_id' => $older->id, 'to_status' => 'completed', 'created_at' => now()],
+        ]);
+
+        $url = '/api/v1/admin/orders/'.$order->reference.'/fulfilment';
+        $this->signIn($admin);
+        $this->patchJson($url, ['status' => 'completed'])->assertConflict();
+        $this->assertDatabaseMissing('commerce_notices', ['subject_id' => $order->id]);
+        foreach (['shipped', 'completed'] as $stage) {
+            $this->patchJson($url, ['status' => $stage])->assertOk();
+            $this->patchJson($url, ['status' => $stage])->assertConflict();
+        }
+
+        $ids = CommerceNotice::where('subject_id', $order->id)->whereIn('kind', ['order_shipped', 'order_delivered'])->orderBy('id')->pluck('id');
+        $this->assertCount(2, $ids);
+        $this->project();
+        $this->assertSame(0, CommerceNotice::where('subject_id', $older->id)->whereIn('kind', ['order_shipped', 'order_delivered'])->count());
+        foreach ($ids as $id) {
+            $this->deliver($id);
+            $this->deliver($id);
+        }
+
+        $messages = Mail::mailer('array')->getSymfonyTransport()->messages();
+        $this->assertCount(2, $messages);
+        foreach (['Camba: enviamos tu pedido' => 'Enviado', 'Tu pedido fue entregado' => 'Entregado'] as $subject => $status) {
+            $mail = $messages->first(fn ($message) => $message->getOriginalMessage()->getSubject() === $subject)?->getOriginalMessage();
+            $this->assertNotNull($mail);
+            $this->assertSame($buyer->email, $mail->getTo()[0]->getAddress());
+            $this->assertStringContainsString('Estado: '.$status, $mail->getTextBody());
+            $this->assertStringContainsString(rtrim(config('app.url'), '/').'/pedidos/'.$order->reference, $mail->getTextBody());
+        }
+    }
+
+    public function test_fulfilment_does_not_commit_without_its_mail_notice(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $order = $this->order(null, ['status' => 'paid', 'shipping_method' => 'delivery', 'fulfilment_status' => 'preparing']);
+        $this->signIn($admin);
+        $event = 'eloquent.creating: '.CommerceNotice::class;
+        Event::listen($event, function (): never {
+            throw new RuntimeException('Synthetic ledger write failure.');
+        });
+        try {
+            $this->patchJson('/api/v1/admin/orders/'.$order->reference.'/fulfilment', ['status' => 'shipped'])->assertServerError();
+        } finally {
+            Event::forget($event);
+        }
+
+        $this->assertSame('preparing', $order->refresh()->fulfilment_status);
+        $this->assertDatabaseMissing('order_fulfilment_events', ['order_id' => $order->id]);
+        $this->assertDatabaseMissing('commerce_notices', ['subject_id' => $order->id]);
     }
 
     private function signIn(User $user): void

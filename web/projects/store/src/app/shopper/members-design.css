@@ -92,17 +92,29 @@
   max-width: 58rem;
 }
 
-.members .order-row {
+.members .account-columns {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.members .account-addresses {
+  align-content: start;
+}
+
+.members .account-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-block-start: 0.35rem;
+}
+
+.members .account-reminders {
   display: grid;
   gap: 1rem;
-  padding: 1.2rem 0.25rem;
+  margin-block-start: 2rem;
+  padding-block-start: 1.25rem;
+  border-block-start: 1px solid var(--members-line);
 }
 
-.members .order-row h2 {
-  font-size: 1.15rem;
-}
-
-.members .order-row .state-chip,
 .members .payment-panel .state-chip {
   border: 1px solid var(--members-line);
   background: var(--members-paper);
@@ -146,6 +158,10 @@
 }
 
 @media (max-width: 44rem) {
+  .members .account-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .members .page-header {
     margin-block-end: 1.4rem;
   }

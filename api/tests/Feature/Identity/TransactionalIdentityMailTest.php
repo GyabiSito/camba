@@ -28,7 +28,6 @@ class TransactionalIdentityMailTest extends TestCase
         config(['mail.default' => 'array', 'auth.passwords.users.expire' => 37]);
         $user = User::factory()->unverified()->create();
         $token = Password::createToken($user);
-        $reset = rtrim(config('app.url'), '/').'/cuenta/restablecer#token='.rawurlencode($token);
         $verify = URL::temporarySignedRoute('verification.verify', now()->addMinutes(config('auth.verification.expire', 60)), [
             'id' => $user->getKey(),
             'hash' => sha1($user->getEmailForVerification()),
@@ -39,6 +38,11 @@ class TransactionalIdentityMailTest extends TestCase
 
         $messages = Mail::mailer('array')->getSymfonyTransport()->messages();
         $this->assertCount(2, $messages);
+        $resetPrefix = rtrim(config('app.url'), '/').'/cuenta/restablecer#reset=';
+        $this->assertSame(1, preg_match('~'.preg_quote($resetPrefix, '~').'[^\s<>]+~', $messages[0]->getOriginalMessage()->getTextBody(), $links));
+        $reset = $links[0];
+        $this->assertStringNotContainsString($token, $reset);
+        $this->assertStringNotContainsString($user->email, $reset);
         foreach ([
             ['Restablecé tu contraseña', 'Restablecer contraseña', $reset],
             ['Verificá tu correo', 'Verificar mi correo', $verify],

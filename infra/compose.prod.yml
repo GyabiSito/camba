@@ -12,6 +12,7 @@ x-backend: &backend
     APP_DEBUG: 'false'
     APP_KEY: ${CAMBA_APP_KEY:?Set the shared Laravel key}
     APP_URL: ${CAMBA_APP_URL:?Set the public HTTPS origin}
+    ADMIN_URL: ${CAMBA_ADMIN_URL:-}
     APP_LOCALE: es
     SANCTUM_STATEFUL_DOMAINS: ${CAMBA_SANCTUM_DOMAINS:?Set the first-party domains}
     LOG_CHANNEL: stderr

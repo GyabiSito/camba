@@ -30,8 +30,9 @@ services:
   mailpit:
     image: axllent/mailpit:v1.31.5
     ports:
-      - '127.0.0.1:${CAMBA_DEV_SMTP_PORT:-41025}:1025'
       - '127.0.0.1:${CAMBA_DEV_MAIL_UI_PORT:-48025}:8025'
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
 
 volumes:
   postgres-demo:

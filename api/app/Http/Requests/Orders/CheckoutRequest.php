@@ -31,7 +31,12 @@ class CheckoutRequest extends OrderSessionRequest
             'total_cents' => ['missing'],
         ];
         if (! $this->routeIs('orders.store')) {
-            return $rules;
+            return [
+                ...$rules,
+                'address' => ['sometimes', 'required', 'array:department_id,locality_id'],
+                'address.department_id' => ['required_with:address', 'integer:strict', 'min:1'],
+                'address.locality_id' => ['required_with:address', 'integer:strict', 'min:1'],
+            ];
         }
 
         return [
@@ -43,10 +48,10 @@ class CheckoutRequest extends OrderSessionRequest
             'contact.name' => ['required', 'string', 'max:120'],
             'contact.email' => ['required', 'email', 'max:254'],
             'contact.phone' => ['nullable', 'string', 'max:30'],
-            'address' => ['missing_unless:shipping_method,delivery', 'required_if:shipping_method,delivery', 'array:recipient,department,locality,street,number,details,postal_code'],
+            'address' => ['missing_unless:shipping_method,delivery', 'required_if:shipping_method,delivery', 'array:recipient,department_id,locality_id,street,number,details,postal_code'],
             'address.recipient' => ['required_if:shipping_method,delivery', 'string', 'max:120'],
-            'address.department' => ['required_if:shipping_method,delivery', 'string', 'max:80'],
-            'address.locality' => ['required_if:shipping_method,delivery', 'string', 'max:120'],
+            'address.department_id' => ['required_if:shipping_method,delivery', 'integer:strict', 'min:1'],
+            'address.locality_id' => ['required_if:shipping_method,delivery', 'integer:strict', 'min:1'],
             'address.street' => ['required_if:shipping_method,delivery', 'string', 'max:160'],
             'address.number' => ['required_if:shipping_method,delivery', 'string', 'max:20'],
             'address.details' => ['nullable', 'string', 'max:255'],

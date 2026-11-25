@@ -4,7 +4,7 @@ Checkout uses the [first-party Sanctum session](../README.md), including for gue
 
 ## Checkout
 
-1. **Quote:** `POST /api/v1/checkout/quote` with `{"items":[{"product_id":12,"quantity":2}]}`. Submit 1–50 distinct catalog IDs, each with an integer quantity of 1–1,000. The API checks publication and stock and returns live prices and the configured shipping options. A quote does not reserve stock.
+1. **Quote:** `POST /api/v1/checkout/quote` with `{"items":[{"product_id":12,"quantity":2}]}`. Submit 1–50 distinct catalog IDs, each with an integer quantity of 1–1,000. The API checks publication and stock and returns live prices and the configured shipping options. A delivery quote can include `address: {department_id, locality_id}`; the server verifies the pair without changing the configured flat delivery rate. A quote does not reserve stock.
 2. **Choose an option:** Display its `total_cents` and confirm the buyer's contact details and delivery address, if applicable.
 3. **Confirm:** `POST /api/v1/orders` with the same items, `shipping_method`, the option's `quote_token`, and contact details. Send a UUID in the `Idempotency-Key` header. Reuse it for retries of the same checkout, not for a new order.
 
@@ -20,8 +20,8 @@ Example delivery body (replace the token with the returned value):
   "contact": {"name": "Test Buyer", "email": "buyer@example.test"},
   "address": {
     "recipient": "Test Buyer",
-    "department": "Montevideo",
-    "locality": "Montevideo",
+    "department_id": 10,
+    "locality_id": 1051,
     "street": "Example street",
     "number": "123A"
   }

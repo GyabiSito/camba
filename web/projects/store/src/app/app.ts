@@ -1,46 +1,54 @@
-import { DOCUMENT } from '@angular/common';
-import { Component, DestroyRef, afterNextRender, inject, signal } from '@angular/core';
+import { DOCUMENT, Location, ViewportScroller } from '@angular/common';
+import { afterNextRender, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { ApiClient, CART_CHANGED } from '@camba/shared';
-import { catchError, fromEvent, of, startWith, switchMap } from 'rxjs';
-
-type StoreInfo = { business_name: string; support_email?: string | null; support_phone?: string | null };
+import { isActive, PRIMARY_OUTLET, Router, RouterOutlet, Scroll } from '@angular/router';
+import { StoreHeader } from './layout/store-header';
+import { StoreFooter } from './layout/store-footer';
 
 @Component({
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [RouterOutlet, StoreHeader, StoreFooter],
   selector: 'app-root',
+  host: { '[class.home-store]': 'home()', '[class.contact-store]': 'contact()' },
   styleUrl: './app.css',
   templateUrl: './app.html',
 })
-export class App {
-  private readonly api = inject(ApiClient);
-  private readonly document = inject(DOCUMENT);
+export class StoreShell {
   protected readonly router = inject(Router);
-  private readonly scope = inject(DestroyRef);
-  protected readonly info = signal<StoreInfo | null>(null);
-  protected readonly count = signal(0);
-
-  protected search(event: Event, query: string) {
-    event.preventDefault();
-    void this.router.navigate(['/tienda'], { queryParams: { q: query.trim() || null } });
-  }
+  private readonly location = inject(Location);
+  private readonly currentPath = signal(this.location.path());
+  protected readonly anchorBase = computed(() => '.' + (this.currentPath() || '/').split('#', 1)[0]);
+  protected readonly home = isActive('/', this.router, { paths: 'exact', queryParams: 'ignored',
+    matrixParams: 'ignored', fragment: 'ignored' });
+  protected readonly contact = isActive('/contacto', this.router, { paths: 'exact', queryParams: 'ignored',
+    matrixParams: 'ignored', fragment: 'ignored' });
+  protected readonly openingHome = computed(() => {
+    const navigation = this.router.currentNavigation();
+    const target = navigation?.finalUrl ?? navigation?.initialUrl;
+    return !!this.router.lastSuccessfulNavigation() && !this.home() && !!target &&
+      !target.root.children[PRIMARY_OUTLET]?.segments.length;
+  });
 
   constructor() {
+    const destroy = inject(DestroyRef);
+    const viewport = inject(ViewportScroller);
+    const document = inject(DOCUMENT);
+    destroy.onDestroy(this.location.onUrlChange(url => this.currentPath.set(url)));
+
     afterNextRender(() => {
-      const view = this.document.defaultView;
-      if (!view) return;
-      fromEvent(view, CART_CHANGED).pipe(
-        startWith(null),
-        switchMap(() => this.api.get<{ data: { items: { quantity: number }[] } }>('/api/v1/cart')
-          .pipe(catchError(() => of(null)))),
-        takeUntilDestroyed(this.scope),
-      ).subscribe((result) => {
-        if (result) this.count.set(result.data.items.reduce((total, line) => total + line.quantity, 0));
+      const browser = document.defaultView;
+      if (!browser) return;
+      this.router.events.pipe(takeUntilDestroyed(destroy)).subscribe(event => {
+        if (!(event instanceof Scroll) || !event.position || event.scrollBehavior === 'manual') return;
+        const position = event.position;
+        const max = (document.scrollingElement?.scrollHeight ?? 0) - browser.innerHeight;
+        if (position[1] <= max) return;
+        // The router can restore before the page regains its full height. Retry a clamped position once.
+        browser.requestAnimationFrame(() => {
+          if (this.router.lastSuccessfulNavigation()?.id === event.routerEvent.id && viewport.getScrollPosition()[1] === max) {
+            viewport.scrollToPosition(position, { behavior: 'instant' });
+          }
+        });
       });
-      this.api.publicGet<{ data: StoreInfo }>('/api/v1/store-info')
-        .pipe(catchError(() => of(null)), takeUntilDestroyed(this.scope))
-        .subscribe((result) => this.info.set(result?.data ?? null));
     });
   }
 }

@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiClient, formatDate, formatMoney } from '@camba/shared';
@@ -12,6 +12,7 @@ type Adjustment = {
   old_stock: number; stock: number; created_at: string;
 };
 type HistoryPage = { data: Adjustment[]; current_page: number; last_page: number };
+type ProductDetail = Data<Product> & { store_url?: string };
 
 @Component({
   imports: [RouterLink, ProductFieldsForm, ProductGallery],
@@ -25,6 +26,20 @@ export class ProductEditor {
   private readonly route = inject(ActivatedRoute);
   protected readonly id = this.route.snapshot.paramMap.get('id');
   protected readonly product = signal<Product | null>(null);
+  private readonly storeUrl = signal<string | null>(null);
+  protected readonly storefrontProductUrl = computed(() => {
+    const product = this.product();
+    const storeUrl = this.storeUrl();
+    if (product?.status !== 'published' || !product.slug || !storeUrl) return null;
+
+    try {
+      const store = new URL(storeUrl);
+      if (store.protocol !== 'http:' && store.protocol !== 'https:') return null;
+      return new URL('/producto/' + encodeURIComponent(product.slug), store.origin).href;
+    } catch {
+      return null;
+    }
+  });
   protected readonly categories = signal<Classification[]>([]);
   protected readonly brands = signal<Classification[]>([]);
   protected readonly loading = signal(true);
@@ -59,12 +74,13 @@ export class ProductEditor {
     forkJoin({
       categories: this.api.get<Data<Classification[]>>(`${admin}/categories`),
       brands: this.api.get<Data<Classification[]>>(`${admin}/brands`),
-      current: this.id ? this.api.get<Data<Product>>(`${products}/${this.id}`) : of(null),
+      current: this.id ? this.api.get<ProductDetail>(`${products}/${this.id}`) : of(null),
     }).pipe(takeUntilDestroyed(this.destroy), finalize(() => this.loading.set(false))).subscribe({
       next: ({ categories, brands, current }) => {
         this.categories.set(categories.data);
         this.brands.set(brands.data);
         this.product.set(current?.data ?? null);
+        this.storeUrl.set(current?.store_url ?? null);
         this.fields = fieldsFrom(current?.data);
       },
       error: (error) => this.loadError.set(summaryError(error, 'No se pudo abrir el producto. Verificá que siga disponible.')),

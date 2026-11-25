@@ -1,0 +1,92 @@
+:host { display: block; }
+h2, p, ul { margin: 0; }
+h2 { font: 400 clamp(2.05rem, 4.3vw, 4rem)/1.04 var(--display); letter-spacing: -.035em; overflow-wrap: anywhere; }
+.arrow { flex: none; width: 1.35rem; height: 1.35rem; }
+.frame { width: min(calc(100% - 2 * var(--home-gutter)), var(--frame)); margin-inline: auto; }
+.text-link {
+  display: inline-flex; align-items: center; gap: .65rem; min-height: 2.75rem;
+  color: var(--home-action); font-weight: 750; text-underline-offset: .3em;
+}
+.look :focus-visible { outline: 2px solid var(--home-cream); outline-offset: 4px; }
+
+.look {
+  display: grid;
+  grid-template-columns: 8fr 5fr;
+  width: min(100%, 100rem);
+  margin-inline: auto;
+  background: var(--home-action);
+  color: var(--home-cream);
+}
+.look-photo { display: block; width: 100%; height: 100%; min-height: 0; object-fit: cover; aspect-ratio: 7 / 5; }
+.look--copy { grid-template-columns: minmax(0, 1fr); }
+.look--copy .look-copy { width: min(100%, 43rem); margin-inline: auto; }
+.look-copy {
+  align-self: center;
+  min-width: 0;
+  padding: clamp(1.65rem, 4vw, 4.5rem) clamp(1rem, 4vw, 4.5rem);
+}
+.look-copy > p, .story-copy p { margin-block: .75rem 1.45rem; max-width: 38ch; }
+.look-items { padding: 0; list-style: none; border-bottom: 1px solid rgb(245 245 220 / .38); }
+.look-items a {
+  display: grid;
+  align-items: center;
+  grid-template-columns: min(20%, 3.6rem) minmax(0, 1fr) auto;
+  min-height: 2.75rem;
+  gap: .85rem;
+  padding: .55rem .4rem .55rem 0;
+  color: inherit;
+  border-top: 1px solid rgb(245 245 220 / .38);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.look-items a:hover strong, .look-items a.look-category:hover { text-decoration: underline; text-underline-offset: .2em; }
+.look-items a.look-category { grid-template-columns: minmax(0, 1fr) auto; }
+.look-items strong, .look-items span span { display: block; }
+.look-items store-product-photo { aspect-ratio: 1; --photo-fit: contain; --photo-background: #eae6e2; }
+
+.story {
+  padding-block: clamp(.85rem, 2.1vw, 1.85rem);
+  background: var(--home-brick);
+  color: var(--ink);
+}
+.story-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  grid-template-areas: 'lead copy' 'lead details';
+  align-items: end;
+  gap: clamp(.65rem, 1.35vw, 1.3rem);
+  background: var(--home-cream);
+  padding: clamp(.65rem, 1.4vw, 1.25rem);
+}
+.story-lead { grid-area: lead; align-self: stretch; min-height: 0; aspect-ratio: 3 / 2; }
+.story-lead img { width: 100%; height: 100%; object-fit: cover; object-position: 61% center; }
+.story-copy { grid-area: copy; padding: clamp(.2rem, 2vw, 1.4rem) clamp(.25rem, 1.5vw, 1rem) 0; }
+.story-copy h2 { font-size: clamp(2rem, 4vw, 3.65rem); color: var(--home-brand); }
+.story-copy p { margin-bottom: .25rem; }
+.story-details { grid-area: details; display: grid; grid-template-columns: 1.12fr 1fr; gap: .65rem; align-items: end; }
+.story-details img { width: 100%; aspect-ratio: 1; object-fit: cover; height: auto; }
+.story-details img + img { aspect-ratio: 1.2; }
+.story-details:has(img:only-child) { grid-template-columns: minmax(0, 1fr); }
+.story-details img:only-child { aspect-ratio: 3 / 2; }
+.story--catalog .story-inner { grid-template-areas: 'lead copy'; align-items: center; }
+.story--catalog .story-lead { aspect-ratio: 1.6; }
+.story--catalog .story-copy { padding-block: 1.5rem; }
+
+@media (max-width: 48rem) {
+  .look { grid-template-columns: minmax(0, 1fr); }
+  .look-photo { height: auto; }
+}
+@media (max-width: 42rem) {
+  .story-inner, .story--catalog .story-inner {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'lead' 'copy' 'details';
+  }
+  .story--catalog .story-inner { grid-template-areas: 'lead' 'copy'; }
+}
+.story-inner:not(:has(.story-lead)) { grid-template-areas: 'copy' 'details'; grid-template-columns: minmax(0, 1fr); }
+.story-inner:has(.story-lead):not(:has(.story-details)) { grid-template-areas: 'lead copy'; }
+.story-inner:not(:has(.story-lead, .story-details)) { grid-template-areas: 'copy'; }
+@media (max-width: 42rem) {
+  .story-inner:has(.story-lead):not(:has(.story-details)) { grid-template-areas: 'lead' 'copy'; }
+}

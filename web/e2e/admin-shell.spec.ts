@@ -27,7 +27,7 @@ test('verified admin reaches the catalog and can sign out', async ({ page }, inf
   await page.keyboard.press('Enter');
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
   await page.keyboard.press('Tab');
-  await expect(navigation.getByRole('link', { name: 'Productos' })).toBeFocused();
+  await expect(navigation.getByRole('link', { name: 'Inicio', exact: true })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(menu).toBeFocused();
   await expect(navigation).toBeHidden();
@@ -49,6 +49,33 @@ test('verified admin reaches the catalog and can sign out', async ({ page }, inf
       await page.request.get('/api/v1/admin/session', { headers: { Accept: 'application/json' } })
     ).status(),
   ).toBe(401);
+});
+
+test('admin login opens Dashboard by default and restores a protected deep link', async ({ browser }) => {
+  for (const [entry, expected] of [
+    ['/ingresar', '/dashboard'],
+    ['/portada/secciones/hero', '/portada/secciones/hero'],
+    ['/pedidos?status=pending_payment', '/pedidos?status=pending_payment'],
+  ]) {
+    const context = await browser.newContext();
+    try {
+      const page = await context.newPage();
+      const base = test.info().project.use.baseURL!;
+      await page.goto(base + entry);
+      await page.getByLabel('Correo electrónico').fill('admin@camba.test');
+      await page.getByLabel('Contraseña').fill('Camba-test-only-2026');
+      await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
+      await expect(page).toHaveURL(base + expected);
+      if (expected === '/dashboard') {
+        await expect(page.getByRole('heading', { name: 'Inicio', exact: true })).toBeVisible();
+        const first = page.getByRole('navigation', { name: 'Administración' }).getByRole('link').first();
+        await expect(first).toHaveText('Inicio');
+        await expect(first).toHaveAttribute('aria-current', 'page');
+      }
+    } finally {
+      await context.close();
+    }
+  }
 });
 
 test('a verified buyer cannot enter administration', async ({ page }) => {

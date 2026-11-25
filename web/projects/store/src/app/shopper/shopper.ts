@@ -22,6 +22,8 @@ export interface Address {
   recipient: string;
   department: string;
   locality: string;
+  department_id: number | null;
+  locality_id: number | null;
   street: string;
   number: string;
   details: string | null;
@@ -31,8 +33,6 @@ export interface Address {
 
 export const addressFields = [
   { name: 'recipient', label: 'Nombre de quien recibe', limit: 120, autocomplete: 'shipping name' },
-  { name: 'department', label: 'Departamento', limit: 80, autocomplete: 'shipping address-level1' },
-  { name: 'locality', label: 'Localidad', limit: 120, autocomplete: 'shipping address-level2' },
   { name: 'street', label: 'Calle', limit: 160, autocomplete: 'shipping address-line1' },
   { name: 'number', label: 'Número de puerta', limit: 20, autocomplete: 'off' },
   {
@@ -57,13 +57,32 @@ export function makeAddressForm(fb: FormBuilder) {
     ]);
   return fb.nonNullable.group({
     recipient: field(120, true),
-    department: field(80, true),
-    locality: field(120, true),
+    department_id: fb.control<number | null>(null, Validators.required),
+    locality_id: fb.control<number | null>(null, Validators.required),
     street: field(160, true),
     number: field(20, true),
     details: field(255),
     postal_code: field(12),
   });
+}
+
+export type AddressGeography = { department_id: number; locality_id: number };
+export type AddressInput = ReturnType<ReturnType<typeof makeAddressForm>['getRawValue']> &
+  AddressGeography;
+
+export function addressGeography({
+  department_id,
+  locality_id,
+}: Pick<Address, keyof AddressGeography>): AddressGeography | null {
+  return department_id && locality_id ? { department_id, locality_id } : null;
+}
+
+export function resetAddressForm(form: ReturnType<typeof makeAddressForm>, address?: Address) {
+  form.reset(
+    address
+      ? { ...address, details: address.details ?? '', postal_code: address.postal_code ?? '' }
+      : undefined,
+  );
 }
 
 export interface CartItem {
@@ -113,7 +132,11 @@ export interface Order {
   guest_access_expires_at?: string | null;
   items?: Line[];
   pickup_address?: string | null;
-  address?: Omit<Address, 'id' | 'phone'> | null;
+  // Historical order snapshots contain names but may predate normalized geography.
+  address?:
+    | (Omit<Address, 'id' | 'phone' | keyof AddressGeography> &
+        Partial<Pick<Address, keyof AddressGeography>>)
+    | null;
   tracking?: string | null;
 }
 

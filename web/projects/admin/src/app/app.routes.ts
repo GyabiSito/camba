@@ -5,11 +5,14 @@ import { adminOperationsRoutes } from './operations/routes';
 
 export const routes: Routes = [
   { path: 'ingresar', component: AdminLogin, title: 'Ingresar a administración | Camba' },
+  { path: 'portada/vista-previa/lienzo', canActivate: [requireAdmin], loadChildren: () =>
+    import('./homepage/preview/routes').then(module => module.adminHomePreviewCanvasRoutes) },
   { path: '', component: AdminShell, canActivate: [requireAdmin], children: [
-    { path: '', redirectTo: 'productos', pathMatch: 'full' },
+    { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+    { path: 'dashboard', title: 'Inicio | Camba Admin', loadComponent: () =>
+      import('./dashboard/dashboard').then(module => module.DashboardPage) },
     ...adminCatalogRoutes, ...adminOperationsRoutes,
-    { path: 'portada', title: 'Portada | Camba Admin', loadComponent: () =>
-      import('./homepage/homepage-editor').then(module => module.HomepageEditor) },
+    { path: 'portada', loadChildren: () => import('./homepage/routes').then(module => module.homepageRoutes) },
     { path: '**', redirectTo: 'productos' },
   ] },
 ];

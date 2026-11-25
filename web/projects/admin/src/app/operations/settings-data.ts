@@ -32,12 +32,12 @@ export const settingGroups: {
 }[] = [
   {
     id: 'datos-publicos',
-    title: 'Datos públicos',
-    description: 'La tienda muestra estos datos para que puedan contactar a Camba.',
+    title: 'Datos de la tienda',
+    description: 'El nombre comercial es público. Los datos de Contactanos se configuran por entorno.',
     fields: [
       { name: 'business_name', label: 'Nombre comercial', kind: 'text', required: true, max: 120 },
-      { name: 'support_email', label: 'Correo de contacto', kind: 'email', max: 254 },
-      { name: 'support_phone', label: 'Teléfono de contacto', kind: 'tel', max: 40 },
+      { name: 'support_email', label: 'Correo interno para consultas', kind: 'email', max: 254, hint: 'Recibe los mensajes del formulario. No se publica.' },
+      { name: 'support_phone', label: 'Teléfono de contacto', kind: 'tel', max: 40, hint: 'Queda guardado en Admin y no se publica.' },
     ],
   },
   {

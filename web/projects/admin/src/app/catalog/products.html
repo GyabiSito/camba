@@ -34,13 +34,25 @@
           <option value="archived">Archivado</option>
         </select>
       </label>
+      <label>
+        <span class="sr-only">Disponibilidad</span>
+        <select [(ngModel)]="availability" (ngModelChange)="go(1)">
+          <option value="">Disponibilidad</option>
+          <option value="out_of_stock">Sin stock</option>
+        </select>
+      </label>
     </div>
+
+    @if (q || category || status || availability) {
+      <button class="link-button" type="button" (click)="clearFilters()">Limpiar filtros</button>
+    }
 
     <details class="catalog-actions">
       <summary>Más tareas del catálogo</summary>
       <ul>
         <li><a routerLink="/productos/carga-por-fotos">Carga por fotos</a></li>
-        <li><a routerLink="/productos/clasificaciones">Categorías y marcas</a></li>
+        <li><a routerLink="/productos/categorias">Categorías</a></li>
+        <li><a routerLink="/productos/marcas">Marcas</a></li>
       </ul>
     </details>
   </div>
@@ -129,10 +141,9 @@
         }
       } @else {
         <div class="inventory-message">
-          @if (q || category || status) {
+          @if (q || category || status || availability) {
             <h2>No encontramos productos</h2>
             <p>Probá con otro nombre o SKU, o cambiá los filtros.</p>
-            <button class="button button--quiet" type="button" (click)="clearFilters()">Limpiar filtros</button>
           } @else {
             <h2>Todavía no hay productos</h2>
             <p>Creá un borrador para empezar el catálogo.</p>
@@ -144,20 +155,7 @@
   </div>
 
   @if (!loading() && !error() && result(); as page) {
-    <footer class="pagination">
-      <p role="status">{{ page.meta.total }} {{ page.meta.total === 1 ? 'resultado' : 'resultados' }}</p>
-      @if (page.meta.last_page > 1) {
-        <nav aria-label="Páginas de productos">
-          <button class="button button--quiet" type="button" [disabled]="page.meta.current_page <= 1" (click)="go(page.meta.current_page - 1)" aria-label="Página anterior">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m10 3-5 5 5 5" /></svg>
-          </button>
-          <span aria-current="page">{{ page.meta.current_page }} de {{ page.meta.last_page }}</span>
-          <button class="button button--quiet" type="button" [disabled]="page.meta.current_page >= page.meta.last_page" (click)="go(page.meta.current_page + 1)" aria-label="Página siguiente">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m6 3 5 5-5 5" /></svg>
-          </button>
-        </nav>
-      }
-    </footer>
+    <admin-catalog-pagination [meta]="page.meta" label="Páginas de productos" (pageChange)="go($event)" />
   } @else if (loading()) {
     <p class="sr-only" role="status">Cargando productos…</p>
   }

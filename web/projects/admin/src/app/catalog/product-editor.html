@@ -6,7 +6,13 @@
       @if (product(); as item) { <p class="muted">SKU: {{ item.sku }}</p> }
     </div>
     @if (product(); as item) {
-      <span class="status-pill" [attr.data-status]="item.status">{{ labels[item.status] }}</span>
+      <div class="product-heading-actions">
+        <span class="status-pill" [attr.data-status]="item.status">{{ labels[item.status] }}</span>
+        @if (storefrontProductUrl(); as href) {
+          <a class="button button--quiet" [href]="href" target="_blank" rel="noopener noreferrer"
+            aria-label="Ver en tienda (abre en una pestaña nueva)">Ver en tienda <span aria-hidden="true">↗</span></a>
+        }
+      </div>
     }
   </header>
   @if (loading()) {

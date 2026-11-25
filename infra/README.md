@@ -7,9 +7,9 @@ docker compose -f infra/compose.dev.yml up -d --wait
 docker compose -f infra/compose.dev.yml ps
 ```
 
-This Compose project (`camba-v2-dev`) publishes MySQL on `127.0.0.1:43306`, Redis on `127.0.0.1:46379`, and Mailpit on SMTP `127.0.0.1:41025` / UI `http://127.0.0.1:48025`. The MySQL volume and database names are unique to Camba v2 development. The default credentials are public, local-only values; never use them in production or publish these ports on another interface.
+This Compose project (`camba-v2-demo-pg`) runs PostgreSQL, Redis and Mailpit for the local demo. Only Mailpit's UI is published by this file, at `http://127.0.0.1:48025` by default. Its HTTP healthcheck uses `/readyz` on the internal web port `8025`.
 
-Set the API development `DB_PASSWORD` to `CAMBA_DEV_DB_PASSWORD` (default `camba-local-db`). Use `camba_v2` for the application and `camba_v2_test` only for the suite. Mail must use the local sink (`MAIL_MAILER=smtp`, `MAIL_HOST=127.0.0.1`, `MAIL_PORT=41025`). Stop the dev services with `docker compose -f infra/compose.dev.yml stop`. Do not remove the volume just to run tests.
+The Docker API and worker deliver to `mailpit:1025` using SMTP without authentication or TLS. The SMTP port is not published on the host. For the full stack and isolated test setup, see [Development](../docs/DEVELOPMENT.md). Do not remove the demo volume just to run tests.
 
 This file provides dependencies for the local API and Angular tooling. It does not deploy application containers or production infrastructure.
 

@@ -19,7 +19,10 @@ x-api: &api-runtime
     APP_LOCALE: es
     APP_KEY: ${CAMBA_DEV_APP_KEY:?Generate a dedicated local Laravel APP_KEY}
     APP_URL: http://127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200}
-    SANCTUM_STATEFUL_DOMAINS: 127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200},127.0.0.1:${CAMBA_DEV_ADMIN_PORT:-4300},localhost:${CAMBA_DEV_ADMIN_PORT:-4300}
+    ADMIN_URL: http://127.0.0.1:${CAMBA_DEV_ADMIN_PORT:-4300}
+    CAMBA_PUBLIC_CONTACT_EMAIL:
+    CAMBA_PUBLIC_CONTACT_PHONE:
+    SANCTUM_STATEFUL_DOMAINS: 127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200},localhost:${CAMBA_DEV_STORE_PORT:-4200},127.0.0.1:${CAMBA_DEV_ADMIN_PORT:-4300},localhost:${CAMBA_DEV_ADMIN_PORT:-4300}
     DB_CONNECTION: pgsql
     DB_URL: ''
     DB_HOST: postgres
@@ -109,14 +112,24 @@ services:
       retries: 8
 
   store:
-    <<: *web-runtime
-    command: [sh, -ec, 'npm ci --ignore-scripts && npm exec -- ng serve store --host 0.0.0.0 --port 4200 --proxy-config proxy.conf.cjs --poll 1500']
+    image: camba-v2-dev-store-editorial
+    build:
+      context: ../web
+      target: store-editorial-local
+    environment:
+      CAMBA_SSR_API_ORIGIN: http://api:8000
+      CAMBA_PUBLIC_STORE_ORIGIN: http://127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200}
+      NG_ALLOWED_HOSTS: '127.0.0.1,localhost'
+    depends_on:
+      api:
+        condition: service_healthy
     ports:
-      - '127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200}:4200'
-    volumes:
-      - ../web:/workspace
-      - store-node:/workspace/node_modules
-      - store-cache:/workspace/.angular
+      - '127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200}:4000'
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 4s
+      retries: 25
 
   admin:
     <<: *web-runtime

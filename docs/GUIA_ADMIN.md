@@ -30,4 +30,4 @@ Para practicar sin cobrar a nadie, buscá el pedido local `3CDDDE76`, creado des
 
 1. Abrí **Pedidos**, filtrá por **Estado del pago** o **Preparación y entrega**, y entrá al pedido por su referencia. Verificá productos, datos de contacto y retiro o envío.
 2. Cuando aparezca **Empezar preparación**, podés dejar una **Nota interna**. Para retiro: **Marcar listo para retirar → Confirmar retiro**. Para envío: **Marcar como enviado** (con seguimiento si corresponde) → **Marcar como entregado**.
-3. Si el pago no coincide, usá **Solicitar verificación del pago** y revisá después el pedido y **Avisos operativos**. El resultado no es inmediato; la acción no marca manualmente el pago como aprobado.
+3. Si el pago no coincide, usá **Solicitar verificación del pago** y revisá después el pedido y **Avisos operativos**. La acción aparece si Mercado Pago está habilitado y el pedido tiene un intento de pago o un pago registrado en ese proveedor. El resultado no es inmediato; la acción no marca manualmente el pago como aprobado.

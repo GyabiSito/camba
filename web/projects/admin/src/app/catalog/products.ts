@@ -1,20 +1,23 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiClient, formatMoney } from '@camba/shared';
-import { BehaviorSubject, EMPTY, catchError, switchMap } from 'rxjs';
-import { Classification, Data, Page, Product, Status, admin, labels, photoOf, products, summaryError } from './catalog-api';
+import { BehaviorSubject, EMPTY, catchError, combineLatest, switchMap } from 'rxjs';
+import { Classification, Data, Page, Product, Status, admin, catalogPageSize, labels, photoOf, products, summaryError } from './catalog-api';
+import { CatalogPagination } from './catalog-pagination';
 
 @Component({
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, CatalogPagination],
   templateUrl: './products.html',
-  styleUrls: ['./catalog.css', './products.css', './products-layout.css'],
+  styleUrls: ['./catalog.css', './inventory-table.css', './products.css', './products-layout.css'],
 })
 export class Products {
   private readonly api = inject(ApiClient);
   private readonly destroy = inject(DestroyRef);
-  private readonly request = new BehaviorSubject(1);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  private readonly refresh = new BehaviorSubject(0);
   private searchTimer: ReturnType<typeof setTimeout> | undefined;
   protected readonly categories = signal<Classification[]>([]);
   protected readonly categoryError = signal('');
@@ -28,15 +31,23 @@ export class Products {
   protected q = '';
   protected category = '';
   protected status: Status | '' = '';
+  protected availability = '';
 
   constructor() {
     this.loadCategories();
     this.destroy.onDestroy(() => clearTimeout(this.searchTimer));
-    this.request.pipe(
-      switchMap((page) => {
+    combineLatest([this.route.queryParamMap, this.refresh]).pipe(
+      switchMap(([params]) => {
+        this.q = params.get('q') ?? '';
+        this.category = params.get('category') ?? '';
+        const status = params.get('status') ?? '';
+        this.status = Object.hasOwn(labels, status) ? status as Status : '';
+        this.availability = params.get('availability') === 'out_of_stock' ? 'out_of_stock' : '';
+        const number = Number(params.get('page') ?? 1);
+        const page = Number.isInteger(number) && number >= 1 && number <= 2147483647 ? number : 1;
         this.error.set('');
         this.loading.set(true);
-        const query = { page, per_page: 12, q: this.q.trim(), category: this.category, status: this.status };
+        const query = { page, per_page: catalogPageSize, q: this.q.trim(), category: this.category, status: this.status, availability: this.availability };
         return this.api.get<Page<Product>>(products, query).pipe(
           catchError((error) => {
             this.error.set(summaryError(error, 'No se pudieron cargar los productos.'));
@@ -69,17 +80,27 @@ export class Products {
 
   protected go(page: number) {
     clearTimeout(this.searchTimer);
-    this.request.next(page);
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        q: this.q.trim() || null,
+        category: this.category || null,
+        status: this.status || null,
+        availability: this.availability || null,
+        page: page > 1 ? page : null,
+      },
+    });
   }
 
   protected retry() {
-    this.go(this.request.value);
+    this.refresh.next(0);
   }
 
   protected clearFilters() {
     this.q = '';
     this.category = '';
     this.status = '';
+    this.availability = '';
     this.go(1);
   }
 }

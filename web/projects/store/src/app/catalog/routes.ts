@@ -13,7 +13,7 @@ import {
   imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="surface" aria-labelledby="missing-title">
+    <section class="store-missing" aria-labelledby="missing-title">
       <h1 id="missing-title">No encontramos esta página</h1>
       <p>El enlace puede estar incompleto o haber cambiado.</p>
       <a class="button" routerLink="/tienda">Ir a la tienda</a>
@@ -24,8 +24,10 @@ import {
       display: block;
       padding: clamp(1.25rem, 5vw, 4rem) 0;
     }
-    section {
-      padding: clamp(1rem, 4vw, 3rem);
+    .store-missing {
+      max-inline-size: 42rem;
+      padding-block: clamp(2rem, 6vw, 5rem);
+      border-block-start: 1px solid var(--line);
     }
     h1 {
       font-size: clamp(2rem, 4.5vw, 3.75rem);
@@ -34,6 +36,7 @@ import {
     }
     p {
       color: var(--muted);
+      margin-block: 1rem 1.5rem;
     }
   `,
 })

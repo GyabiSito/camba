@@ -21,12 +21,16 @@
             </p>
           </div>
           @if (current.status === 'paid') {
-            <p>El pago figura confirmado. Podés consultar abajo el estado de preparación o entrega.</p>
+            <p>
+              El pago figura confirmado. Podés consultar abajo el estado de preparación o entrega.
+            </p>
           }
           @if (current.status === 'pending_payment') {
             <p class="muted">
-              La reserva vence el {{ date(current.reservation_expires_at) }}. Si ya intentaste
-              pagar, consultá el estado antes de volver a abrir el pago.
+              La reserva vence el {{ date(current.reservation_expires_at) }}.
+              @if (paymentsEnabled) {
+                Si ya intentaste pagar, consultá el estado antes de volver a abrir el pago.
+              }
             </p>
           } @else if (current.status === 'payment_expired') {
             <p class="muted">
@@ -40,9 +44,15 @@
               La tienda está verificando el pago. No hagas otro pago por este pedido.
             </p>
           } @else if (current.status === 'refunded') {
-            <p class="muted">El sistema informa que este pago fue reembolsado. Consultá a la tienda si necesitás más información.</p>
+            <p class="muted">
+              El sistema informa que este pago fue reembolsado. Consultá a la tienda si necesitás
+              más información.
+            </p>
           } @else if (current.status === 'charged_back') {
-            <p class="muted">El sistema informa una contracarga de este pago. Consultá a la tienda si necesitás más información.</p>
+            <p class="muted">
+              El sistema informa una contracarga de este pago. Consultá a la tienda si necesitás más
+              información.
+            </p>
           }
           @if (error()) {
             <p role="alert" class="notice problem">{{ error() }}</p>
@@ -55,7 +65,7 @@
           }
           @if (current.status === 'pending_payment' || current.status === 'payment_review') {
             <div class="actions">
-              @if (current.status === 'pending_payment') {
+              @if (paymentsEnabled && current.status === 'pending_payment') {
                 <button
                   type="button"
                   class="button"

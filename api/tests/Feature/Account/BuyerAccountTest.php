@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Account;
 
+use App\Models\Address;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class BuyerAccountTest extends TestCase
@@ -18,9 +20,12 @@ class BuyerAccountTest extends TestCase
     {
         $connection = config('database.default');
         $database = config("database.connections.$connection.database");
+        $isolatedPostgres = $connection === 'pgsql' && $database === 'camba_v2_demo_test'
+            && $this->app->environment('testing') && config('database.connections.pgsql.host') === 'postgres'
+            && empty(config('database.connections.pgsql.url'));
 
         $this->assertTrue(
-            ($connection === 'sqlite' && $database === ':memory:') || ($connection === 'mysql' && $database === 'camba_v2_test'),
+            ($connection === 'sqlite' && $database === ':memory:') || ($connection === 'mysql' && $database === 'camba_v2_test') || $isolatedPostgres,
             'The account suite may only reset an in-memory database or the dedicated Camba v2 test database.',
         );
     }
@@ -75,18 +80,21 @@ class BuyerAccountTest extends TestCase
         $this->login($buyer);
         $this->getJson(self::ADDRESSES)->assertExactJson(['data' => []]);
         $this->postJson(self::ADDRESSES)->assertUnprocessable()
-            ->assertJsonValidationErrors(['recipient', 'department', 'locality', 'street', 'number']);
+            ->assertJsonValidationErrors(['recipient', 'department_id', 'locality_id', 'street', 'number']);
         $this->assertDatabaseCount('addresses', 0);
 
         $created = $this->postJson(self::ADDRESSES, $this->address())
             ->assertCreated()->assertJsonMissingPath('data.user_id');
         $id = $created->json('data.id');
         $url = self::ADDRESSES.'/'.$id;
-        $address = ['id' => $id, ...$this->address(), 'phone' => null, 'postal_code' => null];
+        $address = ['id' => $id, ...$this->address(), 'department' => 'Canelones', 'locality' => 'Ciudad De La Costa', 'phone' => null, 'postal_code' => null];
 
         $this->getJson($url)->assertOk()->assertExactJson(['data' => $address]);
         $this->getJson(self::ADDRESSES)->assertOk()->assertExactJson(['data' => [$address]]);
-        $this->assertDatabaseHas('addresses', ['id' => $id, 'user_id' => $buyer->id]);
+        $this->assertDatabaseHas('addresses', ['id' => $id, 'user_id' => $buyer->id, 'locality_id' => $address['locality_id']]);
+        $this->patchJson($url, ['department_id' => 10])->assertUnprocessable()->assertJsonValidationErrors('locality_id');
+        $this->patchJson($url, ['department_id' => 10, 'locality_id' => $address['locality_id']])
+            ->assertUnprocessable()->assertJsonValidationErrors('locality_id');
         $this->patchJson($url, ['street' => null, 'postal_code' => str_repeat('1', 13)])
             ->assertUnprocessable()->assertJsonValidationErrors(['street', 'postal_code']);
         $this->assertDatabaseHas('addresses', ['id' => $id, 'street' => $address['street'], 'postal_code' => null]);
@@ -101,6 +109,25 @@ class BuyerAccountTest extends TestCase
         $this->deleteJson($url)->assertNoContent();
         $this->getJson($url)->assertNotFound();
         $this->assertDatabaseCount('addresses', 0);
+    }
+
+    public function test_legacy_address_remains_readable_and_must_be_explicitly_linked(): void
+    {
+        $buyer = User::factory()->create();
+        $this->login($buyer);
+        $legacy = Address::query()->forceCreate([
+            'user_id' => $buyer->id, 'recipient' => 'Test Buyer', 'street' => 'Old Street', 'number' => '123',
+            'department' => 'monteVIDEO', 'locality' => 'Old locality not in directory',
+        ]);
+        $url = self::ADDRESSES.'/'.$legacy->id;
+        $this->getJson($url)->assertOk()->assertJsonPath('data.department_id', null)
+            ->assertJsonPath('data.locality_id', null)->assertJsonPath('data.department', 'monteVIDEO')
+            ->assertJsonPath('data.locality', 'Old locality not in directory');
+        $this->postJson(self::ADDRESSES, [...$this->address(), 'department_id' => 10])
+            ->assertUnprocessable()->assertJsonValidationErrors('locality_id');
+        $this->patchJson($url, $this->address())->assertOk()
+            ->assertJsonPath('data.locality_id', $this->address()['locality_id'])
+            ->assertJsonPath('data.department', 'Canelones');
     }
 
     public function test_address_lookups_and_writes_cannot_cross_accounts(): void
@@ -125,8 +152,8 @@ class BuyerAccountTest extends TestCase
         $this->patchJson(self::ADDRESSES.'/'.$ownId, ['user_id' => $owner->id])
             ->assertUnprocessable()->assertJsonValidationErrors('user_id');
         $this->assertDatabaseCount('addresses', 2);
-        $this->assertDatabaseHas('addresses', ['id' => $id, 'user_id' => $owner->id, ...$this->address()]);
-        $this->assertDatabaseHas('addresses', ['id' => $ownId, 'user_id' => $other->id, ...$this->address()]);
+        $this->assertDatabaseHas('addresses', ['id' => $id, 'user_id' => $owner->id, 'locality_id' => $this->address()['locality_id']]);
+        $this->assertDatabaseHas('addresses', ['id' => $ownId, 'user_id' => $other->id, 'locality_id' => $this->address()['locality_id']]);
     }
 
     private function login(User $buyer): void
@@ -136,13 +163,13 @@ class BuyerAccountTest extends TestCase
             ->assertNoContent();
     }
 
-    /** @return array<string, string> */
+    /** @return array<string, string|int> */
     private function address(): array
     {
         return [
             'recipient' => 'Test Buyer',
-            'department' => 'Canelones',
-            'locality' => 'Ciudad de la Costa',
+            'department_id' => 2,
+            'locality_id' => (int) DB::table('localities')->where(['department_id' => 2, 'source_id' => 55])->value('id'),
             'street' => 'Giannattasio',
             'number' => '123A',
             'details' => 'Apartment 2',

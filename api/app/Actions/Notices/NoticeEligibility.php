@@ -2,6 +2,7 @@
 
 namespace App\Actions\Notices;
 
+use App\Mail\TransactionalEmail;
 use App\Models\BuyerReminderPreference;
 use App\Models\Cart;
 use App\Models\CommerceNotice;
@@ -17,12 +18,15 @@ class NoticeEligibility
 
     public const PENDING_FULFILMENT = ['unstarted', 'preparing', 'ready_for_pickup'];
 
-    public const FULFILMENT = ['order_ready_for_pickup' => 'ready_for_pickup', 'order_shipped' => 'shipped'];
+    private const FULFILMENT = [
+        'order_ready_for_pickup' => 'ready_for_pickup', 'order_shipped' => 'shipped',
+        CommerceNotice::ORDER_DELIVERED => 'completed',
+    ];
 
     public function recipient(CommerceNotice $notice): ?array
     {
         if ($notice->kind === CommerceNotice::BUYER_WELCOME) {
-            $buyer = $this->buyer($notice->subject_id);
+            $buyer = User::query()->where('role', 'buyer')->find($notice->subject_id);
 
             return $buyer && filter_var($buyer->email, FILTER_VALIDATE_EMAIL)
                 && hash_equals($notice->source_hash ?? '', hash('sha256', $buyer->getEmailForVerification()))
@@ -34,6 +38,14 @@ class NoticeEligibility
         $order = Order::query()->find($notice->subject_id);
         if (! $order) {
             return null;
+        }
+        if ($notice->kind === CommerceNotice::ADMIN_ORDER_CREATED) {
+            $admin = $this->soleAdministrator();
+
+            return $admin && hash_equals($notice->source_hash ?? '', $this->administratorFingerprint($admin))
+                && $order->created_at->gte(now()->subDays(self::MAIL_WINDOW_DAYS))
+                && TransactionalEmail::adminOrderUrl($order->reference) !== null
+                ? [$admin->email, $order->reference] : null;
         }
         $status = $order->getRawOriginal('status');
         $buyer = $this->buyer($order->user_id);
@@ -50,11 +62,24 @@ class NoticeEligibility
             'order_created' => $order->created_at->gte($earliest) && in_array($status, ['pending_payment', 'paid', 'payment_review'], true),
             'order_paid' => $status === 'paid' && $paidAt !== null && $paidAt >= $earliest->toDateTimeString(),
             'payment_reminder' => $this->canRemindPayment($order, $buyer),
-            'order_ready_for_pickup', 'order_shipped' => $this->canNotifyFulfilment($notice, $order, $status),
+            'order_ready_for_pickup', 'order_shipped', CommerceNotice::ORDER_DELIVERED => $this->canNotifyFulfilment($notice, $order, $status),
             default => false,
         };
 
         return $eligible ? [$address, $order->reference] : null;
+    }
+
+    public function soleAdministrator(): ?User
+    {
+        $admins = User::query()->where('role', 'admin')->limit(2)->get();
+        $admin = $admins->count() === 1 ? $admins->first() : null;
+
+        return $admin?->hasVerifiedEmail() && filter_var($admin->email, FILTER_VALIDATE_EMAIL) ? $admin : null;
+    }
+
+    public function administratorFingerprint(User $admin): string
+    {
+        return hash('sha256', $admin->id.'|'.$admin->email);
     }
 
     public function cartFingerprint(Cart $cart): ?string
@@ -85,10 +110,14 @@ class NoticeEligibility
     private function canNotifyFulfilment(CommerceNotice $notice, Order $order, string $status): bool
     {
         $target = self::FULFILMENT[$notice->kind];
+        $current = $order->getRawOriginal('fulfilment_status');
+        $shipment = $target !== 'ready_for_pickup';
 
-        return $status === 'paid' && $order->getRawOriginal('fulfilment_status') === $target
+        return $status === 'paid' && (! $shipment || $order->shipping_method === 'delivery')
+            && ($current === $target || ($target === 'shipped' && $current === 'completed'))
             && Schema::hasTable('order_fulfilment_events')
             && DB::table('order_fulfilment_events')->where('order_id', $order->id)->where('to_status', $target)
+                ->when($notice->source_at !== null, fn ($query) => $query->where('created_at', $notice->source_at))
                 ->where('created_at', '>=', now()->subDays(self::MAIL_WINDOW_DAYS))->exists();
     }
 

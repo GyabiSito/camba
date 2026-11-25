@@ -1,5 +1,77 @@
 # Progreso de Camba v2
 
+## Inicio del Admin — 23/11/2026
+
+[Dashboard en Docker](http://127.0.0.1:4300/dashboard): destino por defecto tras ingresar, con retorno a enlaces protegidos. Los cuatro indicadores abren listados filtrados por la API. Los cinco pedidos recientes reutilizan los estados del listado; ventas toma una sola confirmación por pedido pagado, con períodos locales y totales en UYU. El [contrato](../api/docs/dashboard.md) documenta la zona horaria y los filtros.
+
+Playwright recorrió el panel real a 1440 y 390 px, los accesos rápidos, el listado de pendientes, el producto sin stock y la venta confirmada de **UYU 2.010**. En la demo, el pendiente existente no está entre los cinco más recientes; ese caso de la tabla se cubrió con una fixture. No se cambiaron pedidos, stock ni pagos en la demo. Capturas y evidencia de Network: `web/dist/artifacts/admin-dashboard/`.
+
+## Flujo de Portada y filtros del Admin — 23/11/2026
+
+La vista previa privada está en [Admin → Portada → Vista previa](http://127.0.0.1:4300/portada/vista-previa), con modos escritorio y móvil. La ruta anterior en Tienda devuelve 404. Cada sección tiene una página de edición; publicar sigue siendo una acción del resumen. Categorías y Marcas comparten búsqueda y estado en la URL, aplicados en el servidor antes de paginar sin cambiar los selectores de productos ni de portada.
+
+Playwright verificó la edición, recarga y separación entre borrador y publicación en Docker. Las pruebas aisladas recorrieron dos páginas filtradas por cada estado de ambas tablas; las cuatro respuestas de página 2 están en `web/dist/artifacts/admin-portada/`, junto con las capturas. La verificación dejó intacta la publicación y descartó su propio borrador.
+
+## Editor de portada — 23/11/2026
+
+[Admin → Portada](http://127.0.0.1:4300/portada) edita los seis bloques de la [Tienda](http://127.0.0.1:4200/). PostgreSQL guarda el borrador y la publicación por separado. La vista previa exige una cuenta administradora verificada; publicar no reconstruye Docker. Las fotos cargadas que alguna vez se publicaron conservan sus URLs. La edición no afecta ajustes de entrega, pagos ni configuración compartida de la tienda.
+
+- **API:** migración aplicada al stack local; 18 pruebas y 243 aserciones en PostgreSQL aislado, incluida la regresión de fotos de productos. La [API de portada](../api/openapi.yaml) está documentada.
+- **Navegador:** `node e2e/homepage-editor-docker.mjs` desde `web/` verificó carga inválida/válida, recorte, categorías, orden de prendas, mosaico, permisos, vista previa, publicación y descarte en Docker, con recarga y reinicio de Tienda, Admin y API. Al terminar se restauró la portada inicial. Las capturas están en `web/dist/artifacts/homepage-editor/`; la migrada y la anterior son idénticas a 1440 y 390 px.
+- **Uso:** [Editar y publicar la portada](../README.md#editar-y-publicar-la-portada).
+
+## Portada editorial de moda — 22/11/2026
+
+`/` abre con «Vestite distinto.» dentro de una campaña fotográfica propia, seguida de tres categorías navegables, una vitrina de cuatro prendas, «Armá el look», «Texturas y detalles» y ayuda. Las imágenes nuevas son solo para demo; el modo API conserva productos y galerías reales. No hubo cambios en `api/` ni publicación.
+
+[Arranque, archivos, comprobaciones y procedencia](HOME_EDITORIAL.md). Las capturas comparables están en `web/test-results/home-editorial/`; el LCP móvil local mediano pasó de 0,51 a 1,31 s en el mismo perfil (objetivo ≤2,5 s). La revisión visual corrigió el contraste con texto al 200 %. Pendiente para publicación: aprobar o reemplazar fotos y validar sus asociaciones con el catálogo real.
+
+## Portada con escaparate de categorías — 20/11/2026
+
+La ruta `/` abre con el lazo original de Camba, «Vestite distinto.» y un mosaico navegable 6/3/3 (principal + dos secundarios en móvil). Debajo hay siete productos demo con portadas distintas, disponibilidad y precio en UYU, el editorial «De cerca» con un recorte de la segunda foto de la Remera recta carbón y un pie con cuenta, pedidos y contacto cuando el negocio publica un canal. El listado público existente decide qué categorías y productos entran. El home consulta a lo sumo una ficha adicional, con 500 ms de espera máxima; sin segunda foto no hay editorial. No se agregaron endpoints, dependencias ni cambios en `api/`.
+
+- **Referencias:** los [índices publicados de Kumo](https://shreethemes.in/kumo_php/) y [Cartzio](https://shreethemes.in/cartzio/) aparecían indexados, pero los previews de Envato devolvieron 403 y el sitio del autor, 402. A partir de las observaciones del encargo: Kumo Index 1 → categorías como primera acción; Index 2 → cambio de ritmo después de la grilla; Cartzio Modern → encuadres comparables, precio debajo y enlace al catálogo junto al título; Home Two → alternancia de proporciones entre mosaico, grilla y editorial. No se reutilizaron recursos de esas demos.
+- **Build/HTTP:** `production,demo` y `production` compilaron. SSR con la API local devolvió 200 con catálogo vacío; el origen aislado inaccesible devolvió 503 con el mensaje de error. Un asset demo devuelve 404 en el build real.
+- **Playwright:** 6/6 en dev (`node --test e2e/home-demo.mjs e2e/frontend-demo.mjs` desde `web/`), 4/4 del home en compilado más un caso específico de Vite omitido allí. El chequeo de sesión del runner general usa `window.ng`, por lo que no aplica al optimizado. Se verificaron el recorrido Remeras → Remera recta carbón, búsqueda, ficha, recarga, destinos de cabecera y pie, texto a 200 %, reflow a 320/390/768/1280/1440 px, foco, toque, imagen rota y carga tardía o fallida de motion. Las capturas antes/después y el laboratorio están en `web/test-results/home-mosaic/` (local, ignorado).
+- **Impeccable:** un aviso del detector por `[src]` de Angular fue contrastado con fotos renderizadas. La revisión confirmó las dos correcciones solicitadas (pie y documentación); no hubo comp aprobada nueva ni recibo nativo. [Contrato y procedencia](../.impeccable/surfaces/web-projects-store-src-app-catalog-home-html.md).
+- **Rendimiento móvil local:** 5 corridas por variante con Lighthouse 13.6.0, mismo Chromium, SSR optimizado, fixtures y perfil (150 ms RTT, 1.638,4 kbit/s, CPU 4×). Medianas antes → después: LCP **2,420 → 2,377 s** (objetivo ≤2,5 s), CLS **0,02018 → 0,00002**, transferencia **199.793 → 217.062 B** (+8,6 %). El LCP pasó de `camba-ladrillo-mobile.webp` a `camba-escaparate-mobile.webp`. Anime.js 4.5.0 se difiere hasta que haya intención en una categoría o cercanía al editorial; con movimiento reducido, los enlaces funcionan sin animación. CSS propio, sin Tailwind.
+
+Demo: [127.0.0.1:44822](http://127.0.0.1:44822/), `npm run start:demo:store` desde `web/`.
+
+## Portada ladrillo y bordó — 20/11/2026
+
+Ruta `/`: lazo y palabra marca del SVG original en `cambalacheFront` `eb3b407`, tipografía editorial Georgia con Manrope en los controles, hero de 432 px en escritorio, tres categorías planas y cuatro prendas publicadas. Ladrillo, bordó y crema son una excepción del inicio, no el nuevo tema del admin, catálogo o ficha. Los recortes de la misma fotografía de ImageGen se incluyen solo en demo y no representan un SKU. La ruta SSR real muestra su propio catálogo o el estado vacío, sin recurso demo. [Arranque](DEVELOPMENT.md#frontend-only-design-demo) · [Contrato de la portada](../.impeccable/surfaces/web-projects-store-src-app-catalog-home-html.md).
+
+Referencias consultadas y decisiones:
+
+- [Camba anterior](https://www.camba.com.uy/index.html): recuperar el lema y el SVG de cabecera de su checkout fijado, no los bloques promocionales ni datos comerciales antiguos.
+- [Cartzio / ThemeForest](https://themeforest.net/item/cartzio-angular-18-fashion-store-ecommerce-template/52900181): de la colección de pantallas, separar entrada, navegación de categorías y grilla consistente. El índice del fabricante y la descripción de `index-modern` respondieron; la demo interactiva no estuvo disponible.
+- [Kokoro](https://kokoro.uy/): su apertura muestra una prenda en un entorno y enseguida lleva a tipos de prendas; en Camba, el CTA y las categorías cumplen esa misma transición con una escena propia.
+- [Komorebi](https://komorebi.com.uy/), checkout local de KomorebiStore `fa774fa`: mantener el salto directo del hero al catálogo y no esconder búsqueda, cuenta o carrito detrás de un paso intermedio.
+- [COS](https://www.cos.com/es-es/women/view-all?product_types=dress): fotos de proporciones comparables y el nombre y precio juntos; en Camba, precios en UYU y disponibilidad sin reivindicar popularidad.
+- [Apple Store](https://www.apple.com/store): separar el titular dominante de las siguientes opciones, con una alineación común y espacio entre ambos niveles.
+
+Movimiento: [Anime.js 4.5.0](https://animejs.com/documentation/scope/) con importación local después del render de Angular y de la carga del hero. La flecha del CTA se mueve 4 px en 170 ms en hover/foco; las de categorías hacen un gesto de 5 px de ida/vuelta al entrar en vista, en 235 ms más escalonado de 30 ms. Con `prefers-reduced-motion` no se carga el módulo. Salir de la portada desconecta el observador, elimina los listeners y revierte el `Scope`; no se monta nada si el import llega después de destruida la ruta. CSS propio, sin Tailwind ni Preflight.
+
+Evidencia de navegador: cinco pruebas en `node --test e2e/home-demo.mjs e2e/frontend-demo.mjs`, incluidas Remeras → Remera recta carbón con teclado/tacto, navegación con el import bloqueado o tardío, recarga y alcance demo. API local sin productos publicados: se observó vacío real, carga con un GET demorado que luego continuó a la API y error con ese GET abortado. `api/` sin cambios. Capturas y laboratorio en `web/test-results/home-brick/` (local, ignorado); el veredicto Impeccable confirmó las dos correcciones señaladas, sin comp aprobada nueva.
+
+Laboratorio: Lighthouse 13.6.0, cinco corridas por versión con los mismos fixtures, Chrome y SSR compilado con gzip, perfil móvil 150 ms RTT / 1.638,4 kbit/s / CPU 4×. El recurso LCP cambió de `vestite-distinto-mobile.webp` a `camba-ladrillo-mobile.webp`. LCP mediano **2,282 → 2,490 s** (objetivo ≤2,5 s), CLS mediano **0,0007 → 0,0202**, transferencia mediana **190.507 → 199.793 bytes** (+4,9 %). Son datos de laboratorio, no resultados de campo o producción.
+
+## Portada «Vestite distinto» — 20/11/2026
+
+Alcance: solo `/` de la tienda; [demo local](http://127.0.0.1:44822/) con `npm run start:demo:store` desde `web/`. Las categorías y la selección salen de productos publicados; la ambientación editorial de ImageGen se incluye únicamente en el modo demo y tiene sus prompts junto a los WebP. Sin cambios en `api/`, auth, admin, checkout ni entrega. Referencias locales consultadas: portada de `cambalacheFront` en `eb3b407` fijada por CambaProd y ruta de catálogo de KomorebiStore en `fa774fa`.
+
+- **Build/HTTP:** compilaron `production` y `production,demo`. SSR en los dos modos; el API local respondió catálogo vacío y la portada real mostró ese estado sin fotos demo.
+- **Navegador:** `node --test e2e/home-demo.mjs` pasó, con recorrido inicio → categoría → ficha, buscador, destinos de cabecera, recarga, fallback de imagen y reflow a 320 px/200 %. Capturas antes/después y JSON del laboratorio en `web/test-results/home-redesign/` (local, ignorado).
+- **Rendimiento:** Lighthouse 13.6.0, cinco mediciones por versión con SSR compilado y comprimido, misma demo local y perfil móvil de 150 ms RTT / 1.638,4 kbit/s / CPU 4×. LCP mediano **2,07 s → 2,23 s**, por debajo de 2,5 s; CLS mediano **0,0143 → 0,0007**. No es una medición de producción.
+- **Diseño:** detector Impeccable sin hallazgos; la revisión visual pidió corregir el aire sobre la cabeza en móvil y confirmó esa corrección a 390/320 px. No hubo comp aprobada para la tienda ni evaluación nativa de un candidato separado de los cambios previos.
+
+## Preparación demo del frontend — 20/11/2026
+
+Incorporado el alcance de `AGENTS.md` de `f6fed85` sobre el checkout local `69a3330`. [Arranque y acceso demo](DEVELOPMENT.md#frontend-only-design-demo): tienda `44822`, administración `44823`, catálogo de 13 productos publicados y dos cuentas ficticias. Sin cambios en `api/`, migraciones, rediseño ni despliegue. El entorno conectado a la API conserva sus puertos y credenciales.
+
+Compilación de tienda y administración en demo y producción; los bundles de producción no contienen los datos ni las cuentas demo. Chromium verificó listado, búsqueda y filtros, paginación, ficha/galería, roles, recarga y cierre de sesión con el origen de la API inaccesible para el demo. HTTP confirmó el HTML SSR de ficha y cuenta, y que las cookies demo no autentican en el modo real. Inspección visual acotada de ficha a 320 px e inventario a 1586 px. Esta entrega no abre los pendientes históricos de abajo.
+
 ## Entrega local
 
 Base `fcfd79a`. El proyecto Compose `camba-v2-local` quedó en loopback con red y volúmenes propios. [URLs, reanudación y comprobaciones externas](VALIDACION_ENTREGA.md) · [Guía de administración](GUIA_ADMIN.md). Esta instancia no es producción ni usa datos del Camba anterior.

@@ -1,0 +1,1276 @@
+{
+  "regions": [
+    {
+      "id": "top-bar",
+      "kind": "chrome",
+      "box": {
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 0.07963709677419355
+      },
+      "snap": false,
+      "note": "Header strip",
+      "grid": "A0:J0"
+    },
+    {
+      "id": "wordmark",
+      "kind": "text",
+      "box": {
+        "x": 0.04476670870113493,
+        "y": 0.018145161290322582,
+        "w": 0.08007566204287515,
+        "h": 0.04334677419354839
+      },
+      "snap": false,
+      "note": "Visible text reading Camba",
+      "grid": "A0:B0"
+    },
+    {
+      "id": "nav-products",
+      "kind": "control",
+      "box": {
+        "x": 0.37263556116015134,
+        "y": 0.018145161290322582,
+        "w": 0.07692307692307693,
+        "h": 0.05846774193548387
+      },
+      "snap": false,
+      "note": "Interactive control labeled Productos",
+      "grid": "D0:E0"
+    },
+    {
+      "id": "nav-orders",
+      "kind": "control",
+      "box": {
+        "x": 0.4691046658259773,
+        "y": 0.018145161290322582,
+        "w": 0.05548549810844893,
+        "h": 0.04334677419354839
+      },
+      "snap": false,
+      "note": "Interactive control labeled Pedidos",
+      "grid": "E0:F0"
+    },
+    {
+      "id": "nav-settings",
+      "kind": "control",
+      "box": {
+        "x": 0.5485498108448928,
+        "y": 0.018145161290322582,
+        "w": 0.1008827238335435,
+        "h": 0.04334677419354839
+      },
+      "snap": false,
+      "note": "Interactive control labeled Configuración",
+      "grid": "F0:G0"
+    },
+    {
+      "id": "account",
+      "kind": "control",
+      "box": {
+        "x": 0.9255989911727617,
+        "y": 0.015120967741935484,
+        "w": 0.02837326607818411,
+        "h": 0.04435483870967742
+      },
+      "snap": false,
+      "note": "Interactive control labeled Account initials",
+      "grid": "J0:J0"
+    },
+    {
+      "id": "new-product",
+      "kind": "control",
+      "box": {
+        "x": 0.8348045397225725,
+        "y": 0.13608870967741934,
+        "w": 0.13745271122320302,
+        "h": 0.04939516129032258
+      },
+      "snap": false,
+      "note": "Interactive control labeled Nuevo producto",
+      "grid": "I1:J1"
+    },
+    {
+      "id": "search",
+      "kind": "control",
+      "box": {
+        "x": 0.029003783102143757,
+        "y": 0.21471774193548387,
+        "w": 0.3203026481715006,
+        "h": 0.04838709677419355
+      },
+      "snap": false,
+      "note": "Interactive control labeled Buscar por nombre o SKU",
+      "grid": "A2:D2"
+    },
+    {
+      "id": "category",
+      "kind": "control",
+      "box": {
+        "x": 0.3575031525851198,
+        "y": 0.21471774193548387,
+        "w": 0.1614123581336696,
+        "h": 0.04838709677419355
+      },
+      "snap": false,
+      "note": "Interactive control labeled Categoría",
+      "grid": "D2:F2"
+    },
+    {
+      "id": "status",
+      "kind": "control",
+      "box": {
+        "x": 0.5277427490542245,
+        "y": 0.21471774193548387,
+        "w": 0.16582597730138715,
+        "h": 0.04838709677419355
+      },
+      "snap": false,
+      "note": "Interactive control labeled Estado",
+      "grid": "F2:G2"
+    },
+    {
+      "id": "page-title",
+      "kind": "text",
+      "box": {
+        "x": 0.029003783102143757,
+        "y": 0.13407258064516128,
+        "w": 0.15258511979823455,
+        "h": 0.055443548387096774
+      },
+      "snap": false,
+      "note": "Visible text reading Productos",
+      "grid": "A1:B1"
+    },
+    {
+      "id": "table-topline",
+      "kind": "chrome",
+      "box": {
+        "x": 0.02711223203026482,
+        "y": 0.29939516129032256,
+        "w": 0.9464060529634301,
+        "h": 0.0020161290322580645
+      },
+      "snap": false,
+      "note": "Table framing rule",
+      "grid": "A2:J3"
+    },
+    {
+      "id": "detail-divider",
+      "kind": "chrome",
+      "box": {
+        "x": 0.7313997477931904,
+        "y": 0.3004032258064516,
+        "w": 0.0012610340479192938,
+        "h": 0.592741935483871
+      },
+      "snap": false,
+      "note": "Details panel divider",
+      "grid": "H3:H8"
+    },
+    {
+      "id": "selection-band",
+      "kind": "chrome",
+      "box": {
+        "x": 0.02269861286254729,
+        "y": 0.4314516129032258,
+        "w": 0.7023959646910467,
+        "h": 0.07459677419354839
+      },
+      "snap": false,
+      "note": "Selected row",
+      "grid": "A4:H5"
+    },
+    {
+      "id": "head-product",
+      "kind": "text",
+      "snap": true,
+      "note": "Visible text reading Producto",
+      "grid": "A3:B3"
+    },
+    {
+      "id": "head-sku",
+      "kind": "text",
+      "box": {
+        "x": 0.27616645649432536,
+        "y": 0.31350806451612906,
+        "w": 0.05548549810844893,
+        "h": 0.025201612903225805
+      },
+      "snap": false,
+      "note": "Visible text reading SKU",
+      "grid": "C3:D3"
+    },
+    {
+      "id": "head-category",
+      "kind": "text",
+      "snap": true,
+      "note": "Visible text reading Categoría",
+      "grid": "D3:D3"
+    },
+    {
+      "id": "head-price",
+      "kind": "text",
+      "snap": true,
+      "note": "Visible text reading Precio",
+      "grid": "E3:E3"
+    },
+    {
+      "id": "head-stock",
+      "kind": "text",
+      "snap": true,
+      "note": "Visible text reading Stock",
+      "grid": "F3:F3"
+    },
+    {
+      "id": "head-status",
+      "kind": "text",
+      "snap": true,
+      "note": "Visible text reading Estado",
+      "grid": "G3:G3"
+    },
+    {
+      "id": "row-rule-cotton",
+      "kind": "chrome",
+      "box": {
+        "x": 0.02269861286254729,
+        "y": 0.35786290322580644,
+        "w": 0.701765447667087,
+        "h": 0.0010080645161290322
+      },
+      "snap": false,
+      "note": "Row border",
+      "grid": "A3:H3"
+    },
+    {
+      "id": "select-cotton",
+      "kind": "control",
+      "box": {
+        "x": 0.03467843631778058,
+        "y": 0.3800403225806452,
+        "w": 0.015132408575031526,
+        "h": 0.028225806451612902
+      },
+      "snap": false,
+      "note": "Interactive control labeled Selection checkbox",
+      "grid": "A3:A4"
+    },
+    {
+      "id": "image-cotton",
+      "kind": "plate",
+      "box": {
+        "x": 0.06872635561160151,
+        "y": 0.3629032258064516,
+        "w": 0.0403530895334174,
+        "h": 0.06350806451612903
+      },
+      "snap": false,
+      "note": "Photograph of a white cotton shirt on pale gray studio ground",
+      "grid": "A3:B4"
+    },
+    {
+      "id": "name-cotton",
+      "kind": "text",
+      "snap": true,
+      "note": "Visible text reading Camisa de algodón",
+      "grid": "B3:C3"
+    },
+    {
+      "id": "sku-cotton",
+      "kind": "text",
+      "box": {
+        "x": 0.2755359394703657,
+        "y": 0.3800403225806452,
+        "w": 0.05989911727616646,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading CAM-001",
+      "grid": "C3:D4"
+    },
+    {
+      "id": "cat-cotton",
+      "kind": "text",
+      "box": {
+        "x": 0.35119798234552335,
+        "y": 0.3800403225806452,
+        "w": 0.09079445145018916,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading Camisas",
+      "grid": "D3:E4"
+    },
+    {
+      "id": "price-cotton",
+      "kind": "text",
+      "box": {
+        "x": 0.4501891551071879,
+        "y": 0.3800403225806452,
+        "w": 0.08575031525851198,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading UYU 2.190",
+      "grid": "E3:F4"
+    },
+    {
+      "id": "stock-cotton",
+      "kind": "text",
+      "box": {
+        "x": 0.544766708701135,
+        "y": 0.3800403225806452,
+        "w": 0.03783102143757881,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading 24",
+      "grid": "F3:F4"
+    },
+    {
+      "id": "state-cotton",
+      "kind": "control",
+      "box": {
+        "x": 0.5933165195460277,
+        "y": 0.375,
+        "w": 0.08701134930643127,
+        "h": 0.036290322580645164
+      },
+      "snap": false,
+      "note": "Interactive control labeled Publicado",
+      "grid": "F3:G4"
+    },
+    {
+      "id": "menu-cotton",
+      "kind": "control",
+      "snap": true,
+      "note": "Interactive control labeled Row actions",
+      "grid": "H3:H3"
+    },
+    {
+      "id": "row-rule-plain",
+      "kind": "chrome",
+      "box": {
+        "x": 0.02269861286254729,
+        "y": 0.4324596774193548,
+        "w": 0.701765447667087,
+        "h": 0.0010080645161290322
+      },
+      "snap": false,
+      "note": "Row border",
+      "grid": "A4:H4"
+    },
+    {
+      "id": "select-plain",
+      "kind": "control",
+      "box": {
+        "x": 0.03467843631778058,
+        "y": 0.45463709677419356,
+        "w": 0.015132408575031526,
+        "h": 0.028225806451612902
+      },
+      "snap": false,
+      "note": "Interactive control labeled Selection checkbox",
+      "grid": "A4:A4"
+    },
+    {
+      "id": "image-plain",
+      "kind": "plate",
+      "box": {
+        "x": 0.06872635561160151,
+        "y": 0.4375,
+        "w": 0.0403530895334174,
+        "h": 0.06350806451612903
+      },
+      "snap": false,
+      "note": "Photograph of a black plain t-shirt on pale gray studio ground",
+      "grid": "A4:B5"
+    },
+    {
+      "id": "name-plain",
+      "kind": "text",
+      "box": {
+        "x": 0.12673392181588902,
+        "y": 0.45463709677419356,
+        "w": 0.14060529634300126,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading Remera lisa",
+      "grid": "B4:C4"
+    },
+    {
+      "id": "sku-plain",
+      "kind": "text",
+      "box": {
+        "x": 0.2755359394703657,
+        "y": 0.45463709677419356,
+        "w": 0.05989911727616646,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading REM-002",
+      "grid": "C4:D4"
+    },
+    {
+      "id": "cat-plain",
+      "kind": "text",
+      "box": {
+        "x": 0.35119798234552335,
+        "y": 0.45463709677419356,
+        "w": 0.09079445145018916,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading Remeras",
+      "grid": "D4:E4"
+    },
+    {
+      "id": "price-plain",
+      "kind": "text",
+      "box": {
+        "x": 0.4501891551071879,
+        "y": 0.45463709677419356,
+        "w": 0.08575031525851198,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading UYU 890",
+      "grid": "E4:F4"
+    },
+    {
+      "id": "stock-plain",
+      "kind": "text",
+      "box": {
+        "x": 0.544766708701135,
+        "y": 0.45463709677419356,
+        "w": 0.03783102143757881,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading 12",
+      "grid": "F4:F4"
+    },
+    {
+      "id": "state-plain",
+      "kind": "control",
+      "box": {
+        "x": 0.5933165195460277,
+        "y": 0.4495967741935484,
+        "w": 0.08701134930643127,
+        "h": 0.036290322580645164
+      },
+      "snap": false,
+      "note": "Interactive control labeled Borrador",
+      "grid": "F4:G4"
+    },
+    {
+      "id": "menu-plain",
+      "kind": "control",
+      "box": {
+        "x": 0.6986128625472888,
+        "y": 0.45060483870967744,
+        "w": 0.018915510718789406,
+        "h": 0.036290322580645164
+      },
+      "snap": false,
+      "note": "Interactive control labeled Row actions",
+      "grid": "G4:H4"
+    },
+    {
+      "id": "row-rule-straight",
+      "kind": "chrome",
+      "box": {
+        "x": 0.02269861286254729,
+        "y": 0.5080645161290323,
+        "w": 0.701765447667087,
+        "h": 0.0010080645161290322
+      },
+      "snap": false,
+      "note": "Row border",
+      "grid": "A5:H5"
+    },
+    {
+      "id": "select-straight",
+      "kind": "control",
+      "box": {
+        "x": 0.03467843631778058,
+        "y": 0.530241935483871,
+        "w": 0.015132408575031526,
+        "h": 0.028225806451612902
+      },
+      "snap": false,
+      "note": "Interactive control labeled Selection checkbox",
+      "grid": "A5:A5"
+    },
+    {
+      "id": "image-straight",
+      "kind": "plate",
+      "box": {
+        "x": 0.06872635561160151,
+        "y": 0.5131048387096774,
+        "w": 0.0403530895334174,
+        "h": 0.06350806451612903
+      },
+      "snap": false,
+      "note": "Photograph of a beige straight-leg pants on pale gray studio ground",
+      "grid": "A5:B5"
+    },
+    {
+      "id": "name-straight",
+      "kind": "text",
+      "box": {
+        "x": 0.12673392181588902,
+        "y": 0.530241935483871,
+        "w": 0.14060529634300126,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading Pantalón recto",
+      "grid": "B5:C5"
+    },
+    {
+      "id": "sku-straight",
+      "kind": "text",
+      "box": {
+        "x": 0.2755359394703657,
+        "y": 0.530241935483871,
+        "w": 0.05989911727616646,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading PAN-003",
+      "grid": "C5:D5"
+    },
+    {
+      "id": "cat-straight",
+      "kind": "text",
+      "snap": true,
+      "note": "Visible text reading Pantalones",
+      "grid": "D5:D5"
+    },
+    {
+      "id": "price-straight",
+      "kind": "text",
+      "snap": true,
+      "note": "Visible text reading UYU 2.590",
+      "grid": "E5:E5"
+    },
+    {
+      "id": "stock-straight",
+      "kind": "text",
+      "box": {
+        "x": 0.544766708701135,
+        "y": 0.530241935483871,
+        "w": 0.03783102143757881,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading 0",
+      "grid": "F5:F5"
+    },
+    {
+      "id": "state-straight",
+      "kind": "control",
+      "box": {
+        "x": 0.5933165195460277,
+        "y": 0.5252016129032258,
+        "w": 0.08701134930643127,
+        "h": 0.036290322580645164
+      },
+      "snap": false,
+      "note": "Interactive control labeled Archivado",
+      "grid": "F5:G5"
+    },
+    {
+      "id": "menu-straight",
+      "kind": "control",
+      "snap": true,
+      "note": "Interactive control labeled Row actions",
+      "grid": "H5:H5"
+    },
+    {
+      "id": "row-rule-classic",
+      "kind": "chrome",
+      "box": {
+        "x": 0.02269861286254729,
+        "y": 0.5796370967741935,
+        "w": 0.701765447667087,
+        "h": 0.0010080645161290322
+      },
+      "snap": false,
+      "note": "Row border",
+      "grid": "A5:H5"
+    },
+    {
+      "id": "select-classic",
+      "kind": "control",
+      "snap": true,
+      "note": "Interactive control labeled Selection checkbox",
+      "grid": "A6:A6"
+    },
+    {
+      "id": "image-classic",
+      "kind": "plate",
+      "box": {
+        "x": 0.06872635561160151,
+        "y": 0.5846774193548387,
+        "w": 0.0403530895334174,
+        "h": 0.06350806451612903
+      },
+      "snap": false,
+      "note": "Photograph of a navy classic shirt on pale gray studio ground",
+      "grid": "A5:B6"
+    },
+    {
+      "id": "name-classic",
+      "kind": "text",
+      "snap": true,
+      "note": "Visible text reading Camisa clásica",
+      "grid": "B6:B6"
+    },
+    {
+      "id": "sku-classic",
+      "kind": "text",
+      "snap": true,
+      "note": "Visible text reading CAM-004",
+      "grid": "C6:C6"
+    },
+    {
+      "id": "cat-classic",
+      "kind": "text",
+      "snap": true,
+      "note": "Visible text reading Camisas",
+      "grid": "D6:D6"
+    },
+    {
+      "id": "price-classic",
+      "kind": "text",
+      "snap": true,
+      "note": "Visible text reading UYU 2.290",
+      "grid": "E6:E6"
+    },
+    {
+      "id": "stock-classic",
+      "kind": "text",
+      "box": {
+        "x": 0.544766708701135,
+        "y": 0.6018145161290323,
+        "w": 0.03783102143757881,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading 18",
+      "grid": "F6:F6"
+    },
+    {
+      "id": "state-classic",
+      "kind": "control",
+      "snap": true,
+      "note": "Interactive control labeled Publicado",
+      "grid": "G6:G6"
+    },
+    {
+      "id": "menu-classic",
+      "kind": "control",
+      "snap": true,
+      "note": "Interactive control labeled Row actions",
+      "grid": "H6:H6"
+    },
+    {
+      "id": "row-rule-pocket",
+      "kind": "chrome",
+      "box": {
+        "x": 0.02269861286254729,
+        "y": 0.6532258064516129,
+        "w": 0.701765447667087,
+        "h": 0.0010080645161290322
+      },
+      "snap": false,
+      "note": "Row border",
+      "grid": "A6:H6"
+    },
+    {
+      "id": "select-pocket",
+      "kind": "control",
+      "box": {
+        "x": 0.03467843631778058,
+        "y": 0.6754032258064516,
+        "w": 0.015132408575031526,
+        "h": 0.028225806451612902
+      },
+      "snap": false,
+      "note": "Interactive control labeled Selection checkbox",
+      "grid": "A6:A7"
+    },
+    {
+      "id": "image-pocket",
+      "kind": "plate",
+      "box": {
+        "x": 0.06872635561160151,
+        "y": 0.6582661290322581,
+        "w": 0.0403530895334174,
+        "h": 0.06350806451612903
+      },
+      "snap": false,
+      "note": "Photograph of a gray pocket t-shirt on pale gray studio ground",
+      "grid": "A6:B7"
+    },
+    {
+      "id": "name-pocket",
+      "kind": "text",
+      "box": {
+        "x": 0.12673392181588902,
+        "y": 0.6754032258064516,
+        "w": 0.14060529634300126,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading Remera con bolsillo",
+      "grid": "B6:C7"
+    },
+    {
+      "id": "sku-pocket",
+      "kind": "text",
+      "box": {
+        "x": 0.2755359394703657,
+        "y": 0.6754032258064516,
+        "w": 0.05989911727616646,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading REM-005",
+      "grid": "C6:D7"
+    },
+    {
+      "id": "cat-pocket",
+      "kind": "text",
+      "box": {
+        "x": 0.35119798234552335,
+        "y": 0.6754032258064516,
+        "w": 0.09079445145018916,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading Remeras",
+      "grid": "D6:E7"
+    },
+    {
+      "id": "price-pocket",
+      "kind": "text",
+      "box": {
+        "x": 0.4501891551071879,
+        "y": 0.6754032258064516,
+        "w": 0.08575031525851198,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading UYU 990",
+      "grid": "E6:F7"
+    },
+    {
+      "id": "stock-pocket",
+      "kind": "text",
+      "box": {
+        "x": 0.544766708701135,
+        "y": 0.6754032258064516,
+        "w": 0.03783102143757881,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading 7",
+      "grid": "F6:F7"
+    },
+    {
+      "id": "state-pocket",
+      "kind": "control",
+      "box": {
+        "x": 0.5933165195460277,
+        "y": 0.6703629032258065,
+        "w": 0.08701134930643127,
+        "h": 0.036290322580645164
+      },
+      "snap": false,
+      "note": "Interactive control labeled Publicado",
+      "grid": "F6:G7"
+    },
+    {
+      "id": "menu-pocket",
+      "kind": "control",
+      "box": {
+        "x": 0.6986128625472888,
+        "y": 0.6713709677419355,
+        "w": 0.018915510718789406,
+        "h": 0.036290322580645164
+      },
+      "snap": false,
+      "note": "Interactive control labeled Row actions",
+      "grid": "G6:H7"
+    },
+    {
+      "id": "row-rule-twill",
+      "kind": "chrome",
+      "box": {
+        "x": 0.02269861286254729,
+        "y": 0.7268145161290323,
+        "w": 0.701765447667087,
+        "h": 0.0010080645161290322
+      },
+      "snap": false,
+      "note": "Row border",
+      "grid": "A7:H7"
+    },
+    {
+      "id": "select-twill",
+      "kind": "control",
+      "snap": false,
+      "note": "Interactive control labeled Selection checkbox",
+      "grid": "A7:A7",
+      "box": {
+        "x": 0.03467843631778058,
+        "y": 0.75,
+        "w": 0.015132408575031526,
+        "h": 0.028225806451612902
+      }
+    },
+    {
+      "id": "image-twill",
+      "kind": "plate",
+      "box": {
+        "x": 0.06872635561160151,
+        "y": 0.7318548387096774,
+        "w": 0.0403530895334174,
+        "h": 0.06350806451612903
+      },
+      "snap": false,
+      "note": "Photograph of a black twill pants on pale gray studio ground",
+      "grid": "A7:B7"
+    },
+    {
+      "id": "name-twill",
+      "kind": "text",
+      "box": {
+        "x": 0.12673392181588902,
+        "y": 0.748991935483871,
+        "w": 0.14060529634300126,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading Pantalón de sarga",
+      "grid": "B7:C7"
+    },
+    {
+      "id": "sku-twill",
+      "kind": "text",
+      "box": {
+        "x": 0.2755359394703657,
+        "y": 0.748991935483871,
+        "w": 0.05989911727616646,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading PAN-006",
+      "grid": "C7:D7"
+    },
+    {
+      "id": "cat-twill",
+      "kind": "text",
+      "snap": true,
+      "note": "Visible text reading Pantalones",
+      "grid": "D7:D7"
+    },
+    {
+      "id": "price-twill",
+      "kind": "text",
+      "snap": true,
+      "note": "Visible text reading UYU 2.790",
+      "grid": "E7:E7"
+    },
+    {
+      "id": "stock-twill",
+      "kind": "text",
+      "box": {
+        "x": 0.544766708701135,
+        "y": 0.748991935483871,
+        "w": 0.03783102143757881,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading 5",
+      "grid": "F7:F7"
+    },
+    {
+      "id": "state-twill",
+      "kind": "control",
+      "box": {
+        "x": 0.5933165195460277,
+        "y": 0.7439516129032258,
+        "w": 0.08701134930643127,
+        "h": 0.036290322580645164
+      },
+      "snap": false,
+      "note": "Interactive control labeled Borrador",
+      "grid": "F7:G7"
+    },
+    {
+      "id": "menu-twill",
+      "kind": "control",
+      "box": {
+        "x": 0.6986128625472888,
+        "y": 0.7449596774193549,
+        "w": 0.018915510718789406,
+        "h": 0.036290322580645164
+      },
+      "snap": false,
+      "note": "Interactive control labeled Row actions",
+      "grid": "G7:H7"
+    },
+    {
+      "id": "row-rule-over",
+      "kind": "chrome",
+      "box": {
+        "x": 0.02269861286254729,
+        "y": 0.7983870967741935,
+        "w": 0.701765447667087,
+        "h": 0.0010080645161290322
+      },
+      "snap": false,
+      "note": "Row border",
+      "grid": "A7:H7"
+    },
+    {
+      "id": "select-over",
+      "kind": "control",
+      "box": {
+        "x": 0.03467843631778058,
+        "y": 0.8205645161290323,
+        "w": 0.015132408575031526,
+        "h": 0.028225806451612902
+      },
+      "snap": false,
+      "note": "Interactive control labeled Selection checkbox",
+      "grid": "A8:A8"
+    },
+    {
+      "id": "image-over",
+      "kind": "plate",
+      "box": {
+        "x": 0.06872635561160151,
+        "y": 0.8034274193548387,
+        "w": 0.0403530895334174,
+        "h": 0.06350806451612903
+      },
+      "snap": false,
+      "note": "Photograph of a ecru oversized t-shirt on pale gray studio ground",
+      "grid": "A8:B8"
+    },
+    {
+      "id": "name-over",
+      "kind": "text",
+      "box": {
+        "x": 0.12673392181588902,
+        "y": 0.8205645161290323,
+        "w": 0.14060529634300126,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading Remera oversize",
+      "grid": "B8:C8"
+    },
+    {
+      "id": "sku-over",
+      "kind": "text",
+      "box": {
+        "x": 0.2755359394703657,
+        "y": 0.8205645161290323,
+        "w": 0.05989911727616646,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading REM-007",
+      "grid": "C8:D8"
+    },
+    {
+      "id": "cat-over",
+      "kind": "text",
+      "snap": true,
+      "note": "Visible text reading Remeras",
+      "grid": "D8:D8"
+    },
+    {
+      "id": "price-over",
+      "kind": "text",
+      "box": {
+        "x": 0.4501891551071879,
+        "y": 0.8205645161290323,
+        "w": 0.08575031525851198,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading UYU 1.090",
+      "grid": "E8:F8"
+    },
+    {
+      "id": "stock-over",
+      "kind": "text",
+      "box": {
+        "x": 0.544766708701135,
+        "y": 0.8205645161290323,
+        "w": 0.03783102143757881,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading 0",
+      "grid": "F8:F8"
+    },
+    {
+      "id": "state-over",
+      "kind": "control",
+      "box": {
+        "x": 0.5933165195460277,
+        "y": 0.8155241935483871,
+        "w": 0.08701134930643127,
+        "h": 0.036290322580645164
+      },
+      "snap": false,
+      "note": "Interactive control labeled Archivado",
+      "grid": "F8:G8"
+    },
+    {
+      "id": "menu-over",
+      "kind": "control",
+      "box": {
+        "x": 0.6986128625472888,
+        "y": 0.8165322580645161,
+        "w": 0.018915510718789406,
+        "h": 0.036290322580645164
+      },
+      "snap": false,
+      "note": "Interactive control labeled Row actions",
+      "grid": "G8:H8"
+    },
+    {
+      "id": "detail-photo",
+      "kind": "plate",
+      "box": {
+        "x": 0.7528373266078184,
+        "y": 0.33669354838709675,
+        "w": 0.07629255989911728,
+        "h": 0.1219758064516129
+      },
+      "snap": false,
+      "note": "Photograph of the selected black plain t-shirt on pale gray studio ground",
+      "grid": "H3:I4"
+    },
+    {
+      "id": "detail-title",
+      "kind": "text",
+      "box": {
+        "x": 0.8411097099621689,
+        "y": 0.33568548387096775,
+        "w": 0.1223203026481715,
+        "h": 0.029233870967741934
+      },
+      "snap": false,
+      "note": "Visible text reading Remera lisa",
+      "grid": "I3:J3"
+    },
+    {
+      "id": "detail-sku",
+      "kind": "text",
+      "box": {
+        "x": 0.8411097099621689,
+        "y": 0.37399193548387094,
+        "w": 0.11475409836065574,
+        "h": 0.02620967741935484
+      },
+      "snap": false,
+      "note": "Visible text reading SKU: REM-002",
+      "grid": "I3:J4"
+    },
+    {
+      "id": "detail-category-label",
+      "kind": "text",
+      "box": {
+        "x": 0.7686002522068096,
+        "y": 0.5020161290322581,
+        "w": 0.09205548549810845,
+        "h": 0.028225806451612902
+      },
+      "snap": false,
+      "note": "Visible text reading Posición",
+      "grid": "H5:I5"
+    },
+    {
+      "id": "detail-category-value",
+      "kind": "text",
+      "box": {
+        "x": 0.8934426229508197,
+        "y": 0.5020161290322581,
+        "w": 0.07818411097099622,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading 2",
+      "grid": "I5:J5"
+    },
+    {
+      "id": "detail-category-rule",
+      "kind": "chrome",
+      "box": {
+        "x": 0.7534678436317781,
+        "y": 0.5423387096774194,
+        "w": 0.21941992433795712,
+        "h": 0.0010080645161290322
+      },
+      "snap": false,
+      "note": "Detail field separator",
+      "grid": "H5:J5"
+    },
+    {
+      "id": "detail-stock-label",
+      "kind": "text",
+      "box": {
+        "x": 0.7686002522068096,
+        "y": 0.5604838709677419,
+        "w": 0.09205548549810845,
+        "h": 0.028225806451612902
+      },
+      "snap": false,
+      "note": "Visible text reading Stock",
+      "grid": "H5:I5"
+    },
+    {
+      "id": "detail-stock-value",
+      "kind": "text",
+      "box": {
+        "x": 0.8934426229508197,
+        "y": 0.5604838709677419,
+        "w": 0.07818411097099622,
+        "h": 0.03024193548387097
+      },
+      "snap": false,
+      "note": "Visible text reading 12",
+      "grid": "I5:J5"
+    },
+    {
+      "id": "detail-stock-rule",
+      "kind": "chrome",
+      "box": {
+        "x": 0.7534678436317781,
+        "y": 0.6008064516129032,
+        "w": 0.21941992433795712,
+        "h": 0.0010080645161290322
+      },
+      "snap": false,
+      "note": "Detail field separator",
+      "grid": "H6:J6"
+    },
+    {
+      "id": "detail-status-label",
+      "kind": "text",
+      "box": {
+        "x": 0.7686002522068096,
+        "y": 0.6149193548387096,
+        "w": 0.09205548549810845,
+        "h": 0.028225806451612902
+      },
+      "snap": false,
+      "note": "Visible text reading Estado",
+      "grid": "H6:I6"
+    },
+    {
+      "id": "detail-status-value",
+      "kind": "text",
+      "snap": true,
+      "note": "Visible text reading Borrador",
+      "grid": "J6:J6"
+    },
+    {
+      "id": "detail-status-rule",
+      "kind": "chrome",
+      "box": {
+        "x": 0.7534678436317781,
+        "y": 0.655241935483871,
+        "w": 0.21941992433795712,
+        "h": 0.0010080645161290322
+      },
+      "snap": false,
+      "note": "Detail field separator",
+      "grid": "H6:J6"
+    },
+    {
+      "id": "detail-open",
+      "kind": "control",
+      "snap": true,
+      "note": "Interactive control labeled Abrir producto",
+      "grid": "H7:J7"
+    },
+    {
+      "id": "footer-rule",
+      "kind": "chrome",
+      "box": {
+        "x": 0.02711223203026482,
+        "y": 0.9092741935483871,
+        "w": 0.9457755359394704,
+        "h": 0.0010080645161290322
+      },
+      "snap": false,
+      "note": "Results separator",
+      "grid": "A9:J9"
+    },
+    {
+      "id": "result-count",
+      "kind": "text",
+      "box": {
+        "x": 0.029634300126103404,
+        "y": 0.9324596774193549,
+        "w": 0.10466582597730138,
+        "h": 0.03225806451612903
+      },
+      "snap": false,
+      "note": "Visible text reading 7 resultados",
+      "grid": "A9:B9"
+    },
+    {
+      "id": "page-previous",
+      "kind": "control",
+      "box": {
+        "x": 0.8713745271122321,
+        "y": 0.9254032258064516,
+        "w": 0.02711223203026482,
+        "h": 0.04435483870967742
+      },
+      "snap": false,
+      "note": "Interactive control labeled Previous page",
+      "grid": "I9:I9"
+    },
+    {
+      "id": "page-current",
+      "kind": "control",
+      "box": {
+        "x": 0.907313997477932,
+        "y": 0.9254032258064516,
+        "w": 0.02711223203026482,
+        "h": 0.04435483870967742
+      },
+      "snap": false,
+      "note": "Interactive control labeled 1",
+      "grid": "J9:J9"
+    },
+    {
+      "id": "page-next",
+      "kind": "control",
+      "box": {
+        "x": 0.9438839848675914,
+        "y": 0.9254032258064516,
+        "w": 0.02711223203026482,
+        "h": 0.04435483870967742
+      },
+      "snap": false,
+      "note": "Interactive control labeled Next page",
+      "grid": "J9:J9"
+    }
+  ]
+}

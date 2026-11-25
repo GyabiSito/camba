@@ -1,11 +1,21 @@
-import { Component, inject, signal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { Component, inject, PLATFORM_ID, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiClient, apiMessage, CART_CHANGED } from '@camba/shared';
 import { firstValueFrom } from 'rxjs';
 import { AddressFields } from './address-fields';
 import { ShopperAuth } from './auth';
-import { Address, api, Buyer, Data, httpStatus, makeAddressForm } from './shopper';
+import {
+  Address,
+  addressGeography,
+  api,
+  Buyer,
+  Data,
+  httpStatus,
+  makeAddressForm,
+  resetAddressForm,
+} from './shopper';
 
 type Preferences = { payment_reminders: boolean; cart_reminders: boolean };
 
@@ -15,6 +25,7 @@ type Preferences = { payment_reminders: boolean; cart_reminders: boolean };
   styleUrls: ['./shopper.css', './members-design.css'],
 })
 export class AccountPage {
+  private readonly browser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly client = inject(ApiClient);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
@@ -35,8 +46,10 @@ export class AccountPage {
   protected readonly addressError = signal('');
   protected readonly addressMessage = signal('');
   protected readonly editingAddress = signal<number | 'new' | null>(null);
+  protected readonly previousAddress = signal<Address | null>(null);
   protected readonly removingAddress = signal<number | null>(null);
 
+  protected readonly preferencesUnavailable = signal(false);
   protected readonly preferencesLoaded = signal(false);
   protected readonly preferencesBusy = signal(false);
   protected readonly preferencesError = signal('');
@@ -66,6 +79,9 @@ export class AccountPage {
       const { data } = await firstValueFrom(this.client.get<Data<Buyer>>(api + '/auth/me'));
       this.profile.reset({ name: data.name });
       this.buyer.set(data);
+      if (this.browser) void this.loadAddresses();
+      if (this.browser && data.email_verified && data.role === 'buyer')
+        void this.updatePreferences(false);
       if (afterLogin && this.returnToCheckout) await this.router.navigateByUrl('/checkout');
     } catch (error) {
       if (httpStatus(error) !== 401)
@@ -100,6 +116,7 @@ export class AccountPage {
       this.addressError.set('');
       this.preferences.reset();
       this.preferencesLoaded.set(false);
+      this.preferencesUnavailable.set(false);
       this.preferencesMessage.set('');
       this.preferencesError.set('');
       this.verificationMessage.set('');
@@ -185,22 +202,26 @@ export class AccountPage {
     this.addressMessage.set('');
     this.removingAddress.set(null);
     this.editingAddress.set(value?.id ?? 'new');
-    this.address.reset(
-      value
-        ? { ...value, details: value.details ?? '', postal_code: value.postal_code ?? '' }
-        : undefined,
-    );
+    this.previousAddress.set(value && !addressGeography(value) ? value : null);
+    resetAddressForm(this.address, value ?? undefined);
     this.phone.reset(value?.phone ?? '');
   }
 
   protected async saveAddress() {
     const editing = this.editingAddress();
-    if (editing === null || this.address.invalid || this.phone.invalid || this.addressBusy())
-      return;
-    this.addressBusy.set(true);
+    if (editing === null || this.addressBusy()) return;
     this.addressError.set('');
     this.addressMessage.set('');
-    const payload = { ...this.address.getRawValue(), phone: this.phone.value };
+    const fields = this.address.getRawValue();
+    const geography = addressGeography(fields);
+    if (!geography) {
+      this.address.markAllAsTouched();
+      this.addressError.set('Elegí un departamento y una localidad válidos.');
+      return;
+    }
+    if (this.address.invalid || this.phone.invalid) return;
+    this.addressBusy.set(true);
+    const payload = { ...fields, ...geography, phone: this.phone.value };
     const url = api + '/account/addresses';
     try {
       const { data } = await firstValueFrom(
@@ -256,6 +277,10 @@ export class AccountPage {
       this.preferencesLoaded.set(true);
       if (save) this.preferencesMessage.set('Preferencias guardadas.');
     } catch (error) {
+      if (httpStatus(error) === 503) {
+        this.preferencesUnavailable.set(true);
+        return;
+      }
       this.preferencesError.set(
         apiMessage(error, 'No pudimos ' + (save ? 'guardar' : 'cargar') + ' tus preferencias.'),
       );

@@ -19,78 +19,89 @@
         @if (items().length) {
           <ul class="line-list purchase-lines" aria-label="Productos">
             @for (item of items(); track item.product_id) {
-              <li class="stack purchase-line">
-                <div class="line-head purchase-line-heading">
-                  @if (item.product; as product) {
-                    <h2>
-                      <a [routerLink]="['/producto', product.slug]">{{ product.name }}</a>
-                    </h2>
-                    <p class="purchase-line-price">
-                      <span>Subtotal</span>
-                      <strong class="money">{{
-                        money(product.price_cents * item.quantity)
-                      }}</strong>
+              <li class="purchase-line cart-line">
+                <store-product-photo
+                  class="cart-cover"
+                  [photo]="covers.photo(item.product?.slug ?? '')"
+                  [name]="item.product?.name ?? ''"
+                  [decorative]="true"
+                  variant="thumb"
+                />
+                <div class="stack cart-line-body">
+                  <div class="line-head purchase-line-heading">
+                    @if (item.product; as product) {
+                      <h2>
+                        <a [routerLink]="['/producto', product.slug]">{{ product.name }}</a>
+                      </h2>
+                      <p class="purchase-line-price">
+                        <span>Subtotal</span>
+                        <strong class="money">{{
+                          money(product.price_cents * item.quantity)
+                        }}</strong>
+                      </p>
+                    } @else {
+                      <h2>Producto no disponible</h2>
+                    }
+                  </div>
+                  @if (!item.available || item.quantity > maxQuantity(item)) {
+                    <p class="muted">
+                      {{
+                        maxQuantity(item)
+                          ? 'Reducí la cantidad para continuar. Disponible: ' +
+                            maxQuantity(item) +
+                            '.'
+                          : 'Quitá este producto para continuar.'
+                      }}
                     </p>
-                  } @else {
-                    <h2>Producto no disponible</h2>
                   }
-                </div>
-                @if (!item.available || item.quantity > maxQuantity(item)) {
-                  <p class="muted">
-                    {{
-                      maxQuantity(item)
-                        ? 'Reducí la cantidad para continuar. Disponible: ' +
-                          maxQuantity(item) +
-                          '.'
-                        : 'Quitá este producto para continuar.'
-                    }}
-                  </p>
-                }
-                <form
-                  (ngSubmit)="save(item, false)"
-                  ngNativeValidate
-                  class="actions purchase-line-actions"
-                >
-                  @if (maxQuantity(item); as max) {
-                    <label class="field quantity"
-                      >Cantidad
-                      <input
-                        type="number"
-                        inputmode="numeric"
-                        min="1"
-                        [max]="max"
-                        step="1"
-                        required
-                        [attr.aria-label]="'Cantidad de ' + item.product?.name"
-                        [name]="'quantity-' + item.product_id"
-                        [ngModel]="quantities()[item.product_id]"
-                        (ngModelChange)="setQuantity(item.product_id, $event)"
-                        [disabled]="action() !== null"
-                      />
-                    </label>
-                    <button
-                      type="submit"
-                      class="button button--quiet"
-                      [disabled]="
-                        action() !== null || quantities()[item.product_id] === item.quantity
-                      "
-                    >
-                      Actualizar
-                    </button>
-                  }
-                  <button
-                    type="button"
-                    class="button button--quiet"
-                    [disabled]="action() !== null"
-                    [attr.aria-label]="'Quitar ' + (item.product?.name ?? 'producto no disponible')"
-                    (click)="save(item, true)"
+                  <form
+                    (ngSubmit)="save(item, false)"
+                    ngNativeValidate
+                    class="actions purchase-line-actions"
                   >
-                    Quitar
-                  </button>
-                  @if (action() === item.product_id) {
-                    <span role="status">Actualizando…</span>
-                  }
-                </form>
+                    @if (maxQuantity(item); as max) {
+                      <label class="field quantity"
+                        >Cantidad
+                        <input
+                          type="number"
+                          inputmode="numeric"
+                          min="1"
+                          [max]="max"
+                          step="1"
+                          required
+                          [attr.aria-label]="'Cantidad de ' + item.product?.name"
+                          [name]="'quantity-' + item.product_id"
+                          [ngModel]="quantities()[item.product_id]"
+                          (ngModelChange)="setQuantity(item.product_id, $event)"
+                          [disabled]="action() !== null"
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        class="button button--quiet"
+                        [disabled]="
+                          action() !== null || quantities()[item.product_id] === item.quantity
+                        "
+                      >
+                        Actualizar
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      class="button button--quiet"
+                      [disabled]="action() !== null"
+                      [attr.aria-label]="
+                        'Quitar ' + (item.product?.name ?? 'producto no disponible')
+                      "
+                      (click)="save(item, true)"
+                    >
+                      Quitar
+                    </button>
+                    @if (action() === item.product_id) {
+                      <span role="status">Actualizando…</span>
+                    }
+                  </form>
+                </div>
               </li>
             }
           </ul>

@@ -23,14 +23,48 @@ class PasswordRecoveryTest extends TestCase
         $this->assertTrue(($connection === 'sqlite' && $database === ':memory:') || ($connection === 'mysql' && $database === 'camba_v2_test'), 'Use only an isolated recovery test database.');
     }
 
-    private function payload($user, $token): array
+    private function payload(User $user, string $token): array
     {
-        return ['email' => $user->email, 'token' => $token, 'password' => 'independent-new-secret', 'password_confirmation' => 'independent-new-secret'];
+        $url = (new QueuedResetPassword($token))->toMail($user)->viewData['actionUrl'];
+        parse_str(parse_url($url, PHP_URL_FRAGMENT) ?? '', $fragment);
+
+        return ['token' => $fragment['reset'], 'password' => 'independent-new-secret', 'password_confirmation' => 'independent-new-secret'];
     }
 
     private function snapshot(): string
     {
         return hash('sha256', json_encode([DB::table('users')->orderBy('id')->get(), DB::table('password_reset_tokens')->orderBy('email')->get(), DB::table('sessions')->orderBy('id')->get()]));
+    }
+
+    public function test_delivered_link_resets_password_without_client_email(): void
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+        $otherBefore = $other->fresh()->getRawOriginal();
+        $token = Password::createToken($user);
+        $this->withHeader('Origin', 'http://localhost');
+        $this->postJson('/api/v1/auth/reset-password', $this->payload($user, $token))->assertNoContent();
+        $this->assertTrue(Hash::check('independent-new-secret', $user->fresh()->password));
+        $this->assertSame($otherBefore, $other->fresh()->getRawOriginal());
+    }
+
+    public function test_reassigning_the_original_email_does_not_transfer_reset_authority(): void
+    {
+        $user = User::factory()->create();
+        $email = $user->email;
+        $payload = $this->payload($user, Password::createToken($user));
+        $user->update(['email' => 'changed@example.test']);
+        User::factory()->create(['email' => $email]);
+
+        $this->withHeader('Origin', 'http://localhost');
+        $before = $this->snapshot();
+        $this->postJson('/api/v1/auth/reset-password', $payload)->assertUnprocessable()->assertJsonValidationErrors(['token']);
+        $this->assertSame($before, $this->snapshot());
+
+        $user->delete();
+        $before = $this->snapshot();
+        $this->postJson('/api/v1/auth/reset-password', $payload)->assertUnprocessable()->assertJsonValidationErrors(['token']);
+        $this->assertSame($before, $this->snapshot());
     }
 
     public function test_recovery_boundary_rejections_preserve_data(): void
@@ -50,17 +84,23 @@ class PasswordRecoveryTest extends TestCase
         $this->assertSame($before, $this->snapshot());
     }
 
-    public function test_invalid_token_other_account_and_validation_preserve_credentials(): void
+    public function test_tampered_legacy_and_client_email_requests_preserve_credentials(): void
     {
         $user = User::factory()->create();
         $other = User::factory()->create();
         $token = Password::createToken($user);
+        $payload = $this->payload($user, $token);
+        $altered = ($payload['token'][0] === 'A' ? 'B' : 'A').substr($payload['token'], 1);
         $before = $this->snapshot();
         $this->withHeader('Origin', 'http://localhost');
-        $wrong = $this->postJson('/api/v1/auth/reset-password', $this->payload($other, $token))->assertStatus(422)->json('errors.token');
-        $unknown = $this->postJson('/api/v1/auth/reset-password', [...$this->payload($user, $token), 'email' => 'missing@example.test'])->assertStatus(422)->json('errors.token');
-        $this->assertSame($wrong, $unknown);
-        $this->postJson('/api/v1/auth/reset-password', [...$this->payload($user, $token), 'password_confirmation' => 'mismatch'])->assertStatus(422);
+        foreach ([$token, $altered, $this->payload($other, $token)['token']] as $invalid) {
+            $this->postJson('/api/v1/auth/reset-password', [...$payload, 'token' => $invalid])
+                ->assertUnprocessable()->assertJsonValidationErrors(['token']);
+        }
+        $this->postJson('/api/v1/auth/reset-password', [...$payload, 'email' => $other->email])
+            ->assertUnprocessable()->assertJsonValidationErrors(['email']);
+        $this->postJson('/api/v1/auth/reset-password', [...$payload, 'password_confirmation' => 'mismatch'])
+            ->assertUnprocessable()->assertJsonValidationErrors(['password']);
         $this->assertSame($before, $this->snapshot());
     }
 
@@ -80,9 +120,10 @@ class PasswordRecoveryTest extends TestCase
         });
         $this->assertTrue(Password::tokenExists($user, $token));
         $this->assertNotSame($token, DB::table('password_reset_tokens')->value('token'));
-        $this->travel(61)->minutes();
+        $payload = $this->payload($user, $token);
+        $this->travel(config('auth.passwords.users.expire') * 60 + 1)->seconds();
         $before = $this->snapshot();
-        $this->postJson('/api/v1/auth/reset-password', $this->payload($user, $token))->assertStatus(422);
+        $this->postJson('/api/v1/auth/reset-password', $payload)->assertUnprocessable()->assertJsonValidationErrors(['token']);
         $this->assertSame($before, $this->snapshot());
         $this->assertFalse((new QueuedResetPassword($token))->shouldSend($user, 'mail'));
     }
@@ -96,8 +137,9 @@ class PasswordRecoveryTest extends TestCase
             DB::table('sessions')->insert(['id' => 'probe-'.$account->id, 'user_id' => $account->id, 'payload' => '', 'last_activity' => now()->timestamp]);
         }
         $token = Password::createToken($user);
+        $payload = $this->payload($user, $token);
         $this->withHeader('Origin', 'http://localhost');
-        $this->postJson('/api/v1/auth/reset-password', $this->payload($user, $token))->assertStatus(204);
+        $this->postJson('/api/v1/auth/reset-password', $payload)->assertStatus(204);
         $this->assertTrue(Hash::check('independent-new-secret', $user->fresh()->password));
         $this->assertNotSame('old-remember', $user->fresh()->remember_token);
         $this->assertDatabaseMissing('sessions', ['id' => 'probe-'.$user->id]);
@@ -105,7 +147,7 @@ class PasswordRecoveryTest extends TestCase
         $this->app['auth']->forgetGuards();
         $this->getJson('/api/v1/auth/me')->assertStatus(401);
         $before = $this->snapshot();
-        $this->postJson('/api/v1/auth/reset-password', $this->payload($user, $token))->assertStatus(422);
+        $this->postJson('/api/v1/auth/reset-password', $payload)->assertUnprocessable()->assertJsonValidationErrors(['token']);
         $this->assertSame($before, $this->snapshot());
         $this->postJson('/api/v1/auth/login', ['email' => $user->email, 'password' => 'password'])->assertStatus(422);
         $this->postJson('/api/v1/auth/login', ['email' => $user->email, 'password' => 'independent-new-secret'])->assertStatus(204);

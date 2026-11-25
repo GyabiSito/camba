@@ -11,6 +11,10 @@ Camba projects committed orders, payment issues, stock, and import outcomes into
 
 Use the first-party Sanctum session and CSRF for writes. The feed reports `kind`, `channel`, `subject_type`, `subject_id` (null for cart), `state`, `issue`, `error_code`, `attempts`, and timestamps. Order and import IDs are operational references, not guest access credentials. Low-stock and overdue notices resolve when their condition clears and reopen the same record if it returns.
 
+The Admin table opens on `state=active`; **Todos** omits the state filter. Combine `kind`, `q`, `date_from` and `date_to` before pagination. `kinds` supplies the display/search labels. Search accepts a title, a full order UUID or the displayed eight-character prefix, or a product/import ID. Dates apply to the displayed `updated_at` day (inclusive in the configured store timezone). Results are ordered newest first with descending ID as a tie-breaker; `meta.total` is the complete filtered count. Source links return to the fixed notice route with the prior filters and page.
+
+For a read-only browser check of the local Admin at `4300`, run `node e2e/admin-notice-table-docker.mjs` from `web` with the documented Docker `CAMBA_DEMO_PASSWORD` and at least 26 visible notices, including an order notice on page two. The script verifies the cross-page search, combined filters and source returns, and saves captures under `web/test-results/admin-notice-table-docker/`.
+
 ## What gets noticed
 
 See [Camba transactional mail](../../docs/CORREOS_TRANSACCIONALES.md) for the shared template, complete inventory and local SMTP capture procedure.

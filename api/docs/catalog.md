@@ -1,6 +1,6 @@
 # Catalog API
 
-All paths below are relative to `/api/v1`. Requests and responses use JSON. Collections and objects wrap their contents in `data`; product collections also include Laravel pagination `links` and `meta`.
+All paths below are relative to `/api/v1`. Requests and responses use JSON. Collections and objects wrap their contents in `data`; paginated tables also include Laravel pagination `links` and `meta`.
 
 ## Public
 
@@ -25,11 +25,14 @@ Use the existing first-party Sanctum cookie session, with CSRF on writes. Only v
 | `GET /admin/products/{id}`, `PATCH /admin/products/{id}` | View or edit a product by numeric ID without changing its SKU, slug, or status. |
 | `GET /admin/products/{id}/history` | Newest-first, paginated price and stock adjustments for this product. |
 | `POST /admin/products/{id}/publish`, `POST /admin/products/{id}/archive` | Publish a draft or archived product, or archive a draft or published product. Repeating the current state returns 409. |
-| `GET /admin/categories`, `GET /admin/brands` | List active and inactive classifications. |
+| `GET /admin/categories`, `GET /admin/brands` | Complete active and inactive classification lists for selectors, without pagination. |
+| `GET /admin/categories/page`, `GET /admin/brands/page` | A single table page, sorted by name then ID. Send `page` and `per_page` (default 12, maximum 100); response includes Laravel `links` and `meta`. |
 | `POST /admin/categories`, `POST /admin/brands` | Create a classification (201). Send `name` and optionally `active` (defaults to true). |
 | `PATCH /admin/categories/{id}`, `PATCH /admin/brands/{id}` | Rename, activate, or deactivate. The filter slug remains stable on rename. |
 
 Admin product responses include `status`; admin classification responses include `active`. Use real JSON integers for IDs, price, and stock: for example, `{"name":"Glass","price_cents":12050,"stock":4,"category_id":1,"brand_id":null}` sets the final price to UYU 120.50. Price must be positive, stock starts at zero and cannot be negative, and both values are capped at 2,147,483,647. Drafts can omit the name, price, and category. Publishing requires a name, a price, an active category, an active brand if assigned, and at least one image. Edits to published products must preserve the same requirements. Missing requirements return field-specific 422 errors.
+
+The classification table routes also accept `q` (maximum 120 characters) and `status=active|inactive`. Omit `status` or send an empty value for all states. Search matches a case-insensitive literal substring of the name or stable slug; `%`, `_`, and `!` are not wildcards. Search and state combine in SQL before pagination, so `meta.total` is the filtered total and `links` retain the filters. For example, `GET /admin/categories/page?q=remera&status=active&page=2&per_page=12` returns only the second matching page. Unknown states or invalid pagination/search return 422. The unpaged admin selectors and public active-only lists keep their existing contracts and ignore these table-only filters.
 
 Classifications are flat. Deactivation returns 409 while any published product uses the classification. Reassign or explicitly archive those products first. Drafts and archives keep their original references. No product or classification removal is exposed.
 

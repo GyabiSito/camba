@@ -10,6 +10,7 @@ use App\Models\Brand;
 use App\Models\CatalogImport;
 use App\Models\CatalogImportRow;
 use App\Models\Category;
+use App\Models\Locality;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Payment;
@@ -195,7 +196,8 @@ class LocalDemoSeeder extends Seeder
     {
         foreach ([
             ['recipient' => self::BUYER_NAME, 'department' => 'Montevideo', 'locality' => 'Cordón', 'street' => 'Colonia', 'number' => '1234', 'details' => 'Apartamento 2', 'phone' => '099 000 001', 'postal_code' => '11200'],
-            ['recipient' => self::BUYER_NAME, 'department' => 'Canelones', 'locality' => 'Ciudad de la Costa', 'street' => 'Giannattasio', 'number' => 'KM 21', 'details' => null, 'phone' => '099 000 001', 'postal_code' => '15000'],
+            ['recipient' => self::BUYER_NAME, 'department' => 'Canelones', 'locality' => 'Ciudad de la Costa', 'street' => 'Giannattasio', 'number' => 'KM 21', 'details' => null, 'phone' => '099 000 001', 'postal_code' => '15000',
+                'locality_id' => Locality::query()->where(['department_id' => 2, 'source_id' => 55])->value('id')],
         ] as $address) {
             $match = ['user_id' => $buyer->id, 'street' => $address['street'], 'number' => $address['number']];
             if (! Address::query()->where($match)->exists()) {

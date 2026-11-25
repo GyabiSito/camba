@@ -64,7 +64,7 @@ try {
   await expect(menu).toHaveAttribute('aria-expanded', 'true');
   await page.keyboard.press('Tab');
   const navigation = page.getByRole('navigation', { name: 'Administración' });
-  await expect(navigation.getByRole('link', { name: 'Productos' })).toBeFocused();
+  await expect(navigation.getByRole('link', { name: 'Inicio', exact: true })).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(menu).toBeFocused();
   await expect(navigation).toBeHidden();
@@ -142,7 +142,8 @@ try {
   await capture('pedido-detalle');
 
   for (const [label, route, name] of [
-    ['clasificaciones', '/productos/clasificaciones', /Categorías y marcas/],
+    ['categorias', '/productos/categorias', /^Categorías$/],
+    ['marcas', '/productos/marcas', /^Marcas$/],
     ['carga-por-fotos', '/productos/carga-por-fotos', /Carga por fotos/],
     ['avisos', '/pedidos/avisos', /Avisos operativos/],
     ['configuracion', '/configuracion', /Configuración/],

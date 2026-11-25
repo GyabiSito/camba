@@ -71,6 +71,14 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "demo": {
+              "fileReplacements": [
+                {
+                  "replace": "projects/shared/src/demo-config.ts",
+                  "with": "projects/shared/src/demo-config.enabled.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -83,6 +91,9 @@
             },
             "development": {
               "buildTarget": "admin:build:development"
+            },
+            "demo": {
+              "buildTarget": "admin:build:development,demo"
             }
           },
           "defaultConfiguration": "development"
@@ -134,6 +145,7 @@
             ],
             "styles": ["projects/store/src/styles.css"],
             "server": "projects/store/src/main.server.ts",
+            "define": { "CAMBA_PAYMENTS_ENABLED": "true" },
             "outputMode": "server",
             "security": {
               "allowedHosts": []
@@ -162,6 +174,53 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "no-payment": {
+              "define": { "CAMBA_PAYMENTS_ENABLED": "false" }
+            },
+            "demo": {
+              "define": { "CAMBA_PAYMENTS_ENABLED": "false" },
+              "fileReplacements": [
+                {
+                  "replace": "projects/shared/src/demo-config.ts",
+                  "with": "projects/shared/src/demo-config.enabled.ts"
+                },
+                {
+                  "replace": "projects/store/src/attach-demo.ts",
+                  "with": "projects/store/src/attach-demo.enabled.ts"
+                },
+                {
+                  "replace": "projects/store/src/app/catalog/editorial-config.ts",
+                  "with": "projects/store/src/app/catalog/editorial-config.enabled.ts"
+                }
+              ],
+              "security": { "allowedHosts": ["127.0.0.1", "localhost"] },
+              "assets": [
+                { "glob": "**/*", "input": "projects/store/public" },
+                { "glob": "*.webp", "input": "projects/admin/public/demo", "output": "/demo" },
+                {
+                  "glob": "atelier-*.webp",
+                  "input": "projects/store/demo-assets",
+                  "output": "/demo-home"
+                }
+              ]
+            },
+            "editorial": {
+              "fileReplacements": [
+                {
+                  "replace": "projects/store/src/app/catalog/editorial-config.ts",
+                  "with": "projects/store/src/app/catalog/editorial-config.enabled.ts"
+                }
+              ],
+              "security": { "allowedHosts": ["127.0.0.1", "localhost"] },
+              "assets": [
+                { "glob": "**/*", "input": "projects/store/public" },
+                {
+                  "glob": "atelier-*.webp",
+                  "input": "projects/store/demo-assets",
+                  "output": "/demo-home"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -174,6 +233,12 @@
             },
             "development": {
               "buildTarget": "store:build:development"
+            },
+            "demo": {
+              "buildTarget": "store:build:development,demo"
+            },
+            "no-payment": {
+              "buildTarget": "store:build:development,no-payment"
             }
           },
           "defaultConfiguration": "development"

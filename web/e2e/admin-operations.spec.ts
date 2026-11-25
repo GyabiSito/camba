@@ -29,9 +29,10 @@ const order = {
   ],
 };
 const evidence = {
+  can_request_refresh: true,
   paid_at: createdAt,
   last_checked_at: createdAt,
-  next_check_at: null,
+  next_check_at: createdAt,
   last_result: 'verified',
   attempt: null,
   issues: [],
@@ -112,7 +113,9 @@ test('filters and pages orders, retains notes on conflict, then completes a pick
 
   await page.goto('/pedidos');
   await expect(page.getByRole('group', { name: 'Pago del pedido' })).toHaveCount(1);
-  await expect(page.getByRole('group', { name: 'Preparación del pedido' })).toHaveCount(1);
+  await expect(page.getByRole('group', { name: 'Entrega del pedido' }).locator('.ops-state')).toHaveText('Sin preparar');
+  await expect(page.locator('.order-labels')).toContainText('Entrega');
+  await expect(page.locator('.order-row .order-status-band')).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Ver pedido 736f6415-76b0-40ca-b201-f252f20def12' })).toBeVisible();
   await page.getByLabel('Estado del pago').selectOption('pending_payment');
   await expect(page).toHaveURL(/status=pending_payment/);
@@ -130,6 +133,7 @@ test('filters and pages orders, retains notes on conflict, then completes a pick
   await expect(page.getByText('Mostrador de prueba')).toBeVisible();
   await expect(page.getByText('Producto de prueba')).toBeVisible();
   await expect(page.getByRole('list', { name: 'Pagos registrados' })).toContainText('Aprobado');
+  await expect(page.getByText('Próxima consulta prevista', { exact: true })).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath('order-desktop.png'), fullPage: true });
   await page.getByLabel('Nota interna (opcional)').fill('Revisamos el paquete.');
   await page.getByRole('button', { name: 'Empezar preparación' }).click();
@@ -209,23 +213,44 @@ test('shows the denial and filters notices with links to their protected source'
       updated_at: createdAt,
       attempts: 0,
     };
-    const entries = state === 'active' ? [notice] : [];
-    return route.fulfill({ json: { data: entries, meta: { ...meta, total: entries.length } } });
+    const entries = state === 'resolved' ? [] : [notice];
+    return route.fulfill({ json: { data: entries, kinds: { payment_issue: 'Incidencia de pago' }, meta: { ...meta, total: entries.length } } });
   });
   await page.route(`**${orderPath}`, (route) =>
     route.fulfill({ json: { data: order, events: [], payment: evidence } }),
   );
 
-  await page.goto('/pedidos/avisos');
+  await page.goto('/pedidos');
+  const navigation = page.getByRole('navigation', { name: 'Administración' });
+  await navigation.getByRole('link', { name: 'Avisos', exact: true }).click();
+  await expect(page).toHaveURL(/\/pedidos\/avisos$/);
+  await expect(navigation.getByRole('link', { name: 'Pedidos', exact: true })).not.toHaveAttribute('aria-current', 'page');
+  await expect(page.getByLabel('Estado del aviso')).toHaveValue('active');
   await expect(page.getByRole('alert')).toContainText('No tenés permiso');
   permitted = true;
   await page.getByRole('button', { name: 'Reintentar' }).click();
+  const table = page.getByRole('table', { name: 'Avisos operativos' });
+  await expect(table.getByRole('rowheader', { name: /Incidencia de pago/ })).toBeVisible();
+  await page.getByLabel('Estado del aviso').selectOption('resolved');
   await expect(page.getByRole('heading', { name: 'No hay avisos para mostrar' })).toBeVisible();
-  await page.getByLabel('Estado del aviso').selectOption('active');
-  await expect(page.getByRole('heading', { name: 'Incidencia de pago' })).toBeVisible();
+  await page.getByLabel('Estado del aviso').selectOption('all');
+  await expect(table.getByRole('rowheader', { name: /Incidencia de pago/ })).toBeVisible();
   await expect(page.getByText('Hay más de un pago aprobado para este pedido.')).toBeVisible();
+  await page.getByRole('searchbox', { name: 'Buscar aviso' }).fill('83E8D374');
+  await page.getByLabel('Tipo de aviso').selectOption('payment_issue');
+  await page.getByLabel('Desde', { exact: true }).fill('2026-11-01');
+  const filterURL = (url: URL) => url.searchParams.get('state') === 'all' && url.searchParams.get('kind') === 'payment_issue'
+    && url.searchParams.get('q') === '83E8D374' && url.searchParams.get('date_from') === '2026-11-01';
+  await expect(page).toHaveURL(filterURL);
   await page.getByRole('link', { name: 'Ver pedido 83E8D374' }).click();
   await expect(page.getByRole('heading', { name: 'Pedido 83E8D374' })).toBeVisible();
+  await page.reload();
+  await page.getByRole('link', { name: 'Volver a avisos', exact: true }).click();
+  await expect(page).toHaveURL(filterURL);
+  await expect(page.getByRole('searchbox', { name: 'Buscar aviso' })).toHaveValue('83E8D374');
+  await page.getByRole('button', { name: 'Limpiar filtros' }).click();
+  await expect(page).toHaveURL(/\/pedidos\/avisos$/);
+  await expect(page.getByLabel('Estado del aviso')).toHaveValue('active');
 });
 
 test('saves exact settings at 320 px, retains data on error and reads the audit', async ({
@@ -297,13 +322,16 @@ test('a verified administrator can record settings and pickup progress through L
   await page.getByRole('button', { name: 'Ingresar' }).click();
   await expect(page.getByRole('heading', { name: 'Configuración', exact: true })).toBeVisible();
   await expect(page.getByLabel('Nombre comercial')).toHaveValue('Camba');
+  await page.getByLabel('Correo interno para consultas').fill('consultas-internas@camba.test');
   await page.getByLabel('Teléfono de contacto').fill('099 121 242');
+  const save = page.waitForResponse(r => r.url().endsWith('/api/v1/admin/settings') && r.request().method() === 'PATCH');
   await page.getByRole('button', { name: 'Guardar cambios' }).click();
   await expect(page.getByRole('status')).toContainText('Guardamos la configuración');
+  expect(await (await save).json()).toMatchObject({ data: { support_email: 'consultas-internas@camba.test', support_phone: '099 121 242' } });
 
   const info = await page.request.get('/api/v1/store-info');
   expect(info.ok()).toBeTruthy();
-  expect(await info.json()).toMatchObject({ data: { support_phone: '099 121 242' } });
+  expect(await info.json()).toMatchObject({ data: { support_email: null, support_phone: null } });
 
   const { data: operator } = await (await session).json();
   await page.getByRole('link', { name: 'Historial de cambios' }).click();
@@ -323,13 +351,7 @@ test('a verified administrator can record settings and pickup progress through L
   await page.reload();
   await expect(page.getByText('Pedido controlado en Chromium.')).toBeVisible();
 
-  const refresh = page.waitForResponse(
-    (response) =>
-      response.url().endsWith('/payments/refresh') && response.request().method() === 'POST',
-  );
-  await page.getByRole('button', { name: 'Solicitar verificación del pago' }).click();
-  expect((await refresh).status()).toBe(202);
-  await expect(
-    page.getByRole('status').filter({ hasText: 'El resultado no es inmediato' }),
-  ).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Pago del pedido' })).toContainText('Pagado');
+  await expect(page.getByRole('button', { name: 'Solicitar verificación del pago' })).toHaveCount(0);
+  await expect(page.getByText('Próxima consulta prevista', { exact: true })).toHaveCount(0);
 });

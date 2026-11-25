@@ -65,7 +65,8 @@ class ProductController
     public function show(string $product): ProductResource
     {
         // Resolve the ID after authorization; implicit model binding would run before the admin gate.
-        return new ProductResource(Product::query()->with(self::RELATIONS)->findOrFail($product));
+        return (new ProductResource(Product::query()->with(self::RELATIONS)->findOrFail($product)))
+            ->additional(['store_url' => config('app.url')]);
     }
 
     public function store(SaveProductRequest $request, SaveProductAction $save): ProductResource

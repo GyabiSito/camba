@@ -9,8 +9,8 @@ class ApplyPasswordReset extends LoginRequest
         $rules = parent::rules();
 
         return [
-            'email' => $rules['email'],
-            'token' => ['required', 'string', 'max:255'],
+            'email' => ['prohibited'],
+            'token' => ['required', 'string', 'max:1024'],
             'password' => [...$rules['password'], 'min:12', 'confirmed'],
         ];
     }

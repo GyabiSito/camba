@@ -1,6 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   computed,
   DOCUMENT,
@@ -11,7 +12,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiClient, apiMessage, CART_CHANGED, formatMoney } from '@camba/shared';
 import { firstValueFrom, map } from 'rxjs';
-import type { Cart, Data } from '../shopper/shopper';
+import type { Cart, CartItem, Data } from '../shopper/shopper';
 import { catalogParams, PageResult, Product, readCatalogQuery, useStoreMeta } from './catalog-data';
 import { ProductPhoto } from './product-media';
 
@@ -20,15 +21,22 @@ interface CartFeedback {
   message?: string;
 }
 
+type Confirmation = {
+  updated: boolean;
+  quantity: number;
+  product: NonNullable<CartItem['product']>;
+};
+
 @Component({
   selector: 'store-product',
   imports: [RouterLink, ProductPhoto],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './detail.html',
-  styleUrl: './detail.css',
+  styleUrls: ['./detail.css', './cart-dialog.css'],
 })
 export class StoreProduct {
   private readonly api = inject(ApiClient);
+  private readonly view = inject(ChangeDetectorRef);
   private readonly document = inject(DOCUMENT);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -45,9 +53,17 @@ export class StoreProduct {
     { requireSync: true },
   );
   protected readonly activePhoto = linkedSignal({ source: this.product, computation: () => 0 });
+  protected readonly quantity = linkedSignal({
+    source: this.product,
+    computation: (): number | null => null,
+  });
   protected readonly cart = linkedSignal({
     source: this.product,
     computation: (): CartFeedback => ({ kind: 'idle' }),
+  });
+  protected readonly confirmation = linkedSignal({
+    source: this.product,
+    computation: (): Confirmation | null => null,
   });
   protected readonly amount = formatMoney;
   protected readonly retryUrl = computed(() => {
@@ -58,6 +74,21 @@ export class StoreProduct {
       }),
     );
   });
+
+  protected setQuantity(event: Event, stock: number): void {
+    const input = event.currentTarget;
+    if (!(input instanceof HTMLInputElement)) return;
+    const requested = Number(input.value);
+    const quantity = Number.isSafeInteger(requested) ? Math.min(Math.max(requested, 1), stock) : 1;
+    this.quantity.set(quantity);
+    input.value = String(quantity);
+  }
+
+  protected cycleCartFocus(event: KeyboardEvent, first: HTMLElement, last: HTMLElement): void {
+    if (event.key !== 'Tab' || event.target !== (event.shiftKey ? first : last)) return;
+    event.preventDefault();
+    (event.shiftKey ? last : first).focus();
+  }
 
   constructor() {
     useStoreMeta(() => {
@@ -85,15 +116,56 @@ export class StoreProduct {
     });
   }
 
-  protected async add(product: Product): Promise<void> {
-    if (!product.in_stock || this.cart().kind === 'working') return;
+  protected async add(product: Product, dialog: HTMLDialogElement): Promise<void> {
+    if (!product.in_stock || dialog.open || this.cart().kind === 'working') return;
+    const quantity = this.quantity();
     this.cart.set({ kind: 'working' });
     try {
-      await firstValueFrom(this.api.post(`/api/v1/cart/items/${product.id}`));
+      const path = `/api/v1/cart/items/${product.id}`;
+      const previous =
+        quantity === null
+          ? undefined
+          : await firstValueFrom(
+              this.api
+                .get<Data<Cart>>('/api/v1/cart')
+                .pipe(
+                  map(
+                    ({ data }) =>
+                      data.items.find((item) => item.product_id === product.id)?.quantity ?? 0,
+                  ),
+                ),
+            ).catch(() => undefined);
+      if (!dialog.isConnected || this.product()?.id !== product.id) return;
+      const { data } = await firstValueFrom(
+        quantity === null
+          ? this.api.post<Data<Cart>>(path)
+          : this.api.put<Data<Cart>>(path, { quantity }),
+      );
       this.document.defaultView?.dispatchEvent(new Event(CART_CHANGED));
-      if (this.product()?.id === product.id) {
-        this.cart.set({ kind: 'done', message: 'Producto agregado al carrito.' });
+      if (!dialog.isConnected || this.product()?.id !== product.id) return;
+      const line = data.items.find((item) => item.product_id === product.id);
+      if (!line?.product) {
+        this.cart.set({
+          kind: 'error',
+          message: 'No pudimos confirmar el cambio. Revisá tu carrito.',
+        });
+        return;
       }
+      if (previous === line.quantity) {
+        this.cart.set({
+          kind: 'done',
+          message: 'Esa cantidad ya está en tu carrito.',
+        });
+        return;
+      }
+      this.confirmation.set({
+        product: line.product,
+        quantity: line.quantity,
+        updated: quantity === null ? line.quantity > 1 : previous !== 0,
+      });
+      this.cart.set({ kind: 'idle' });
+      this.view.detectChanges();
+      dialog.showModal();
     } catch (error) {
       if (this.product()?.id !== product.id) return;
       let message =
@@ -106,16 +178,22 @@ export class StoreProduct {
         if (error.status === 409)
           message = 'Tu sesión cambió. Actualizá la página antes de volver a intentar.';
         if (error.status === 422) {
-          message = 'No hay stock para agregar otra unidad. Revisá tu carrito.';
-          if (error.error?.errors?.quantity) {
+          message =
+            quantity === null
+              ? 'No hay stock para agregar otra unidad. Revisá tu carrito.'
+              : 'No hay stock para la cantidad elegida. Revisá tu carrito.';
+          if (quantity === null && error.error?.errors?.quantity) {
             const atLimit = await firstValueFrom(
-              this.api.get<Data<Cart>>('/api/v1/cart').pipe(
-                map(({ data }) =>
-                  data.items.some(
-                    (item) => item.product_id === product.id && item.quantity === item.product?.stock,
+              this.api
+                .get<Data<Cart>>('/api/v1/cart')
+                .pipe(
+                  map(({ data }) =>
+                    data.items.some(
+                      (item) =>
+                        item.product_id === product.id && item.quantity === item.product?.stock,
+                    ),
                   ),
                 ),
-              ),
             ).catch(() => false);
             if (this.product() !== product) return;
             if (atLimit) {

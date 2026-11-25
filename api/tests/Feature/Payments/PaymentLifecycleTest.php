@@ -334,8 +334,64 @@ class PaymentLifecycleTest extends TestCase
         $this->actingAs($buyer, 'web')->postJson($orderPath)->assertNotFound();
         $this->postJson($adminPath)->assertForbidden();
         $buyer->forceFill(['role' => 'admin'])->save();
+        $this->actingAs($buyer, 'web')->postJson($adminPath)->assertConflict();
+        $this->recordCheckoutAttempt($order);
         $this->actingAs($buyer, 'web')->postJson($adminPath)->assertAccepted();
         Http::assertNothingSent();
+    }
+
+    public function test_admin_payment_refresh_requires_mercado_pago_to_be_configured_and_order_evidence(): void
+    {
+        $order = $this->reservedOrder();
+        $order->forceFill(['status' => 'paid', 'paid_at' => now(), 'payment_reconcile_at' => now()->addHour()])->save();
+        $scheduled = $order->payment_reconcile_at;
+        $path = "/api/v1/admin/orders/$order->reference";
+        $this->actingAs(User::factory()->create(['role' => 'admin']), 'web');
+        Http::fake([]);
+
+        $this->getJson($path)->assertOk()->assertJsonPath('data.status', 'paid')
+            ->assertJsonPath('payment.can_request_refresh', false)->assertJsonPath('payment.next_check_at', null);
+        $this->postJson("$path/payments/refresh")->assertConflict();
+        $this->assertEquals($scheduled, $order->fresh()->payment_reconcile_at);
+
+        Payment::query()->forceCreate([
+            'order_id' => $order->id, 'provider_payment_id' => '234', 'status' => 'approved',
+            'amount_cents' => $order->total_cents, 'provider_updated_at' => now()->toISOString(),
+        ]);
+        config(['mercadopago.access_token' => '']);
+        $order->forceFill(['payment_reconcile_at' => null])->save();
+        $this->getJson($path)->assertOk()->assertJsonPath('payment.can_request_refresh', false);
+        $this->postJson("$path/payments/refresh")->assertConflict();
+        $this->assertNull($order->fresh()->payment_reconcile_at);
+
+        config(['mercadopago.access_token' => 'fake-local-test']);
+        $this->getJson($path)->assertOk()->assertJsonPath('payment.can_request_refresh', true);
+        $this->postJson("$path/payments/refresh")->assertAccepted();
+        $this->getJson($path)->assertOk()->assertJsonPath('data.status', 'paid')
+            ->assertJsonPath('payment.next_check_at', $order->fresh()->payment_reconcile_at->toISOString());
+        Http::assertNothingSent();
+    }
+
+    public function test_admin_can_request_reconciliation_for_an_uncertain_checkout_attempt(): void
+    {
+        $order = $this->reservedOrder();
+        $this->recordCheckoutAttempt($order);
+        $path = "/api/v1/admin/orders/$order->reference";
+        $this->actingAs(User::factory()->create(['role' => 'admin']), 'web');
+        Http::fake([]);
+
+        $this->getJson($path)->assertOk()->assertJsonPath('payment.can_request_refresh', true);
+        $this->postJson("$path/payments/refresh")->assertAccepted();
+        $this->assertNotNull($order->fresh()->payment_reconcile_at);
+        Http::assertNothingSent();
+    }
+
+    private function recordCheckoutAttempt(Order $order): void
+    {
+        PaymentAttempt::query()->forceCreate([
+            'order_id' => $order->id, 'idempotency_key' => (string) Str::uuid(),
+            'status' => 'uncertain', 'expires_at' => $order->reservation_expires_at,
+        ]);
     }
 
     private function reservedOrder(bool $expired = false): Order

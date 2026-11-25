@@ -40,6 +40,8 @@ test('busca por SKU, guarda centésimos, publica con galería y archiva a 320 px
   await page.getByRole('combobox', { name: 'Categoría', exact: true }).selectOption({ label: 'Remeras' });
   await page.getByRole('button', { name: 'Crear borrador' }).click();
   await expect(page.getByRole('heading', { name: 'Remera de prueba edición' })).toBeVisible();
+  const storeLink = page.getByRole('link', { name: /^Ver en tienda/ });
+  await expect(storeLink).toHaveCount(0);
   await page.getByRole('button', { name: 'Publicar', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Agregá al menos una foto');
   await page.getByLabel('Agregar fotos').setInputFiles([photo('image-plain'), photo('detail-photo')]);
@@ -58,8 +60,21 @@ test('busca por SKU, guarda centésimos, publica con galería y archiva a 320 px
   const publication = page.waitForResponse((response) => response.url().endsWith('/publish') && response.request().method() === 'POST');
   await page.getByRole('button', { name: 'Publicar', exact: true }).click();
   const published = await publication;
-  expect((await published.json()).data).toMatchObject({ price_cents: 90075, stock: 8, status: 'published' });
+  const { data: item } = await published.json();
+  expect(item).toMatchObject({ price_cents: 90075, stock: 8, status: 'published' });
   await expect(page.getByText('Producto publicado.')).toBeVisible();
+  const storeUrl = `http://127.0.0.1:${process.env['CAMBA_E2E_STORE_PORT'] ?? '43821'}/producto/${item.slug}`;
+  await page.getByLabel('Nombre', { exact: true }).fill('Nombre sin guardar');
+  await expect(storeLink).toHaveAttribute('href', storeUrl);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
+  const [store] = await Promise.all([page.waitForEvent('popup'), storeLink.click()]);
+  try {
+    await expect(store).toHaveURL(storeUrl);
+    await expect(store.getByRole('heading', { name: item.name, exact: true, level: 1 })).toBeVisible();
+  } finally {
+    await store.close();
+  }
+  await page.getByLabel('Nombre', { exact: true }).fill(item.name);
   await page.getByLabel('Stock', { exact: true }).fill('9');
   await page.getByRole('button', { name: 'Guardar cambios' }).click();
   await expect(page.getByText('Cambios guardados.')).toBeVisible();
@@ -68,6 +83,8 @@ test('busca por SKU, guarda centésimos, publica con galería y archiva a 320 px
   await page.getByRole('button', { name: 'Archivar', exact: true }).click();
   await page.getByRole('button', { name: 'Confirmar archivo' }).click();
   await expect(page.getByText('Producto archivado.')).toBeVisible();
+  await expect(storeLink).toHaveCount(0);
+  await expect.poll(() => page.request.get(storeUrl).then(response => response.status())).toBe(404);
   await page.goto('/productos');
   const row = page.getByRole('row', { name: /Remera de prueba edición/ });
   const name = await row.getByRole('link', { name: 'Remera de prueba edición', exact: true }).boundingBox();
@@ -436,7 +453,7 @@ test('importa CSV y XLSX, muestra errores por fila y recupera el resultado', asy
 
 test('gestiona una categoría plana y protege las categorías en uso', async ({ page }) => {
   await signIn(page);
-  await page.goto('/productos/clasificaciones');
+  await page.goto('/productos/categorias');
   await page.getByRole('button', { name: 'Nueva categoría' }).click();
   await page.getByLabel('Nombre de la categoría').fill('Categoría de prueba');
   await page.getByRole('button', { name: 'Guardar', exact: true }).click();
@@ -452,12 +469,12 @@ test('gestiona una categoría plana y protege las categorías en uso', async ({ 
 
 test('crea, asigna, edita y desactiva una marca opcional', async ({ page }) => {
   await signIn(page);
-  await page.goto('/productos/clasificaciones');
+  await page.goto('/productos/marcas');
   const brands = page.getByRole('region', { name: 'Marcas' });
   await brands.getByRole('button', { name: 'Nueva marca' }).click();
   await brands.getByLabel('Nombre de la marca').fill('Sello de prueba');
   await brands.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Se guardó «Sello de prueba».');
+  await expect(brands.getByText('Se guardó «Sello de prueba».', { exact: true })).toBeVisible();
 
   await page.goto('/productos/nuevo');
   await page.getByLabel('Nombre', { exact: true }).fill('Prenda con marca de prueba');
@@ -467,11 +484,11 @@ test('crea, asigna, edita y desactiva una marca opcional', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Prenda con marca de prueba' })).toBeVisible();
   const draftUrl = page.url();
 
-  await page.goto('/productos/clasificaciones');
+  await page.goto('/productos/marcas');
   await brands.getByRole('button', { name: 'Editar Sello de prueba' }).click();
   await brands.getByLabel('Editar nombre').fill('Sello de prueba renovado');
   await brands.getByRole('button', { name: 'Guardar', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Se guardó «Sello de prueba renovado».');
+  await expect(brands.getByText('Se guardó «Sello de prueba renovado».', { exact: true })).toBeVisible();
   await page.goto(draftUrl);
   await expect(brand.locator('option:checked')).toHaveText('Sello de prueba renovado');
   await brand.selectOption({ label: 'Sin marca' });
@@ -480,7 +497,95 @@ test('crea, asigna, edita y desactiva una marca opcional', async ({ page }) => {
   await page.reload();
   await expect(brand.locator('option:checked')).toHaveText('Sin marca');
 
-  await page.goto('/productos/clasificaciones');
+  await page.goto('/productos/marcas');
   await brands.getByRole('button', { name: 'Desactivar Sello de prueba renovado' }).click();
   await expect(brands.getByRole('button', { name: 'Activar Sello de prueba renovado' })).toBeVisible();
+});
+
+test('filtra categorías y marcas antes de paginar y conserva la URL', async ({ page }, testInfo) => {
+  test.setTimeout(90_000);
+  await signIn(page);
+  const token = (await page.context().cookies()).find((cookie) => cookie.name === 'XSRF-TOKEN');
+  expect(token).toBeDefined();
+  const headers = { Referer: page.url(), 'X-XSRF-TOKEN': decodeURIComponent(token!.value) };
+
+  for (const [collection, route, label] of [
+    ['categories', 'categorias', 'Categorías'], ['brands', 'marcas', 'Marcas'],
+  ]) {
+    const endpoint = `/api/v1/admin/${collection}`;
+    const term = `Network ${collection} ${Date.now()}`;
+    const expected: Record<string, unknown[]> = { active: [], inactive: [] };
+    for (const status of ['active', 'inactive']) {
+      for (let index = 1; index <= 13; index++) {
+        const response = await page.request.post(endpoint, {
+          headers, data: { name: `${term} ${status} ${String(index).padStart(2, '0')}`, active: status === 'active' },
+        });
+        expect(response.status()).toBe(201);
+        expected[status].push((await response.json()).data);
+      }
+    }
+    const outside = await page.request.post(endpoint, { headers, data: { name: `Outside ${collection} ${Date.now()}` } });
+    expect(outside.status()).toBe(201);
+    const options = await page.request.get(`${endpoint}?q=missing&status=inactive&page=2&per_page=1`, { headers });
+    expect(options.status()).toBe(200);
+    const full = await options.json();
+    expect(full.data.length).toBeGreaterThan(26);
+    expect(full.meta).toBeUndefined();
+
+    const requests: string[] = [];
+    const track = (request: import('@playwright/test').Request) => {
+      const url = new URL(request.url());
+      if (request.method() === 'GET' && url.pathname === endpoint) requests.push(url.pathname);
+    };
+    page.on('request', track);
+    try {
+      await page.goto(`/productos/${route}`);
+      const table = page.getByRole('table', { name: label });
+      const search = page.getByRole('searchbox', { name: 'Buscar por nombre o identificador' });
+      const state = page.getByRole('combobox', { name: 'Estado', exact: true });
+      const pagination = page.getByRole('navigation', { name: `Páginas de ${label.toLowerCase()}` });
+      await expect(table.getByRole('columnheader')).toHaveText(['Nombre', 'Identificador', 'Estado', 'Acciones']);
+      await search.fill(term);
+      for (const status of ['active', 'inactive']) {
+        await state.selectOption(status);
+        await expect(page.getByRole('status')).toHaveText('13 resultados');
+        await expect(table.locator('tbody tr')).toHaveCount(12);
+        await expect(pagination.getByText('1 de 2')).toBeVisible();
+        expect(new URL(page.url()).searchParams.get('page')).toBeNull();
+        const next = page.waitForResponse((response) => {
+          const url = new URL(response.url());
+          return url.pathname === `${endpoint}/page` && url.searchParams.get('page') === '2' && url.searchParams.get('status') === status;
+        });
+        await pagination.getByRole('button', { name: 'Página siguiente' }).click();
+        const response = await next;
+        expect(response.status()).toBe(200);
+        const second = await response.json();
+        expect(second.meta).toMatchObject({ current_page: 2, last_page: 2, per_page: 12, total: 13 });
+        expect(second.data).toEqual(expected[status].slice(12));
+        expect(new URL(response.url()).searchParams.get('q')).toBe(term);
+        expect(new URL(response.url()).searchParams.get('per_page')).toBe('12');
+        await testInfo.attach(`${collection}-${status}-page-2-network.json`, { body: JSON.stringify({ url: response.url(), body: second }, null, 2), contentType: 'application/json' });
+        await expect(table.locator('tbody tr')).toHaveCount(1);
+        await expect(pagination.getByText('2 de 2')).toBeVisible();
+        await expect(page).toHaveURL(/page=2/);
+        await page.reload();
+        await expect(search).toHaveValue(term);
+        await expect(state).toHaveValue(status);
+        await expect(table.locator('tbody tr')).toHaveCount(1);
+        await expect(pagination.getByText('2 de 2')).toBeVisible();
+      }
+      await table.getByRole('button', { name: /^Activar / }).click();
+      await expect(page.getByRole('status').filter({ hasText: '12 resultados' })).toBeVisible();
+      expect(new URL(page.url()).searchParams.get('page')).toBeNull();
+      await page.getByRole('button', { name: 'Limpiar filtros' }).click();
+      await expect(page).toHaveURL(new RegExp(`/productos/${route}$`));
+      await page.reload();
+      await expect(search).toHaveValue('');
+      await expect(state).toHaveValue('');
+      await expect(table.locator('tbody tr')).toHaveCount(12);
+      expect(requests).toEqual([]);
+    } finally {
+      page.off('request', track);
+    }
+  }
 });

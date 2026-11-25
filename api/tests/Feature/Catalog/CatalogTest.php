@@ -105,6 +105,7 @@ class CatalogTest extends TestCase
 
     public function test_product_lifecycle_keeps_an_exact_price_and_stable_identifiers(): void
     {
+        config(['app.url' => 'https://tienda.example.test']);
         $this->signIn(User::factory()->create(['role' => 'admin']));
         $category = $this->classification('categories', 'Home');
         $brand = $this->classification('brands', 'Senda');
@@ -119,7 +120,8 @@ class CatalogTest extends TestCase
             ->assertUnprocessable()->assertJsonValidationErrors(['price_cents', 'stock', 'status', 'sku', 'slug', 'images']);
         $this->patchJson($path, ['price_cents' => 0])->assertUnprocessable()->assertJsonValidationErrors('price_cents');
         $this->patchJson($path, ['price_cents' => '12050'])->assertUnprocessable()->assertJsonValidationErrors('price_cents');
-        $this->getJson($path)->assertOk()->assertJsonPath('data.stock', 0)->assertJsonPath('data.price_cents', null);
+        $this->getJson($path)->assertOk()->assertJsonPath('store_url', 'https://tienda.example.test')
+            ->assertJsonPath('data.stock', 0)->assertJsonPath('data.price_cents', null);
 
         $this->patchJson($path, ['name' => 'Cobalt mug', 'price_cents' => 12050, 'stock' => 2, 'category_id' => $category['id'], 'brand_id' => $brand['id']])
             ->assertOk()->assertJsonPath('data.status', 'draft')->assertJsonPath('data.price_cents', 12050)
@@ -128,6 +130,7 @@ class CatalogTest extends TestCase
         $this->addImage($product['id']);
 
         $this->postJson("$path/publish")->assertOk()->assertJsonPath('data.status', 'published');
+        $this->getJson("/api/v1/products/{$product['slug']}")->assertOk()->assertJsonMissingPath('store_url');
         $this->postJson("$path/publish")->assertConflict();
         $this->patchJson($path, ['price_cents' => null])->assertUnprocessable()->assertJsonValidationErrors('price_cents');
         $this->patchJson($path, ['category_id' => null])->assertUnprocessable()->assertJsonValidationErrors('category_id');

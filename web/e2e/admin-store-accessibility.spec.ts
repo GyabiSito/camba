@@ -40,7 +40,7 @@ async function reflow(page: Page) {
 test('visible keyboard focus, reduced motion, form errors, contrast and reflow', async ({ page }, info) => {
   const admin = info.project.name === 'admin';
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto(admin ? '/ingresar' : '/cuenta');
+  await page.goto(admin ? '/ingresar?next=%2Fproductos' : '/cuenta');
   const submit = page.getByRole('button', { name: 'Ingresar', exact: true });
   await page.getByLabel('Correo electrónico').fill('no-existe-accesibilidad@camba.test');
   await page.getByLabel('Contraseña', { exact: true }).fill('Camba-a11y-invalida');

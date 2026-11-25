@@ -47,11 +47,9 @@ class ProjectCommerceNotices
         if (Schema::hasColumn('orders', 'fulfilment_status')) {
             $overdue->whereIn('fulfilment_status', NoticeEligibility::PENDING_FULFILMENT);
             if (Schema::hasTable('order_fulfilment_events')) {
-                foreach (NoticeEligibility::FULFILMENT as $kind => $target) {
-                    $this->events(Order::query()->where('status', 'paid')->where('fulfilment_status', $target)
-                        ->whereExists(fn ($query) => $query->from('order_fulfilment_events')->whereColumn('order_id', 'orders.id')
-                            ->where('to_status', $target)->where('created_at', '>=', $recent)), 'mail', $kind, 'order');
-                }
+                $this->events(Order::query()->where('status', 'paid')->where('fulfilment_status', 'ready_for_pickup')
+                    ->whereExists(fn ($query) => $query->from('order_fulfilment_events')->whereColumn('order_id', 'orders.id')
+                        ->where('to_status', 'ready_for_pickup')->where('created_at', '>=', $recent)), 'mail', 'order_ready_for_pickup', 'order');
             }
         }
         $this->condition($overdue, 'paid_overdue', 'order');

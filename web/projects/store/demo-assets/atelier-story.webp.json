@@ -1,0 +1,11 @@
+{
+  "source": "Built-in ImageGen",
+  "use": "Demo only. Approve or replace before publication.",
+  "inputs": [],
+  "prompt": "Generate ONE editorial fashion photographic contact sheet with FOUR photography frames arranged as a precise 2 × 2 grid. Edge to edge, no margins, exactly halfway horizontal and vertical divisions, NO borders, no captions, no words. Landscape 3:2 overall. All same Montevideo atelier collection, nuanced bone, sand, charcoal and warm umber, sunset atelier side light, candid fashion magazine real camera, natural skin and tactile cloth, all independent full photographic frames. Upper left: tight torso crop of a young adult model with dark hair wearing a charcoal crewneck cotton T-shirt in motion by side window, ambient dark shadow, strong fabric folds, clothing not face emphasis. Upper right: crisp white button-down shirt on a woman, tight collar to hip with prominent folded sleeve and cuff, pale plaster and horizontal hard edge of afternoon light, no jacket. Lower left: waist to shin view of high waist sand pleated straight-leg trousers on a person walking mid-step against dark reddish polished wood and angled shadow, clear cut and wide shape, waist centered. Lower right: lateral cinematic view of an adult with dark hair wearing white long sleeved button-down and sand trousers seated sideways at a broad old studio window, with both sleeves and trouser silhouette readable, amber light across studio joinery, contextual intimate wide composition, no other objects in foreground. No logos or signage, no watermark.",
+  "processing": [
+    "Bicubic",
+    "crop=768:512:768:512",
+    "WebP quality 81"
+  ]
+}

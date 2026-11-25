@@ -13,9 +13,15 @@ class StoreSettingsController
 {
     public function publicInfo(): JsonResponse
     {
-        return response()->json(['data' => Arr::only(StoreSettings::loadValues(), [
-            'business_name', 'support_email', 'support_phone', 'pickup_address', 'delivery_cents',
-        ])]);
+        $email = trim((string) config('store.public_contact.email'));
+        $phone = trim((string) config('store.public_contact.phone'));
+        $dial = str_replace([' ', '.', '(', ')', '-'], '', $phone);
+
+        return response()->json(['data' => [
+            ...Arr::only(StoreSettings::loadValues(), ['business_name', 'pickup_address', 'delivery_cents']),
+            'support_email' => filter_var($email, FILTER_VALIDATE_EMAIL) ?: null,
+            'support_phone' => strlen($phone) <= 40 && preg_match('/\A\+?[0-9]{3,15}\z/', $dial) ? $phone : null,
+        ]]);
     }
 
     public function show(): JsonResponse

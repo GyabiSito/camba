@@ -6,6 +6,7 @@ use App\Http\Requests\Catalog\SaveClassificationRequest;
 use App\Http\Resources\Catalog\ClassificationResource;
 use App\Models\Brand;
 use App\Models\Category;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -17,14 +18,37 @@ class ClassificationController
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        $model = $request->route('classification');
-        $query = $model::query()->orderBy('name')->orderBy('id');
+        $query = $this->ordered($request);
 
         if (! $request->routeIs('admin.catalog.*')) {
             $query->where('active', true);
         }
 
         return ClassificationResource::collection($query->get());
+    }
+
+    public function page(Request $request): AnonymousResourceCollection
+    {
+        $page = $request->validate([
+            'q' => ['nullable', 'string', 'max:120'],
+            'status' => ['nullable', 'in:active,inactive'],
+            'page' => ['sometimes', 'integer', 'min:1', 'max:2147483647'],
+            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
+        ]);
+
+        $query = $this->ordered($request);
+        if (isset($page['q'])) {
+            // ponytail: substring search scans matching rows; use indexed search if catalog size warrants it.
+            $needle = '%'.strtr($page['q'], ['!' => '!!', '%' => '!%', '_' => '!_']).'%';
+            $query->where(fn (Builder $query) => $query
+                ->whereRaw("LOWER(name) LIKE LOWER(?) ESCAPE '!'", [$needle])
+                ->orWhereRaw("LOWER(slug) LIKE LOWER(?) ESCAPE '!'", [$needle]));
+        }
+        if (isset($page['status'])) {
+            $query->where('active', $page['status'] === 'active');
+        }
+
+        return ClassificationResource::collection($query->paginate($page['per_page'] ?? 12)->appends($page));
     }
 
     public function store(SaveClassificationRequest $request): ClassificationResource
@@ -61,6 +85,13 @@ class ClassificationController
 
             return new ClassificationResource($item);
         }, 3);
+    }
+
+    private function ordered(Request $request): Builder
+    {
+        $model = $request->route('classification');
+
+        return $model::query()->orderBy('name')->orderBy('id');
     }
 
     private function save(Category|Brand $item): void

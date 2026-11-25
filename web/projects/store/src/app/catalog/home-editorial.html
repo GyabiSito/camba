@@ -1,0 +1,95 @@
+﻿<ng-template #arrow>
+  <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6">
+    <path d="M3 12h17m-6-6 6 6-6 6" />
+  </svg>
+</ng-template>
+
+@let shop = this.shop();
+@let content = document();
+@if (block() === 'look' && showLook()) {
+  <section class="look" [class.look--copy]="!lookPhoto() || failedPhotos().look" aria-labelledby="look-title">
+    @if (!failedPhotos().look) {
+      @if (lookPhoto(); as photo) {
+        <img class="look-photo" [src]="photo.url" [attr.srcset]="srcset(photo)"
+          sizes="(max-width: 48rem) 100vw, 62vw" [width]="photo.width" [height]="photo.height" loading="lazy"
+          [alt]="content.look.image?.alt || ''" [style.object-position]="crop(content.look.image)"
+          [homePhoto]="photo.thumbnail_url" (photoUnavailable)="failPhoto('look')" />
+      }
+    }
+    <div class="look-copy">
+      <h2 id="look-title" tabindex="-1">{{ content.look.title }}</h2>
+      <p>{{ content.look.text }}</p>
+      <ul class="look-items" role="list">
+        @for (item of shop.look; track item.id) {
+          <li>
+            <a [routerLink]="['/producto', item.slug]">
+              <store-product-photo [photo]="item.images[0]" [name]="item.name" [decorative]="true" variant="thumb" />
+              <span><strong>{{ item.name }}</strong><span>{{ money(item.price_cents) }}</span>
+                @if (!item.in_stock) { <span>Sin stock</span> }
+              </span>
+              <ng-container [ngTemplateOutlet]="arrow" />
+            </a>
+          </li>
+        }
+        @for (category of lookCategories(); track category.id) {
+          <li>
+            <a class="look-category" routerLink="/tienda" [queryParams]="{ category: category.slug }">
+              <span>Ver {{ category.name.toLowerCase() }}</span><ng-container [ngTemplateOutlet]="arrow" />
+            </a>
+          </li>
+        }
+      </ul>
+    </div>
+  </section>
+}
+
+@if (block() === 'story') {
+  @if (storyPhoto() || (shop.publication && !content.story.image)) {
+    <section class="story" aria-labelledby="story-title">
+      <div class="frame story-inner">
+        @if (!failedPhotos().lead) {
+          @if (storyPhoto(); as photo) {
+            <div class="story-lead">
+              <img [src]="photo.url" [attr.srcset]="srcset(photo)" sizes="(max-width: 42rem) 95vw, 65vw"
+                [width]="photo.width" [height]="photo.height" loading="lazy" [alt]="content.story.image?.alt || ''"
+                [style.object-position]="crop(content.story.image)" [homePhoto]="photo.thumbnail_url" (photoUnavailable)="failPhoto('lead')" />
+            </div>
+          }
+        }
+        <div class="story-copy">
+          <h2 id="story-title" tabindex="-1">{{ content.story.title }}</h2>
+          <p>{{ content.story.text }}</p>
+          @if (href(content.story.action); as url) {
+            <a class="text-link" [href]="url">{{ content.story.action?.label }} <ng-container [ngTemplateOutlet]="arrow" /></a>
+          }
+        </div>
+        @if (details().length) {
+          <div class="story-details">
+            @for (detail of details(); track $index) {
+              @if (!failedPhotos()[detail.part]) {
+                <img [src]="detail.asset.url" [attr.srcset]="srcset(detail.asset)" sizes="(max-width: 42rem) 44vw, 14vw"
+                  [width]="detail.asset.width" [height]="detail.asset.height" loading="lazy" [alt]="detail.image.alt"
+                  [style.object-position]="crop(detail.image)" [homePhoto]="detail.asset.thumbnail_url" (photoUnavailable)="failPhoto(detail.part)" />
+              }
+            }
+          </div>
+        }
+      </div>
+    </section>
+  } @else if (shop.editorial; as item) {
+    <section class="story story--catalog" aria-labelledby="story-title">
+      <div class="frame story-inner">
+        @if (!failedPhotos().lead) {
+          <div class="story-lead">
+            <img [src]="item.images[1].url" [alt]="item.images[1].alt || item.name" width="768" height="512" loading="lazy"
+              [homePhoto]="item.images[1].thumbnail_url" (photoUnavailable)="failPhoto('lead')" />
+          </div>
+        }
+        <div class="story-copy">
+          <h2 id="story-title" tabindex="-1">{{ content.story.title }}</h2>
+          <a class="text-link" [routerLink]="['/producto', item.slug]">{{ item.name }} <ng-container [ngTemplateOutlet]="arrow" /></a>
+        </div>
+      </div>
+    </section>
+  }
+}

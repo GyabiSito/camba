@@ -13,6 +13,8 @@ The Admin is a workspace for managing merchandise and orders, not an extension o
 
 Use the sidebar for Productos, Pedidos and Configuración. The same navigation collapses to a keyboard-operable disclosure on small screens. Keep labels and active states visible without relying on color. Prefer inline feedback and existing native disclosure over modals. On mobile keep the row’s identity, status and action together; resort to a named, keyboard-scrollable region only for genuinely tabular detail that cannot linearize.
 
+Put Inicio first. The dashboard leads with actionable priorities, then recent orders, then confirmed sales. Use the same status labels and filters as the destination lists; keep exact amounts available even when chart markers use compact numerals.
+
 Keep saving distinct from publishing, previewing distinct from confirming, and payment distinct from fulfillment. Start a skeleton only while a real request is pending. Use clear Spanish labels and preserve entered data on recoverable errors. The Admin owns these styles; do not move the brand accent or workspace layout into storefront or shared CSS.
 
 `public/brand/camba.svg` is an unchanged copy of the existing Camba brand vector from the storefront, published locally so the Admin does not depend on the storefront to render its identity.

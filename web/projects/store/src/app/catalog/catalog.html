@@ -16,49 +16,64 @@
         method="get"
         (submit)="apply($event)"
       >
-        <div class="search-field">
-          <label for="catalog-search">Buscar en la tienda</label>
-          <input
-            class="field"
-            id="catalog-search"
-            name="q"
-            type="search"
-            placeholder="Nombre o SKU"
-            maxlength="120"
-            [value]="query().q"
-          />
+        <div class="filter-row">
+          <div class="search-field">
+            <label for="catalog-search">Buscar en la tienda</label>
+            <input
+              class="field"
+              id="catalog-search"
+              name="q"
+              type="search"
+              placeholder="Nombre o SKU"
+              maxlength="120"
+              [value]="query().q"
+            />
+          </div>
+          <button type="submit" class="button apply-mobile">Aplicar</button>
+          <button
+            class="filter-toggle"
+            type="button"
+            aria-controls="catalog-options"
+            [attr.aria-expanded]="filtersOpen()"
+            (click)="toggleFilters()"
+          >
+            Filtros
+            <span class="filter-count" aria-live="polite">{{ activeFilterCount() }} {{ activeFilterCount() === 1 ? 'activo' : 'activos' }}</span>
+          </button>
         </div>
-        <div>
-          <label for="catalog-category">Categoría</label>
-          <select class="field" id="catalog-category" name="category">
-            <option value="" [selected]="!query().category">Todas</option>
-            @for (category of view.data.categories; track category.id) {
-              <option [value]="category.slug" [selected]="category.slug === query().category">
-                {{ category.name }}
-              </option>
-            }
-          </select>
+        <div class="filter-options" id="catalog-options" [class.is-collapsed]="!filtersOpen()">
+          <div>
+            <label for="catalog-category">Categoría</label>
+            <select class="field" id="catalog-category" name="category">
+              <option value="" [selected]="!query().category">Todas</option>
+              @for (category of view.data.categories; track category.id) {
+                <option [value]="category.slug" [selected]="category.slug === query().category">
+                  {{ category.name }}
+                </option>
+              }
+            </select>
+          </div>
+          <div>
+            <label for="catalog-brand">Marca</label>
+            <select class="field" id="catalog-brand" name="brand">
+              <option value="" [selected]="!query().brand">Todas</option>
+              @for (brand of view.data.brands; track brand.id) {
+                <option [value]="brand.slug" [selected]="brand.slug === query().brand">
+                  {{ brand.name }}
+                </option>
+              }
+            </select>
+          </div>
+          <div class="sort-field">
+            <label for="catalog-sort">Orden</label>
+            <select class="field" id="catalog-sort" name="sort">
+              @for (sort of sorts; track sort[0]) {
+                <option [value]="sort[0]" [selected]="sort[0] === query().sort">{{ sort[1] }}</option>
+              }
+            </select>
+          </div>
+          <button type="submit" class="button apply-desktop">Aplicar</button>
         </div>
-        <div>
-          <label for="catalog-brand">Marca</label>
-          <select class="field" id="catalog-brand" name="brand">
-            <option value="" [selected]="!query().brand">Todas</option>
-            @for (brand of view.data.brands; track brand.id) {
-              <option [value]="brand.slug" [selected]="brand.slug === query().brand">
-                {{ brand.name }}
-              </option>
-            }
-          </select>
-        </div>
-        <div class="sort-field">
-          <label for="catalog-sort">Orden</label>
-          <select class="field" id="catalog-sort" name="sort">
-            @for (sort of sorts; track sort[0]) {
-              <option [value]="sort[0]" [selected]="sort[0] === query().sort">{{ sort[1] }}</option>
-            }
-          </select>
-        </div>
-        <button type="submit" class="button">Aplicar</button>
       </form>
 
       @if (loading()) {
@@ -73,7 +88,7 @@
             }
           </p>
           @if (filtered()) {
-            <a routerLink="/tienda">Limpiar filtros</a>
+            <a [href]="url()" (click)="followFilterLink($event)">Limpiar filtros</a>
           }
         </div>
         @if (loading()) {
@@ -87,14 +102,14 @@
             }
           </div>
         } @else if (products.data.length) {
-          <store-product-grid [products]="products.data" [query]="query()" [prioritizeFirst]="true" />
+          <store-product-grid class="catalog-products" [products]="products.data" [query]="query()" [prioritizeFirst]="true" />
           @if (last > 1) {
             <nav class="pagination" aria-label="Páginas de productos">
               @if (page > 1) {
                 <a
                   class="button button--quiet"
-                  routerLink="/tienda"
-                  [queryParams]="paramsFor(query(), page - 1)"
+                  [href]="url(paramsFor(query(), page - 1))"
+                  (click)="followFilterLink($event)"
                 >
                   Anterior
                 </a>
@@ -103,8 +118,8 @@
               @if (page < last) {
                 <a
                   class="button button--quiet"
-                  routerLink="/tienda"
-                  [queryParams]="paramsFor(query(), page + 1)"
+                  [href]="url(paramsFor(query(), page + 1))"
+                  (click)="followFilterLink($event)"
                 >
                   Siguiente
                 </a>
@@ -118,8 +133,8 @@
               <p>Volvé a la última página de los resultados.</p>
               <a
                 class="button button--quiet"
-                routerLink="/tienda"
-                [queryParams]="paramsFor(query(), last)"
+                [href]="url(paramsFor(query(), last))"
+                (click)="followFilterLink($event)"
               >
                 Ir a la última página
               </a>

@@ -22,7 +22,7 @@ test('auth exposes field-level validation and account remains legible at 320px',
     await page.getByLabel('Contraseña', { exact: true }).fill(password);
     await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Datos personales' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Ver compras' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Mis pedidos' })).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
 
   } finally {

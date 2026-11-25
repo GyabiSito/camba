@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Orders;
 
+use App\Jobs\SendCommerceNotice;
 use App\Models\Category;
+use App\Models\CommerceNotice;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PaymentAttempt;
@@ -10,8 +12,12 @@ use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
+use RuntimeException;
 use Tests\TestCase;
 
 class OrderCheckoutTest extends TestCase
@@ -72,6 +78,92 @@ class OrderCheckoutTest extends TestCase
         $this->assertDatabaseCount('orders', 0);
     }
 
+    public function test_one_admin_notice_for_new_pending_order_and_checkout_replay(): void
+    {
+        Queue::fake();
+        config(['app.admin_url' => 'https://admin.camba.test', 'mail.default' => 'array']);
+        $owner = User::factory()->create(['role' => 'admin']);
+        $items = $this->items($this->product());
+        $payload = $this->payload($items, 'pickup', $this->quote($items, 'pickup'));
+        $key = (string) Str::uuid();
+        $reference = $this->place($payload, $key)->assertCreated()->assertJsonPath('data.status', 'pending_payment')->json('data.reference');
+        $this->place($payload, $key)->assertOk()->assertJsonPath('data.reference', $reference);
+        $order = Order::where('reference', $reference)->sole();
+
+        $notice = CommerceNotice::where('kind', 'admin_order_created')->where('subject_id', $order->id)->sole();
+        $this->artisan('camba:notices')->assertSuccessful();
+        $this->assertDatabaseHas('commerce_notices', ['channel' => 'panel', 'kind' => 'order_created', 'subject_id' => $order->id]);
+        $this->app->call([new SendCommerceNotice($notice->id), 'handle']);
+        $this->app->call([new SendCommerceNotice($notice->id), 'handle']);
+
+        $messages = Mail::mailer('array')->getSymfonyTransport()->messages();
+        $this->assertCount(1, $messages);
+        $mail = $messages->first()->getOriginalMessage();
+        $this->assertSame('Nuevo pedido en Camba', $mail->getSubject());
+        $this->assertSame($owner->email, $mail->getTo()[0]->getAddress());
+        foreach (['Modalidad: Retiro', 'Pago: Pendiente de pago', 'Total: UYU 246,90', 'https://admin.camba.test/pedidos/'.$reference] as $line) {
+            $this->assertStringContainsString($line, $mail->getTextBody());
+        }
+        $this->assertStringContainsString('Ver pedido', $mail->getHtmlBody());
+    }
+
+    public function test_admin_mail_cannot_follow_an_address_change_or_an_ambiguous_admin(): void
+    {
+        config(['app.admin_url' => 'https://admin.camba.test', 'mail.default' => 'array']);
+        $admin = User::factory()->create(['role' => 'admin']);
+        $items = $this->items($this->product());
+        $payload = $this->payload($items, 'pickup', $this->quote($items, 'pickup'));
+        $this->place($payload)->assertCreated();
+        $bound = CommerceNotice::where('kind', 'admin_order_created')->sole();
+        $admin->forceFill(['email' => 'changed-admin@camba.test'])->save();
+        $this->app->call([new SendCommerceNotice($bound->id), 'handle']);
+        $this->assertDatabaseHas('commerce_notices', ['id' => $bound->id, 'state' => 'cancelled', 'attempts' => 0]);
+
+        $other = User::factory()->unverified()->create(['role' => 'admin']);
+        $this->place($payload)->assertCreated();
+        $ambiguous = CommerceNotice::where('kind', 'admin_order_created')->latest('id')->firstOrFail();
+        $this->assertDatabaseHas('commerce_notices', ['id' => $ambiguous->id, 'state' => 'cancelled', 'error_code' => 'no_eligible_admin']);
+        $other->delete();
+        $this->app->call([new SendCommerceNotice($ambiguous->id), 'handle']);
+        $this->assertCount(0, Mail::mailer('array')->getSymfonyTransport()->messages());
+    }
+
+    public function test_checkout_does_not_commit_order_or_stock_without_its_mail_notice(): void
+    {
+        $product = $this->product();
+        $items = $this->items($product);
+        $payload = $this->payload($items, 'pickup', $this->quote($items, 'pickup'));
+        $event = 'eloquent.creating: '.CommerceNotice::class;
+        Event::listen($event, function (): never {
+            throw new RuntimeException('Synthetic ledger write failure.');
+        });
+        try {
+            $this->place($payload)->assertServerError();
+        } finally {
+            Event::forget($event);
+        }
+
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertDatabaseCount('commerce_notices', 0);
+        $this->assertSame(10, $product->refresh()->stock);
+    }
+
+    public function test_quote_rejects_an_incoherent_geography(): void
+    {
+        $items = $this->items($this->product());
+        $foreign = (int) DB::table('localities')->where('department_id', 1)->orderBy('id')->value('id');
+        $this->postJson(self::QUOTE, ['items' => $items, 'address' => ['department_id' => 10, 'locality_id' => $foreign]])
+            ->assertUnprocessable()->assertJsonValidationErrors('address.locality_id');
+        $token = $this->quote($items, 'delivery');
+        $payload = $this->payload($items, 'delivery', $token);
+        $this->postJson(self::QUOTE, [
+            'items' => $items, 'address' => array_intersect_key($payload['address'], array_flip(['department_id', 'locality_id'])),
+        ])->assertOk()->assertJsonPath('data.shipping_options.1.quote_token', $token);
+        $payload['address']['locality_id'] = $foreign;
+        $this->place($payload)->assertUnprocessable()->assertJsonValidationErrors('address.locality_id');
+        $this->assertDatabaseCount('orders', 0);
+    }
+
     public function test_order_snapshots_price_delivery_address_and_contact_without_repeated_reservation(): void
     {
         $first = $this->product();
@@ -88,6 +180,10 @@ class OrderCheckoutTest extends TestCase
             ->assertJsonPath('data.shipping_cents', 3500)
             ->assertJsonPath('data.total_cents', 28388)
             ->assertJsonPath('data.address.number', '0123B')
+            ->assertJsonPath('data.address.department_id', 10)
+            ->assertJsonPath('data.address.locality_id', $payload['address']['locality_id'])
+            ->assertJsonPath('data.address.department', 'Montevideo')
+            ->assertJsonPath('data.address.locality', 'Montevideo')
             ->assertJsonPath('data.contact.email', 'buyer@example.test')
             ->assertJsonMissingPath('data.owner_key')
             ->assertJsonMissingPath('data.idempotency_key');
@@ -104,9 +200,11 @@ class OrderCheckoutTest extends TestCase
         $this->assertSame(0, $second->fresh()->stock);
 
         $first->update(['name' => 'Later Name', 'price_cents' => 9999]);
+        DB::table('localities')->where('id', $payload['address']['locality_id'])->update(['name' => 'Renamed later']);
         config(['checkout.delivery_cents' => 9900]);
         $this->place([...$payload, 'items' => array_reverse($items)], $key)->assertOk()
-            ->assertJsonPath('data.reference', $reference)->assertJsonPath('data.total_cents', 28388);
+            ->assertJsonPath('data.reference', $reference)->assertJsonPath('data.total_cents', 28388)
+            ->assertJsonPath('data.address.locality', 'Montevideo');
         $this->place([...$payload, 'contact' => ['name' => 'Other Buyer', 'email' => 'buyer@example.test']], $key)
             ->assertConflict();
         $this->getJson(self::ORDERS.'/'.$reference)->assertOk()->assertJsonPath('data.items.0.name', 'Test Product 1');
@@ -382,8 +480,8 @@ class OrderCheckoutTest extends TestCase
         if ($method === 'delivery') {
             $payload['address'] = [
                 'recipient' => 'Test Buyer',
-                'department' => 'Montevideo',
-                'locality' => 'Montevideo',
+                'department_id' => 10,
+                'locality_id' => (int) DB::table('localities')->where(['department_id' => 10, 'name' => 'Montevideo'])->value('id'),
                 'street' => 'Test Street',
                 'number' => '0123B',
             ];

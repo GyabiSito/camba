@@ -8,14 +8,16 @@ La tienda SSR, el admin y la [API Laravel](api/README.md) ya se pueden ejecutar 
 
 ## Demo local
 
-La tienda y el admin usan la misma API Laravel y PostgreSQL en Docker Desktop. No necesitás levantar las demos de Angular por separado.
+La tienda y el Admin usan la misma API Laravel y PostgreSQL en Docker Desktop. Las dos cuentas se probaron desde sus formularios y conservaron la sesión al recargar.
 
-| Acceso | Correo de prueba |
-| --- | --- |
-| [Tienda — Mi cuenta](http://127.0.0.1:4200/cuenta) | `cliente.diseno@camba.test` |
-| [Admin](http://127.0.0.1:4300/) | `admin.diseno@camba.test` |
+| Acceso | Correo verificado | Contraseña de prueba | Rol |
+| --- | --- | --- | --- |
+| [Tienda](http://127.0.0.1:4200/) · [Mi cuenta](http://127.0.0.1:4200/cuenta) | `cliente.diseno@camba.test` | `CambaDemo2026!` | Cliente (`buyer`) |
+| [Admin → Inicio](http://127.0.0.1:4300/dashboard) | `admin.diseno@camba.test` | `CambaDemo2026!` | Administrador (`admin`) |
 
-**Contraseña de ambas cuentas:** `CambaDemo2026!`. Usá perfiles de navegador distintos si querés mantener abiertas ambas sesiones: los puertos comparten el mismo host y las cookies no se aíslan por puerto. El [buzón local](http://127.0.0.1:48025/) recibe solo correo de prueba.
+El [buzón Mailpit](http://127.0.0.1:48025/) recibe solo correo de prueba. Para el chequeo HTTP usá [`/readyz`](http://127.0.0.1:48025/readyz). Laravel y el worker usan `mailpit:1025` por SMTP sin autenticación ni TLS, solo dentro de Docker. El puerto SMTP `41025` ya no se publica en el host. `user.diseno@camba.test` no es una cuenta de esta demo.
+
+**Para tener las dos sesiones abiertas**, usá dos perfiles de navegador o una ventana normal y otra privada. Las cookies se comparten entre puertos cuando el nombre del host es el mismo. También se verificó el acceso por `localhost:4200` y `localhost:4300`; elegí un nombre de host y mantenelo durante cada sesión.
 
 ### Levantar, migrar y seedear
 
@@ -33,17 +35,41 @@ if (-not (Test-Path -LiteralPath $envFile)) {
 $camba = @('--env-file', $envFile, '-f', 'infra/compose.dev.yml', '-f', 'infra/compose.dev.apps.yml')
 docker compose @camba up -d --build --wait
 docker compose @camba exec -T api php artisan migrate --force
+docker compose @camba exec -T api php artisan db:seed --class=GeographySeeder --force
 docker compose @camba exec -T api php artisan db:seed --class=LocalDemoSeeder --force
 ```
 
-El arranque de la API también aplica las migraciones pendientes. El seeder explícito puede repetirse sin duplicar el catálogo, las cuentas ni los pedidos de muestra. En la tienda hay productos agotados, carritos y pedidos de entrega y retiro; en el admin también se ven borradores, archivados y las herramientas de carga.
+El arranque de la API también aplica las migraciones pendientes. El seed agrega:
 
-El historial incluye un pago confirmado simulado, uno pendiente y una reserva vencida. El stack no tiene credenciales de Mercado Pago: las pruebas de pago simulan el proveedor y la demo no realiza cobros. Los dominios `.test` y las direcciones son sintéticos.
+- Catálogo con categorías, marcas y fotos locales: productos publicados (incluidos agotados), borradores y archivados.
+- Las dos cuentas, dos direcciones guardadas y un carrito de dos productos para el cliente.
+- Tres pedidos de entrega y retiro: pago confirmado, pendiente de pago y reserva vencida.
+
+Podés repetir el seed sin duplicar cuentas ni pedidos. Actualiza los datos del catálogo de muestra sin resetear el stock existente, conserva las contraseñas, cantidades del carrito y estados de pedidos existentes, y repone los artículos del carrito de muestra que falten. No lo uses para restablecer una contraseña.
+
+Si ya tenés la demo en uso, agregá la camisa de «Armá el look» sin volver a seedear las compras. Para incorporar cambios de la tienda, reconstruí solo ese servicio:
+
+```powershell
+docker compose @camba exec -T api php artisan db:seed --class=LocalEditorialCatalogSeeder --force
+docker compose @camba up -d --build --no-deps --wait store
+```
+
+En Docker podés consultar el estado del pedido, pero no iniciar pagos: el stack no tiene credenciales de Mercado Pago. Los correos `.test` y las direcciones son sintéticos.
+
+### Actualizar el directorio de direcciones
+
+La migración carga los 19 departamentos y 1.884 localidades desde [el JSON original](api/database/data/countries.json). Si ya ejecutaste la migración, podés repetir **solo** el seed geográfico sin tocar pedidos, carritos ni direcciones ya vinculadas:
+
+```powershell
+docker compose --env-file infra/dev/demo.env.local -f infra/compose.dev.yml -f infra/compose.dev.apps.yml exec -T api php artisan db:seed --class=GeographySeeder --force
+```
+
+La API lee las opciones de PostgreSQL; el comando funciona aunque la tienda esté apagada. Las direcciones con una coincidencia única se vinculan automáticamente. Si una dirección antigua conserva texto sin coincidencia, editá Departamento y Localidad antes de usarla para un envío nuevo. Los pedidos anteriores conservan la dirección con la que se emitieron.
 
 ### Editar y publicar la portada
 
-1. Entrá al [Admin → Portada](http://127.0.0.1:4300/portada) con la cuenta administradora. Abrí una sección para editar sus textos, fotos o enlaces. Desde la lista podés cambiar su posición u ocultarla.
-2. Elegí **Guardar borrador**. **Vista previa** abre la portada con esos cambios en otra pestaña; mantené abierta la sesión de Admin en el mismo perfil del navegador. Para ver lo que ve el público, abrí la [Tienda](http://127.0.0.1:4200/) en otro perfil.
+1. Entrá al [Admin → Portada](http://127.0.0.1:4300/portada) con la cuenta administradora. **Editar** abre la página de una sección. Desde el resumen también podés cambiar su posición u ocultarla.
+2. Elegí **Guardar borrador** y **Volver a Portada**. Abrí la [Vista previa](http://127.0.0.1:4300/portada/vista-previa) dentro del Admin y alterná entre **Escritorio** y **Móvil**. La [Tienda](http://127.0.0.1:4200/) solo muestra lo publicado.
 3. Elegí **Publicar** cuando esté pronta. La Tienda muestra el cambio al recargar, sin editar archivos ni reconstruir Docker. **Descartar borrador** vuelve a lo publicado sin cambiar la Tienda.
 
 Podés subir fotos JPEG, PNG o WebP de hasta 10 MiB y 4096 px por lado, o volver a usar una de la biblioteca. Los nombres, enlaces, precios y stock de las prendas se actualizan desde el catálogo. Un producto o categoría que ya no se muestra en el catálogo deja de aparecer en la portada; en el mosaico se conserva la foto, pero se quita el enlace.

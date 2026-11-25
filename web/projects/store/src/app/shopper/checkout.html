@@ -44,9 +44,11 @@
             </fieldset>
           </section>
           <section class="shop-panel purchase-panel">
-            <fieldset [disabled]="busy() || uncertain()" class="stack">
+            <fieldset [disabled]="busy() || uncertain() || savingAddress()" class="stack">
               <legend>¿Cómo querés recibir tu pedido?</legend>
               @for (option of currentQuote.shipping_options; track option.method) {
+                @let priced =
+                  option.method === 'delivery' && method() === 'delivery' ? selected() : option;
                 <label class="choice">
                   <input
                     name="shipping"
@@ -57,12 +59,14 @@
                   />
                   <span
                     >{{ option.method === 'pickup' ? 'Retiro' : 'Entrega a domicilio' }}
-                    <small>
-                      {{ option.shipping_cents ? money(option.shipping_cents) : 'Sin costo' }}
-                      @if (option.pickup_address) {
-                        · {{ option.pickup_address }}
-                      }
-                    </small>
+                    @if (priced) {
+                      <small>
+                        {{ priced.shipping_cents ? money(priced.shipping_cents) : 'Sin costo' }}
+                        @if (priced.pickup_address) {
+                          · {{ priced.pickup_address }}
+                        }
+                      </small>
+                    }
                   </span>
                 </label>
               }
@@ -70,22 +74,38 @@
           </section>
           @if (method() === 'delivery') {
             <section class="shop-panel purchase-panel">
-              <fieldset [disabled]="busy() || uncertain()" class="stack">
+                <fieldset [disabled]="busy() || uncertain() || savingAddress()" class="stack">
                 <legend>Dirección de entrega</legend>
                 @if (addresses().length) {
                   <label class="field"
                     >Usar una dirección guardada
                     <select #saved (change)="applyAddress(saved.value)">
-                      <option value="">Ingresar una dirección</option>
+                      <option value="" [selected]="!savedAddress()">Ingresar una dirección</option>
                       @for (item of addresses(); track item.id) {
-                        <option [value]="item.id">
+                        <option [value]="item.id" [selected]="savedAddress()?.id === item.id">
                           {{ item.street }} {{ item.number }}, {{ item.locality }}
                         </option>
                       }
                     </select>
                   </label>
                 }
-                <camba-address-fields [group]="address" />
+                <camba-address-fields [group]="address" [previous]="savedAddress()" />
+                @if (buyer() && !savedAddress()) {
+                  <div class="actions">
+                    <button class="button button--quiet" type="button" (click)="saveAddress()">
+                      {{ savingAddress() ? 'Guardando…' : 'Guardar en mis direcciones' }}
+                    </button>
+                  </div>
+                }
+                @if (addressFeedback(); as feedback) {
+                  <p
+                    class="notice"
+                    [class.problem]="feedback.error"
+                    [attr.role]="feedback.error ? 'alert' : 'status'"
+                  >
+                    {{ feedback.text }}
+                  </p>
+                }
               </fieldset>
             </section>
           }
@@ -118,15 +138,41 @@
               </div>
             }
           </dl>
+          @if (deliveryLoading()) {
+            <div role="status" class="shop-skeleton" aria-label="Cotizando el envío">
+              <i aria-hidden="true"></i>
+            </div>
+          } @else if (deliveryState()?.error; as error) {
+            <p class="notice problem" role="alert">{{ error }}</p>
+            <div class="actions">
+              <button class="button button--quiet" type="button" (click)="refreshDeliveryQuote()">
+                Volver a cotizar el envío
+              </button>
+            </div>
+          }
           @if (orderError()) {
             <p class="notice problem" role="alert">{{ orderError() }}</p>
           }
           @if (uncertain()) {
             <p><a routerLink="/pedidos">Ver compras</a></p>
           }
-          <p class="muted small">Después de confirmar vas a poder pagar con Mercado Pago.</p>
+          <p class="muted small">
+            {{
+              paymentsEnabled
+                ? 'Después de confirmar vas a poder pagar con Mercado Pago.'
+                : 'Después de confirmar vas a poder consultar el estado de tu pedido.'
+            }}
+          </p>
           <div class="actions">
-            <button class="button" type="submit" [disabled]="busy()">
+            <button
+              class="button"
+              type="submit"
+              [disabled]="
+                busy() ||
+                savingAddress() ||
+                ((!!deliveryState()?.error || deliveryLoading()) && !uncertain())
+              "
+            >
               {{
                 busy()
                   ? 'Confirmando…'

@@ -25,7 +25,9 @@ export class OperationLoading {
   imports: [RouterLink],
   template: `
     <div class="pager">
-      <p role="status">{{ info().total }} {{ info().total === 1 ? singular() : plural() }}</p>
+      @if (showTotal()) {
+        <p role="status">{{ info().total }} {{ info().total === 1 ? singular() : plural() }}</p>
+      }
       @if (info().last_page > 1 || info().current_page > 1) {
         <nav aria-label="Paginación">
           @if (info().current_page > 1) {
@@ -57,4 +59,5 @@ export class OperationPager {
   readonly info = input.required<PageInfo>();
   readonly singular = input.required<string>();
   readonly plural = input.required<string>();
+  readonly showTotal = input(true);
 }

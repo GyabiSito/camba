@@ -1,0 +1,47 @@
+<div class="field" (focusout)="blur(picker, $event.relatedTarget)" #picker>
+  <label [for]="fieldId()">{{ label() }}</label>
+  <div class="picker">
+    <input
+      #box
+      [id]="fieldId()"
+      role="combobox"
+      type="text"
+      autocomplete="off"
+      [spellcheck]="false"
+      aria-autocomplete="list"
+      aria-required="true"
+      [attr.aria-invalid]="invalid() || null"
+      [attr.aria-expanded]="expanded() && !disabled()"
+      [attr.aria-controls]="listId()"
+      [attr.aria-activedescendant]="activeId()"
+      [disabled]="disabled()"
+      [placeholder]="placeholder()"
+      [value]="text()"
+      (focus)="expanded.set(true); box.select()"
+      (click)="expanded.set(true)"
+      (input)="search(box.value)"
+      (keydown)="key($event, box)"
+    />
+    <span class="chevron" aria-hidden="true"></span>
+    <div class="choices" [hidden]="!expanded() || disabled()">
+      <ul role="listbox" [attr.aria-label]="label()" [id]="listId()">
+        @for (option of matches(); track option.id; let i = $index) {
+          <li
+            role="option"
+            tabindex="-1"
+            [id]="optionId(option)"
+            [attr.aria-selected]="option.id === value()"
+            [class.active]="i === active()"
+            (mousedown)="$event.preventDefault()"
+            (click)="box.focus(); select(option)"
+          >
+            {{ option.name }}
+          </li>
+        }
+      </ul>
+      @if (!matches().length) {
+        <p role="status">No encontramos coincidencias.</p>
+      }
+    </div>
+  </div>
+</div>

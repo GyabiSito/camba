@@ -1,33 +1,7 @@
-<a class="skip" [href]="'.' + router.url.split('#', 1)[0] + '#contenido'">Saltar al contenido</a>
-<header class="store-header">
-  <a class="wordmark" routerLink="/" aria-label="Camba, inicio">Camba</a>
-  <form class="header-search" role="search" aria-label="Búsqueda rápida" action="/tienda"
-    (submit)="search($event, searchTerm.value)">
-    <input #searchTerm type="search" name="q" aria-label="Buscar productos" placeholder="Buscar" />
-    <button type="submit" class="button button--quiet" aria-label="Buscar en el catálogo">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-        <circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4 4" />
-      </svg>
-    </button>
-  </form>
-  <nav aria-label="Tienda">
-    <a routerLink="/tienda" routerLinkActive="active" ariaCurrentWhenActive="page">Tienda</a>
-    <a [href]="'.' + router.url.split('#', 1)[0] + '#contacto'">Contacto</a>
-    <a routerLink="/cuenta" routerLinkActive="active" ariaCurrentWhenActive="page">Mi cuenta</a>
-    <a routerLink="/carrito" routerLinkActive="active" ariaCurrentWhenActive="page">
-      Carrito @if (count()) { <span class="count" aria-live="polite">{{ count() }}</span> }
-    </a>
-  </nav>
-</header>
+<a class="skip" [href]="anchorBase() + '#contenido'">Saltar al contenido</a>
+<store-header />
 <main id="contenido" tabindex="-1" class="store-body">
+  @if (openingHome()) { <p class="home-pending" role="status">Cargando la portada…</p> }
   <router-outlet />
 </main>
-<footer class="store-footer">
-  <div><a class="wordmark" routerLink="/">{{ info()?.business_name || 'Camba' }}</a></div>
-  <nav id="contacto" tabindex="-1" aria-label="Información de tienda">
-    <a routerLink="/tienda">Tienda</a>
-    <a routerLink="/pedidos">Mis pedidos</a>
-    @if (info()?.support_email; as email) { <a [href]="'mailto:' + email">Contacto por correo</a> }
-    @if (info()?.support_phone; as phone) { <a [href]="'tel:' + phone">Teléfono de contacto</a> }
-  </nav>
-</footer>
+<store-footer [topHref]="anchorBase() + '#arriba'" />

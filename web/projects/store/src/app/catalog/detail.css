@@ -4,6 +4,7 @@
 
 .detail {
   padding: clamp(1.25rem, 3vw, 2.75rem) 0 clamp(3rem, 7vw, 6rem);
+  color: var(--ink, #24201e);
 }
 
 .back {
@@ -29,9 +30,10 @@
 }
 
 .main-photo {
-  aspect-ratio: 1;
-  border-radius: 0.875rem;
-  --photo-fit: contain;
+  aspect-ratio: 4 / 5;
+  border-radius: 0.45rem;
+  --photo-fit: cover;
+  --photo-background: var(--paper, #fcfaf6);
 }
 .thumbnails {
   display: grid;
@@ -53,8 +55,15 @@
   border-color: var(--muted);
 }
 .thumbnail[aria-pressed='true'] {
-  border-color: var(--forest);
-  box-shadow: inset 0 0 0 1px var(--forest);
+  border-color: var(--home-action, #821f40);
+  box-shadow: inset 0 0 0 1px var(--home-action, #821f40);
+}
+.thumbnail:focus-visible,
+.back:focus-visible,
+.attributes a:focus-visible,
+.detail-error a:focus-visible {
+  outline: 3px solid var(--home-action, #821f40);
+  outline-offset: 3px;
 }
 .thumbnail store-product-photo {
   height: 100%;
@@ -67,7 +76,8 @@
 }
 h1 {
   margin: 0 0 1rem;
-  font-size: clamp(2.3rem, 4.7vw, 4.75rem);
+  font-family: var(--display, Georgia, serif);
+  font-size: clamp(2.25rem, 4.4vw, 4.35rem);
   line-height: 1.05;
   letter-spacing: -0.04em;
   overflow-wrap: anywhere;
@@ -97,10 +107,17 @@ h1 {
   font-weight: 650;
 }
 .availability.available {
-  color: var(--forest);
+  color: var(--home-action, #821f40);
 }
+.quantity-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.35rem 0.75rem; margin: 0 0 1rem; }
+.quantity-field label { font-weight: 650; }
+.quantity-field .field { width: 6rem; min-height: 2.75rem; padding-inline: 0.65rem; border: 1px solid var(--home-control, #89736d); border-radius: 0.3rem; background: var(--surface, #fff); color: inherit; font: inherit; font-variant-numeric: tabular-nums; }
+.quantity-field .field:focus-visible { outline: 3px solid var(--home-action, #821f40); outline-offset: 2px; }
+.quantity-field span { grid-column: 1 / -1; color: var(--muted, #635956); font-size: 0.8125rem; }
 .purchase .button {
   width: 100%;
+  min-height: 2.9rem;
+  background: var(--home-action, #821f40);
 }
 .purchase .button[aria-disabled='true'] {
   background: var(--forest);
@@ -133,7 +150,7 @@ h1 {
 }
 
 .attributes dt {
-  color: var(--muted);
+  color: var(--muted, #635956);
 }
 .attributes dd {
   margin: 0;
@@ -147,18 +164,18 @@ h1 {
   font-size: clamp(2rem, 4.5vw, 3.75rem);
 }
 .detail-error p {
-  color: var(--muted);
+  color: var(--muted, #635956);
 }
 
 @media (max-width: 48rem) {
   .product {
     grid-template-columns: minmax(0, 1fr);
-    gap: 1.5rem;
+    gap: 1rem;
   }
   .product-info {
     padding: 0;
   }
   .main-photo {
-    aspect-ratio: 5 / 4;
+    aspect-ratio: 4 / 5;
   }
 }

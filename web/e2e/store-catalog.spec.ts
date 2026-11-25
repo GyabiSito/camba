@@ -8,8 +8,8 @@ test('renders the public catalog on the server and preserves selection across th
   const home = await request.get('/');
   expect(home.status()).toBe(200);
   const homeHtml = await home.text();
-  expect(homeHtml).toContain('Ver tienda');
-  expect(homeHtml).toContain('Más en la tienda');
+  expect(homeHtml).toContain('Vestite distinto.');
+  expect(homeHtml).toContain('Selección de Camba');
   expect(homeHtml).toContain('Remera lisa');
 
   const product = await request.get('/producto/remera-lisa');
@@ -27,20 +27,8 @@ test('renders the public catalog on the server and preserves selection across th
   if (capture) {
     await page.setViewportSize({ width: 1586, height: 992 });
     await page.goto('/');
-    const hero = page.locator('.hero-photo img');
-    await expect
-      .poll(() => hero.evaluate((img: HTMLImageElement) => img.naturalWidth))
-      .toBeGreaterThan(0);
-    await expect
-      .poll(() =>
-        page
-          .locator('store-home store-product-grid img')
-          .evaluateAll(
-            (images: HTMLImageElement[]) =>
-              images.length > 0 && images.every((image) => image.naturalWidth > 0),
-          ),
-      )
-      .toBe(true);
+    await expect(page.getByRole('heading', { name: 'Vestite distinto.' })).toBeVisible();
+    await expect(page.locator('.campaign img[src*="demo-home"]')).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('store-home-1586x992.png') });
   }
 

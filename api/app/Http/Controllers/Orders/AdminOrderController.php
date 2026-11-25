@@ -2,19 +2,26 @@
 
 namespace App\Http\Controllers\Orders;
 
+use App\Actions\Notices\RecordOrderMail;
+use App\Actions\Payments\RequestPaymentRefresh;
 use App\Enums\OrderStatus;
 use App\Http\Resources\Orders\OrderResource;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PaymentAttempt;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class AdminOrderController
 {
+    private const PAGE_SIZE = 25;
+
     private const STAGES = ['preparing', 'ready_for_pickup', 'shipped', 'completed'];
 
     private const PAYMENT_ISSUES = [
@@ -29,21 +36,71 @@ class AdminOrderController
         $filters = $request->validate([
             'status' => ['sometimes', Rule::enum(OrderStatus::class)],
             'fulfilment_status' => ['sometimes', Rule::in(['unstarted', ...self::STAGES, 'needs_preparation'])],
+            'shipping_method' => ['sometimes', Rule::in(['delivery', 'pickup'])],
+            'q' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'date_from' => ['sometimes', 'date_format:Y-m-d'],
+            'date_to' => ['sometimes', 'date_format:Y-m-d', ...($request->filled('date_from') ? ['after_or_equal:date_from'] : [])],
         ]);
         $stage = $filters['fulfilment_status'] ?? null;
-        unset($filters['fulfilment_status']);
-        $query = Order::query()->where($filters);
+        $query = Order::query();
+        foreach (['status', 'shipping_method'] as $key) {
+            if (isset($filters[$key])) {
+                $query->where($key, $filters[$key]);
+            }
+        }
         if ($stage === 'needs_preparation') {
             $query->whereIn('fulfilment_status', Order::PREPARATION_STAGES);
         } elseif ($stage !== null) {
             $query->where('fulfilment_status', $stage);
         }
-        $orders = $query->latest('id')->paginate(25)->withQueryString();
+        $timezone = config('store.timezone');
+        if (isset($filters['date_from'])) {
+            $query->where('created_at', '>=', CarbonImmutable::createFromFormat('!Y-m-d', $filters['date_from'], $timezone)->utc());
+        }
+        if (isset($filters['date_to'])) {
+            $query->where('created_at', '<', CarbonImmutable::createFromFormat('!Y-m-d', $filters['date_to'], $timezone)->addDay()->utc());
+        }
+        $search = mb_strtolower($filters['q'] ?? '');
+        if (preg_match('/\A[0-9a-f]{8}(?:-[0-9a-f-]*)?\z/', $search)) {
+            // The conventional short ID is the first UUID group. Keep these lookups in SQL.
+            $cast = in_array($query->getConnection()->getDriverName(), ['mysql', 'mariadb'], true) ? 'CHAR' : 'TEXT';
+            $query->whereRaw("LOWER(CAST(reference AS {$cast})) LIKE ?", [$search.'%']);
+            $search = '';
+        }
+        $orders = $search === ''
+            ? $query->latest('id')->paginate(self::PAGE_SIZE)
+            : $this->searchOrderContacts($query, $search, $request);
 
-        return OrderResource::collection($orders)->response()->header('Cache-Control', 'private, no-store');
+        return OrderResource::collection($orders->withQueryString())->response()->header('Cache-Control', 'private, no-store');
     }
 
-    public function show(string $reference): JsonResponse
+    private function searchOrderContacts(Builder $query, string $search, Request $request): LengthAwarePaginator
+    {
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        $offset = ($page - 1) * self::PAGE_SIZE;
+        $total = 0;
+        $ids = [];
+        // ponytail: scan the filtered encrypted snapshots in batches, not the current user profiles.
+        // Exact totals cost O(n) decryptions; move to a privacy-reviewed search index if volume warrants it.
+        foreach ((clone $query)->select('id', 'reference', 'contact')->lazyByIdDesc(128) as $candidate) {
+            $contact = $candidate->contact;
+            if (! str_contains(mb_strtolower($candidate->reference), $search)
+                && ! str_contains(mb_strtolower($contact['name'] ?? ''), $search)
+                && ! str_contains(mb_strtolower($contact['email'] ?? ''), $search)) {
+                continue;
+            }
+            if ($total >= $offset && count($ids) < self::PAGE_SIZE) {
+                $ids[] = $candidate->id;
+            }
+            $total++;
+        }
+
+        return new LengthAwarePaginator(
+            $query->whereKey($ids)->latest('id')->get(), $total, self::PAGE_SIZE, $page, ['path' => $request->url()],
+        );
+    }
+
+    public function show(string $reference, RequestPaymentRefresh $refresh): JsonResponse
     {
         $order = Order::query()->with('items')->where('reference', $reference)->firstOrFail();
         $events = DB::table('order_fulfilment_events')->where('order_id', $order->id)->orderByDesc('id')->get([
@@ -60,10 +117,12 @@ class AdminOrderController
                 'amount_cents' => $payment->amount_cents,
                 'updated_at' => $payment->provider_updated_at,
             ]);
+        $canRequestRefresh = $refresh->isEligible($order);
         $payment = [
+            'can_request_refresh' => $canRequestRefresh,
             'paid_at' => $order->paid_at?->toISOString(),
             'last_checked_at' => $order->payment_reconciled_at?->toISOString(),
-            'next_check_at' => $order->payment_reconcile_at?->toISOString(),
+            'next_check_at' => $canRequestRefresh ? $order->payment_reconcile_at?->toISOString() : null,
             'last_result' => in_array($order->payment_reconcile_result, self::RECONCILIATION_RESULTS, true)
                 ? $order->payment_reconcile_result : null,
             'issues' => array_values(array_intersect($order->payment_issues ?? [], self::PAYMENT_ISSUES)),
@@ -78,14 +137,14 @@ class AdminOrderController
             ->response()->header('Cache-Control', 'private, no-store');
     }
 
-    public function fulfil(Request $request, string $reference): JsonResponse
+    public function fulfil(Request $request, string $reference, RecordOrderMail $notices): JsonResponse
     {
         $input = $request->validate([
             'status' => ['required', Rule::in(self::STAGES)],
             'tracking' => ['nullable', 'string', 'max:100', 'prohibited_unless:status,shipped'],
             'note' => ['nullable', 'string', 'max:800'],
         ]);
-        $order = DB::transaction(function () use ($request, $reference, $input): Order {
+        $order = DB::transaction(function () use ($request, $reference, $input, $notices): Order {
             $order = Order::query()->where('reference', $reference)->lockForUpdate()->firstOrFail();
             abort_unless($order->status === OrderStatus::Paid, 409, 'Only paid orders can progress to fulfilment.');
             $expected = match ($order->fulfilment_status) {
@@ -100,13 +159,15 @@ class AdminOrderController
                 $order->tracking = $input['tracking'] ?? null;
             }
             $order->save();
+            $occurredAt = now();
             DB::table('order_fulfilment_events')->insert([
                 'order_id' => $order->id,
                 'actor_id' => $request->user()->id,
                 'to_status' => $expected,
                 'note' => isset($input['note']) ? Crypt::encryptString($input['note']) : null,
-                'created_at' => now(),
+                'created_at' => $occurredAt,
             ]);
+            $notices->fulfilment($order, $expected, $occurredAt);
 
             return $order;
         }, 3);

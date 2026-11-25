@@ -3,45 +3,9 @@ import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ApiClient, apiMessage, formatDate, formatMoney } from '@camba/shared';
 import { firstValueFrom, timer } from 'rxjs';
-import { api, Data, fulfilmentStatus, httpStatus, Order, orderStatus, Page } from './shopper';
-
-@Component({
-  imports: [RouterLink],
-  templateUrl: './orders-history.html',
-  styleUrls: ['./shopper.css', './members-design.css'],
-})
-export class OrderHistoryPage {
-  private readonly client = inject(ApiClient);
-  protected readonly orders = signal<Order[]>([]);
-  protected readonly page = signal(1);
-  protected readonly lastPage = signal(1);
-  protected readonly loading = signal(true);
-  protected readonly error = signal('');
-  protected readonly money = formatMoney;
-  protected readonly date = formatDate;
-  protected readonly states = orderStatus;
-
-  constructor() {
-    void this.load(1);
-  }
-
-  protected async load(page: number) {
-    this.loading.set(true);
-    this.error.set('');
-    try {
-      const { data, meta } = await firstValueFrom(
-        this.client.get<Page<Order>>(api + '/orders', { page }),
-      );
-      this.orders.set(data);
-      this.page.set(meta.current_page);
-      this.lastPage.set(meta.last_page);
-    } catch (error) {
-      this.error.set(apiMessage(error, 'No pudimos cargar los pedidos. Probá de nuevo.'));
-    } finally {
-      this.loading.set(false);
-    }
-  }
-}
+import { api, Data, fulfilmentStatus, httpStatus, Order, orderStatus } from './shopper';
+import { startPayment } from './order-payment';
+import { paymentsEnabled } from './payment-availability';
 
 @Component({
   imports: [RouterLink],
@@ -49,6 +13,7 @@ export class OrderHistoryPage {
   styleUrls: ['./shopper.css', './members-design.css'],
 })
 export class OrderPage {
+  protected readonly paymentsEnabled = paymentsEnabled;
   private readonly route = inject(ActivatedRoute);
   private readonly client = inject(ApiClient);
   private readonly destroyRef = inject(DestroyRef);
@@ -82,6 +47,11 @@ export class OrderPage {
       'collection_status',
       'external_reference',
       'preference_id',
+      'merchant_order_id',
+      'payment_type',
+      'processing_mode',
+      'merchant_account_id',
+      'site_id',
     ].some((parameter) => query.has(parameter));
     if (returned) inject(Location).replaceState('/pedidos/' + encodeURIComponent(this.reference));
     void this.initialize(returned);
@@ -98,11 +68,13 @@ export class OrderPage {
     this.error.set('');
     if (!this.uuid.test(this.reference)) {
       this.notFound.set(true);
-      return;
+      return false;
     }
     try {
       const { data } = await firstValueFrom(this.client.get<Data<Order>>(this.path));
       this.order.set(data);
+      this.notFound.set(false);
+      return true;
     } catch (error) {
       const status = httpStatus(error);
       if (status === 404 || status === 401 || status === 403) {
@@ -111,6 +83,7 @@ export class OrderPage {
       } else {
         this.error.set(apiMessage(error, 'No pudimos cargar el pedido. Probá de nuevo.'));
       }
+      return false;
     }
   }
 
@@ -120,13 +93,20 @@ export class OrderPage {
     this.paymentError.set('');
     this.message.set('Estamos consultando el estado del pedido.');
     try {
-      await firstValueFrom(this.client.post<void>(this.path + '/payments/refresh'));
-      await this.load();
+      if (paymentsEnabled)
+        await firstValueFrom(this.client.post<void>(this.path + '/payments/refresh'));
+      if (!(await this.load())) {
+        this.message.set('');
+        return;
+      }
       for (const delay of [1400, 2400]) {
-        if (!this.awaitingPayment() || this.destroyRef.destroyed) break;
+        if (!paymentsEnabled || !this.awaitingPayment() || this.destroyRef.destroyed) break;
         await firstValueFrom(timer(delay));
         if (this.destroyRef.destroyed) return;
-        await this.load();
+        if (!(await this.load())) {
+          this.message.set('');
+          return;
+        }
       }
       this.message.set(
         this.awaitingPayment()
@@ -150,20 +130,20 @@ export class OrderPage {
   }
 
   protected async openPayment() {
-    if (this.paying() || this.busy() || this.order()?.status !== 'pending_payment' || !this.browser)
+    if (
+      !paymentsEnabled ||
+      this.paying() ||
+      this.busy() ||
+      this.order()?.status !== 'pending_payment' ||
+      !this.browser
+    )
       return;
     this.paying.set(true);
     this.paymentError.set('');
     this.message.set('');
     try {
       this.paymentKey ??= this.browser.crypto.randomUUID();
-      const { data } = await firstValueFrom(
-        this.client.post<Data<{ status: string; checkout_url: string | null }>>(
-          this.path + '/payments',
-          undefined,
-          { 'Idempotency-Key': this.paymentKey },
-        ),
-      );
+      const data = await startPayment(this.client, this.reference, this.paymentKey);
       if (
         data.status === 'ready' &&
         data.checkout_url &&

@@ -1,0 +1,41 @@
+﻿<ng-template #arrow>
+  <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+    <path d="M4 12h15m-6-6 6 6-6 6" />
+  </svg>
+</ng-template>
+
+@if (visible()) {
+  <section id="home-mosaic" aria-label="Galería editorial de Camba">
+    <div class="closing-mosaic">
+      <div class="closing-mosaic-brand">
+        @if (!failed()['brand']) {
+          @if (brand(); as photo) {
+            <img [src]="photo.url" [attr.srcset]="srcset(photo)" sizes="(max-width: 48rem) 100vw, 40vw"
+              [width]="photo.width" [height]="photo.height" [alt]="document().mosaic.image?.alt || ''" loading="lazy"
+              [style.object-position]="crop(document().mosaic.image)" [homePhoto]="photo.thumbnail_url" (photoUnavailable)="unavailable('brand')" />
+          }
+        }
+        <span class="closing-lockup" role="img" aria-label="Camba"></span>
+        @if (href(document().mosaic.action); as url) {
+          <a class="closing-brand-action" [href]="url">{{ document().mosaic.action?.label }} <ng-container [ngTemplateOutlet]="arrow" /></a>
+        }
+      </div>
+      @for (photo of photos(); track photo.index) {
+        @if (!failed()['tile-' + photo.index]) {
+          @let url = href(photo.action);
+          <div [class]="'closing-mosaic-tile closing-tile-' + photo.name">
+            <img [src]="photo.asset.url" [attr.srcset]="srcset(photo.asset)"
+              sizes="(max-width: 48rem) 50vw, 20vw" [width]="photo.asset.width" [height]="photo.asset.height"
+              [alt]="url ? '' : photo.image.alt" loading="lazy" [style.object-position]="crop(photo.image)"
+              [homePhoto]="photo.asset.thumbnail_url" (photoUnavailable)="unavailable('tile-' + photo.index)" />
+            @if (url) {
+              <a class="closing-tile-link" [href]="url">
+                <span class="closing-tile-caption">{{ photo.action?.label }} <ng-container [ngTemplateOutlet]="arrow" /></span>
+              </a>
+            }
+          </div>
+        }
+      }
+    </div>
+  </section>
+}

@@ -167,7 +167,7 @@ class BuyerAccessTest extends TestCase
         $this->getJson($expired)->assertForbidden();
     }
 
-    public function test_first_buyer_verification_creates_one_welcome_and_existing_delivery_retries_it(): void
+    public function test_registration_creates_one_welcome_and_delivery_retries_before_verification(): void
     {
         Notification::fake();
         Queue::fake();
@@ -176,18 +176,12 @@ class BuyerAccessTest extends TestCase
             ->postJson('/api/v1/auth/register', array_replace($this->registration(), ['name' => "Ana D'Ávila <b>"]))
             ->assertCreated();
         $buyer = User::query()->sole();
+        $this->assertFalse($buyer->hasVerifiedEmail());
+        $this->postJson('/api/v1/auth/register', $this->registration())->assertUnprocessable()->assertJsonValidationErrors('email');
         $this->actingAs($buyer, 'web')->postJson('/api/v1/auth/email/verification-notification')->assertNoContent();
         Notification::assertSentToTimes($buyer, QueuedVerifyEmail::class, 2);
         $notices = CommerceNotice::query()->where('kind', 'buyer_welcome');
-        $this->assertSame(0, $notices->count());
-
-        $verify = URL::temporarySignedRoute('verification.verify', now()->addMinutes(5), [
-            'id' => $buyer->id,
-            'hash' => sha1($buyer->email),
-        ]);
-        $this->getJson($verify)->assertNoContent();
-        $this->assertTrue($buyer->fresh()->hasVerifiedEmail());
-        $this->getJson($verify)->assertNoContent();
+        $this->assertSame(1, $notices->count());
         $notice = $notices->sole();
         $this->assertSame('pending', $notice->state);
         $this->artisan('camba:notices')->assertSuccessful();
@@ -196,31 +190,51 @@ class BuyerAccessTest extends TestCase
         config(['mail.default' => 'failover']);
         $job = new SendCommerceNotice($notice->id);
         $this->app->call([$job, 'handle']);
-        $this->assertTrue($buyer->fresh()->hasVerifiedEmail());
+        $this->assertFalse($buyer->fresh()->hasVerifiedEmail());
         $this->assertDatabaseHas('commerce_notices', ['id' => $notice->id, 'state' => 'pending', 'attempts' => 1, 'error_code' => 'preparation_failed']);
 
         $this->travel(2)->minutes();
         config(['mail.default' => 'array']);
         $this->app->call([$job, 'handle']);
         $this->app->call([$job, 'handle']);
+        $this->assertFalse($buyer->fresh()->hasVerifiedEmail());
         $this->assertDatabaseHas('commerce_notices', ['id' => $notice->id, 'state' => 'sent', 'attempts' => 2]);
+
+        $verify = URL::temporarySignedRoute('verification.verify', now()->addMinutes(5), [
+            'id' => $buyer->id,
+            'hash' => sha1($buyer->email),
+        ]);
+        $this->getJson($verify)->assertNoContent();
+        $this->assertTrue($buyer->fresh()->hasVerifiedEmail());
+        $this->getJson($verify)->assertNoContent();
+        $this->assertSame($notice->id, $notices->sole()->id);
+        $this->artisan('camba:notices')->assertSuccessful();
+        $this->app->call([$job, 'handle']);
         $messages = Mail::mailer('array')->getSymfonyTransport()->messages();
         $this->assertCount(1, $messages);
         $mail = $messages->first()->getOriginalMessage();
         $this->assertSame('Te damos la bienvenida a Camba', $mail->getSubject());
         $this->assertSame($buyer->email, $mail->getTo()[0]->getAddress());
-        $this->assertStringContainsString("¡Hola, Ana D'Ávila <b>!", $mail->getTextBody());
-        $this->assertStringContainsString(e("¡Hola, Ana D'Ávila <b>!"), $mail->getHtmlBody());
-        $this->assertStringContainsString(rtrim(config('app.url'), '/').'/tienda', $mail->getTextBody());
-        $this->assertStringContainsString('Ver tienda', $mail->getHtmlBody());
+        $greeting = "Hola, Ana D'Ávila <b>. Gracias por sumarte a Camba. Ya podés recorrer la tienda y descubrir prendas para combinar a tu manera. Te enviamos por separado un enlace para verificar tu correo.";
+        $this->assertStringContainsString($greeting, $mail->getTextBody());
+        $this->assertStringContainsString(e($greeting), $mail->getHtmlBody());
+        $this->assertStringContainsString('>Te damos la bienvenida a Camba</h1>', $mail->getHtmlBody());
+        $this->assertStringNotContainsString('Si el botón no funciona', $mail->getHtmlBody());
+        $this->assertStringNotContainsString('Ayuda:', $mail->getHtmlBody());
+        $url = rtrim(config('app.url'), '/').'/tienda';
+        $this->assertStringContainsString('Explorá la tienda', $mail->getHtmlBody());
+        $this->assertStringContainsString('href="'.e($url).'"', $mail->getHtmlBody());
+        $this->assertStringContainsString($url, $mail->getTextBody());
+        $this->assertStringNotContainsString('Ir a Mi cuenta', $mail->getHtmlBody());
+        $this->assertStringNotContainsString('Ir a Mi cuenta', $mail->getTextBody());
 
         (new CommerceNoticeMail($notice->id, $notice->kind, null, buyerName: ' '))
-            ->assertSeeInText('¡Hola! Tu correo ya está verificado.');
+            ->assertSeeInText('¡Hola! Gracias por sumarte a Camba.');
     }
 
-    public function test_already_verified_accounts_and_admins_do_not_generate_a_welcome(): void
+    public function test_verifying_preexisting_accounts_never_backfills_a_welcome(): void
     {
-        foreach ([User::factory()->create(), User::factory()->unverified()->create(['role' => 'admin'])] as $user) {
+        foreach ([User::factory()->create(), User::factory()->unverified()->create(), User::factory()->unverified()->create(['role' => 'admin'])] as $user) {
             $this->getJson(URL::temporarySignedRoute('verification.verify', now()->addMinutes(5), [
                 'id' => $user->id,
                 'hash' => sha1($user->email),
@@ -230,30 +244,29 @@ class BuyerAccessTest extends TestCase
         $this->assertDatabaseMissing('commerce_notices', ['kind' => 'buyer_welcome']);
     }
 
-    public function test_welcome_is_atomic_and_stays_bound_to_the_confirmed_address(): void
+    public function test_welcome_is_atomic_with_registration_and_stays_bound_to_the_registered_address(): void
     {
-        $buyer = User::factory()->unverified()->create();
-        $verify = URL::temporarySignedRoute('verification.verify', now()->addMinutes(5), [
-            'id' => $buyer->id,
-            'hash' => sha1($buyer->email),
-        ]);
+        Notification::fake();
+        $this->withHeader('Origin', 'http://localhost');
         $creating = 'eloquent.creating: '.CommerceNotice::class;
         Event::listen($creating, fn () => throw new RuntimeException('Synthetic ledger failure'));
         try {
-            $this->getJson($verify)->assertServerError();
-            $this->assertFalse($buyer->fresh()->hasVerifiedEmail());
+            $this->postJson('/api/v1/auth/register', $this->registration())->assertServerError();
+            $this->assertDatabaseCount('users', 0);
+            Notification::assertNothingSent();
             $this->assertDatabaseMissing('commerce_notices', ['kind' => CommerceNotice::BUYER_WELCOME]);
         } finally {
             Event::forget($creating);
         }
 
-        $this->getJson($verify)->assertNoContent();
+        $this->postJson('/api/v1/auth/register', $this->registration())->assertCreated();
+        $buyer = User::query()->sole();
         $notice = CommerceNotice::query()->where('kind', CommerceNotice::BUYER_WELCOME)->sole();
         $buyer->update(['email' => 'changed@example.test']);
         Mail::fake();
         $this->app->call([new SendCommerceNotice($notice->id), 'handle']);
         $this->assertSame('cancelled', $notice->fresh()->state);
-        $this->assertTrue($buyer->fresh()->hasVerifiedEmail());
+        $this->assertFalse($buyer->fresh()->hasVerifiedEmail());
         Mail::assertNothingSent();
     }
 

@@ -1,7 +1,8 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, DestroyRef, inject, signal, viewChildren } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, CanDeactivateFn, RouterLink } from '@angular/router';
 import { ApiClient, apiMessage, formatMoney, HomeAsset, HomeBlock, HomeDocument, HomeEditorState, HomeImage, HomeLink } from '@camba/shared';
 import { firstValueFrom, forkJoin } from 'rxjs';
 import { Classification, Data, Page, Product, admin, products } from '../catalog/catalog-api';
@@ -11,12 +12,14 @@ import { blockNames, HomeLinkEditor } from './home-link-editor';
 const endpoint = `${admin}/homepage`;
 
 @Component({
-  imports: [FormsModule, NgTemplateOutlet, HomeImageEditor, HomeLinkEditor],
+  imports: [FormsModule, NgTemplateOutlet, RouterLink, HomeImageEditor, HomeLinkEditor],
   templateUrl: './homepage-editor.html', styleUrl: './homepage-editor.css',
 })
 export class HomepageEditor {
   private readonly api = inject(ApiClient);
   private readonly destroy = inject(DestroyRef);
+  protected readonly block = inject(ActivatedRoute).snapshot.data['block'] as HomeBlock | undefined;
+  private readonly imageEditors = viewChildren(HomeImageEditor);
   protected readonly state = signal<HomeEditorState | null>(null);
   protected readonly document = signal<HomeDocument | null>(null);
   protected readonly categories = signal<Classification[]>([]);
@@ -30,14 +33,20 @@ export class HomepageEditor {
   protected readonly error = signal('');
   protected readonly catalogError = signal('');
   protected readonly message = signal('');
-  protected readonly expanded = signal<HomeBlock | null>(null);
   protected readonly confirmDiscard = signal(false);
   protected readonly names = blockNames;
   protected readonly money = formatMoney;
   protected q = '';
   private timer: ReturnType<typeof setTimeout> | undefined;
   private searchRequest = 0;
-  private readonly beforeUnload = (event: BeforeUnloadEvent) => { if (this.dirty()) event.preventDefault(); };
+  private readonly beforeUnload = (event: BeforeUnloadEvent) => {
+    if (this.dirty() || this.pending()) { event.preventDefault(); event.returnValue = ''; }
+  };
+
+  private pending() { return this.busy() || this.imageEditors().some(editor => editor.isUploading()); }
+  canLeave() {
+    return !this.pending() && (!this.dirty() || window.confirm('Tenés cambios sin guardar. ¿Querés salir y perderlos?'));
+  }
 
   constructor() {
     void this.load();
@@ -110,15 +119,6 @@ export class HomepageEditor {
     const url = this.state()?.assets[photo.key]?.thumbnail_url ?? '';
     return url.startsWith('/demo-home/') ? new URL(url, this.state()!.store_url).href : url;
   }
-  protected preview() {
-    const url = new URL('/portada/vista-previa', this.state()!.store_url);
-    const loopback = ['127.0.0.1', 'localhost'];
-    // Keep the host-only session cookie when the local Admin uses the other loopback name.
-    if (loopback.includes(url.hostname) && loopback.includes(window.location.hostname)) {
-      url.hostname = window.location.hostname;
-    }
-    return url.href;
-  }
   protected categoryPhoto(id?: number) { return this.catalog().find(product => product.category?.id === id && product.images[0])?.images[0].thumbnail_url; }
   protected product(id: number) { return this.catalog().find(item => item.id === id); }
   protected categoryName(id: number) { return this.categories().find(item => item.id === id)?.name ?? `Categoría ${id} no disponible`; }
@@ -155,3 +155,5 @@ export class HomepageEditor {
     } finally { this.busy.set(false); }
   }
 }
+
+export const leaveHomepageEditor: CanDeactivateFn<HomepageEditor> = editor => editor.canLeave();

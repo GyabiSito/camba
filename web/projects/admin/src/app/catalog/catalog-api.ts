@@ -9,6 +9,7 @@ export const products = `${admin}/products`;
 export const imports = `${admin}/catalog-imports`;
 export const labels = { draft: 'Borrador', published: 'Publicado', archived: 'Archivado' };
 export const maxInt = 2_147_483_647;
+export const catalogPageSize = 12;
 export const acceptedPhotos = 'image/jpeg,image/png,image/webp';
 
 export type Status = keyof typeof labels;
