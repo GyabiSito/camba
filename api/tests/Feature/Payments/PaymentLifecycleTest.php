@@ -69,7 +69,7 @@ class PaymentLifecycleTest extends TestCase
             'https://api.mercadopago.com/checkout/preferences' => Http::response([
                 'collector_id' => 234, 'id' => '234-example', 'sandbox_init_point' => self::REDIRECT,
             ], 201),
-            'https://api.mercadopago.com/v1/payments/159' => Http::response($this->payment($order, 159, 'approved')),
+            'https://api.mercadopago.com/v1/payments/159' => fn () => Http::response($this->managedPayment($order, 159, 'approved')),
         ]);
         $this->start($order, (string) Str::uuid())->assertCreated();
         $attempt = PaymentAttempt::query()->where('order_id', $order->id)->sole();
@@ -95,12 +95,12 @@ class PaymentLifecycleTest extends TestCase
     {
         config(['checkout.pickup_address' => 'QA pickup point']);
         $order = $this->submitLoggedCheckout($state, keepCart: true);
-        $payment = $this->payment($order, 159, $state);
         Http::fake([
             'https://api.mercadopago.com/checkout/preferences' => Http::sequence()
                 ->push(['collector_id' => 234, 'id' => '234-example', 'sandbox_init_point' => self::REDIRECT], 201)
                 ->push(['collector_id' => 234, 'id' => '234-retry', 'sandbox_init_point' => self::REDIRECT], 201),
-            'https://api.mercadopago.com/v1/payments/159' => Http::response($payment),
+            'https://api.mercadopago.com/v1/payments/159' => fn () => Http::response($this->managedPayment($order, 159, $state)),
+            'https://api.mercadopago.com/v1/payments/search*' => Http::response(['paging' => ['total' => 0], 'results' => []]),
         ]);
         $firstKey = (string) Str::uuid();
         $this->start($order, $firstKey)->assertCreated();
@@ -114,6 +114,13 @@ class PaymentLifecycleTest extends TestCase
         $this->start($order, $firstKey)->assertConflict();
 
         $secondKey = (string) Str::uuid();
+        $this->getJson("/api/v1/orders/$order->reference")->assertOk()->assertJsonPath('data.checkout_retryable', false);
+        $this->start($order, $secondKey)->assertConflict();
+        Http::assertSentCount(2);
+        $this->travel(12)->minutes();
+        $this->start($order, $secondKey)->assertConflict();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->getJson("/api/v1/orders/$order->reference")->assertOk()->assertJsonPath('data.checkout_retryable', true);
         $this->start($order, $secondKey)->assertCreated();
         $this->start($order, $secondKey)->assertOk();
         $this->webhook(159, 'terminal-repeated')->assertOk();
@@ -210,6 +217,7 @@ class PaymentLifecycleTest extends TestCase
     public function test_binary_checkout_reconciliation_finds_approved_provider_attempt_without_webhook_or_return(): void
     {
         config(['checkout.pickup_address' => 'QA pickup point']);
+        $this->actingAs(User::factory()->create(['role' => 'buyer']));
         $order = $this->submitLoggedCheckout('no-webhook');
         Http::fake(['https://api.mercadopago.com/checkout/preferences' => Http::response([
             'collector_id' => 234, 'id' => '234-example', 'sandbox_init_point' => self::REDIRECT,
@@ -226,12 +234,32 @@ class PaymentLifecycleTest extends TestCase
                 ...$this->payment($order, 159, 'approved'), 'external_reference' => $reference,
             ]),
         ]);
-        $this->travel(2)->minutes();
+        $this->travel(2)->days();
         $this->artisan('camba:reconcile-payments')->assertSuccessful();
         $this->assertDatabaseCount('payment_webhook_events', 0);
         $this->assertSame('approved', $attempt->fresh()->status->value);
         $this->getJson('/api/v1/orders')->assertOk()->assertJsonFragment(['reference' => $order->reference, 'status' => 'paid']);
         $this->assertSame(3, $this->stock($order));
+    }
+
+    public function test_managed_checkout_does_not_apply_approval_with_only_the_order_reference(): void
+    {
+        config(['checkout.pickup_address' => 'QA pickup point']);
+        $order = $this->submitLoggedCheckout('missing-attempt', keepCart: true);
+        Http::fake([
+            'https://api.mercadopago.com/checkout/preferences' => Http::response([
+                'collector_id' => 234, 'id' => '234-example', 'sandbox_init_point' => self::REDIRECT,
+            ], 201),
+            'https://api.mercadopago.com/v1/payments/159' => Http::response($this->payment($order, 159, 'approved')),
+        ]);
+        $this->start($order, (string) Str::uuid())->assertCreated();
+        $this->webhook(159, 'without-attempt-reference')->assertOk();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertNull($order->fresh()->paid_at);
+        $this->assertContains('provider_evidence_mismatch', $order->fresh()->payment_issues);
+        $this->assertDatabaseCount('payments', 0);
+        $this->getJson('/api/v1/orders')->assertOk()->assertJsonMissing(['reference' => $order->reference]);
+        $this->getJson('/api/v1/cart')->assertOk()->assertJsonCount(1, 'data.items');
     }
 
     public function test_real_checkout_logs_simulated_payment_and_one_provider_failure_with_no_private_fields(): void
@@ -256,7 +284,7 @@ class PaymentLifecycleTest extends TestCase
                 'https://api.mercadopago.com/checkout/preferences' => Http::sequence()
                     ->push(['collector_id' => 234, 'id' => '234-example', 'sandbox_init_point' => self::REDIRECT], 201)
                     ->push(['message' => 'PROVIDER_PRIVATE_SENTINEL'], 502),
-                'https://api.mercadopago.com/v1/payments/159' => Http::response($this->payment($success, 159, 'approved')),
+                'https://api.mercadopago.com/v1/payments/159' => fn () => Http::response($this->managedPayment($success, 159, 'approved')),
             ]);
             $this->start($success, (string) Str::uuid())->assertCreated()->assertJsonPath('data.status', 'ready');
             $retryKey = (string) Str::uuid();
@@ -771,6 +799,16 @@ class PaymentLifecycleTest extends TestCase
             'id' => $id, 'collector_id' => 234, 'external_reference' => $order->reference,
             'status' => $status, 'currency_id' => 'UYU', 'live_mode' => false,
             'transaction_amount' => '24.00', 'date_last_updated' => $date,
+        ];
+    }
+
+    private function managedPayment(Order $order, int $id, string $status): array
+    {
+        $firstAttempt = $order->payment->attempts()->orderBy('id')->firstOrFail()->id;
+
+        return [
+            ...$this->payment($order, $id, $status),
+            'external_reference' => CheckoutProClient::attemptReference($order->reference, $firstAttempt),
         ];
     }
 }

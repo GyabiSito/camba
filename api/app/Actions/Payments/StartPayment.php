@@ -53,6 +53,8 @@ class StartPayment
             if ($existing !== null && (! $order->checkout_managed || ! $existing->status->closed())) {
                 return [null, $existing];
             }
+            abort_if($order->checkout_managed && ! $order->canReplaceCheckoutAttempt($existing), 409,
+                'The previous Checkout Pro attempt is still being verified.');
 
             abort_unless($this->client->checkoutAvailable(), 503, 'Payment checkout is unavailable.');
             if ($order->status === OrderStatus::PaymentExpired) {

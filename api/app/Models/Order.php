@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\OrderStatus;
+use App\Enums\PaymentAttemptStatus;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -58,6 +59,27 @@ class Order extends Model
     public function payment(): BelongsTo
     {
         return $this->belongsTo(OrderPayment::class);
+    }
+
+    public function hasPaymentEvidenceConflict(): bool
+    {
+        return array_intersect($this->payment_issues ?? [], ['provider_evidence_mismatch', 'conflicting_provider_timestamp']) !== [];
+    }
+
+    public function canReplaceCheckoutAttempt(?PaymentAttempt $attempt): bool
+    {
+        if ($this->hasPaymentEvidenceConflict()) {
+            return false;
+        }
+        if ($attempt === null || $attempt->status === PaymentAttemptStatus::Failed) {
+            return true;
+        }
+        // A closed local attempt does not revoke the hosted preference still open in another tab.
+        $safeAfter = $attempt->expires_at->copy()->addMinute();
+
+        return $attempt->status->closed() && $safeAfter->isPast()
+            && $this->payment_reconcile_result === 'verified'
+            && $this->payment_reconciled_at?->gte($safeAfter);
     }
 
     /** @return HasMany<OrderItem, $this> */

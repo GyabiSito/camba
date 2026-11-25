@@ -52,6 +52,8 @@
             </p>
           } @else if (current.checkout_retryable) {
             <p class="muted">El pago no se completó y liberamos la reserva. Tu carrito sigue disponible.</p>
+          } @else if (current.checkout_retryable === false) {
+            <p class="muted">Antes de habilitar otro intento, vamos a verificar el pago anterior. Tu carrito sigue disponible.</p>
           } @else if (current.status === 'payment_expired') {
             <p class="muted">
               La reserva venció. Podés revisar tu carrito si querés volver a comprar.
@@ -83,7 +85,7 @@
           @if (message()) {
             <p role="status" class="notice">{{ message() }}</p>
           }
-          @if (current.status === 'pending_payment' || current.status === 'payment_review' || current.checkout_retryable) {
+          @if (current.status === 'pending_payment' || current.status === 'payment_review' || current.checkout_retryable !== undefined) {
             <div class="actions">
               @if (mayOpenPayment()) {
                 <button

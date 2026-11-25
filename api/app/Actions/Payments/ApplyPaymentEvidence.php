@@ -61,7 +61,7 @@ class ApplyPaymentEvidence
             $latest = $order->checkout_managed
                 ? PaymentAttempt::query()->where('order_id', $order->id)->latest('id')->first()
                 : null;
-            if ($matched && ! $this->hasEvidenceConflict($order)
+            if ($matched && ! $order->hasPaymentEvidenceConflict()
                 && in_array($latest?->status, [PaymentAttemptStatus::Rejected, PaymentAttemptStatus::Cancelled], true)
                 && ! $this->hasBlockingEvidence($order)) {
                 $this->reservation->release($order, 'provider_'.$latest->status->value, $latest);
@@ -81,7 +81,7 @@ class ApplyPaymentEvidence
                     'payment_reconcile_failures' => $failures,
                     'payment_reconcile_result' => $result,
                     'payment_reconcile_at' => $this->nextCheck($order, $complete, $failures),
-                    'payment_reconciled_at' => now(),
+                    'payment_reconciled_at' => $checkedAt ?? now(),
                 ]);
             }
 
@@ -120,7 +120,8 @@ class ApplyPaymentEvidence
         $attempt = $attemptId === null
             ? ((clone $attempts)->count() === 1 ? $attempts->first() : null)
             : $attempts->whereKey($attemptId)->first();
-        if ($attemptId !== null && ($attempt === null || ($payment?->payment_attempt_id && $payment->payment_attempt_id !== $attempt->id))) {
+        if (($order->checkout_managed && ! isset($evidence['attempt_id']))
+            || ($attemptId !== null && ($attempt === null || ($payment?->payment_attempt_id && $payment->payment_attempt_id !== $attempt->id)))) {
             $this->flag($order, 'provider_evidence_mismatch');
 
             return false;
@@ -217,7 +218,7 @@ class ApplyPaymentEvidence
     {
         if ($order->status !== OrderStatus::PendingPayment || $order->paid_provider_payment_id !== null
             || $order->stock_released_at !== null || $order->reservation_expires_at->copy()->addMinute()->gt($checkedAt)
-            || $this->hasEvidenceConflict($order)) {
+            || $order->hasPaymentEvidenceConflict()) {
             return false;
         }
 
@@ -230,11 +231,6 @@ class ApplyPaymentEvidence
             ->contains(fn (Payment $payment) => $payment->status->blocksExpiry());
     }
 
-    private function hasEvidenceConflict(Order $order): bool
-    {
-        return array_intersect($order->payment_issues ?? [], ['provider_evidence_mismatch', 'conflicting_provider_timestamp']) !== [];
-    }
-
     private function nextCheck(Order $order, bool $complete, int $failures): ?DateTimeInterface
     {
         if ($order->status === OrderStatus::PendingPayment || ! $complete) {
@@ -242,6 +238,11 @@ class ApplyPaymentEvidence
         }
         if ($order->status === OrderStatus::PaymentExpired && $order->reservation_expires_at->copy()->addDay()->isFuture()
             && (PaymentAttempt::query()->where('order_id', $order->id)->exists() || Payment::query()->where('order_id', $order->id)->exists())) {
+            $safeRetryCheck = $order->reservation_expires_at->copy()->addMinute();
+            if ($order->checkout_managed && $safeRetryCheck->isFuture()) {
+                return $safeRetryCheck;
+            }
+
             return now()->addMinutes(15);
         }
 

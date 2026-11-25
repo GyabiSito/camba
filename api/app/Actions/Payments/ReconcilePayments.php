@@ -128,7 +128,7 @@ class ReconcilePayments
         $complete = true;
         try {
             $references = $order->checkout_managed
-                ? PaymentAttempt::query()->where('order_id', $id)->where('expires_at', '>=', now()->subDay())
+                ? PaymentAttempt::query()->where('order_id', $id)
                     ->pluck('id')->map(fn (int $attempt) => CheckoutProClient::attemptReference($order->reference, $attempt))->all()
                 : [$order->reference];
             foreach ($references as $reference) {
