@@ -42,12 +42,13 @@ export class OrderPage {
     return order?.payment_state === 'rejected' && (!this.returned()
       || (previous !== undefined && !!order.payment_rejection && order.payment_rejection !== previous));
   });
-  protected readonly canResumePayment = computed(() => this.checkoutAvailable() && this.returned()
+  protected readonly canAttemptPayment = computed(() => this.checkoutAvailable() === true || this.checkoutAvailable() === null);
+  protected readonly canResumePayment = computed(() => this.canAttemptPayment() && this.returned()
     && this.returnCheckFinished() && !this.returnMentionsPayment && !this.rejectionConfirmed()
     && this.order()?.payment_state !== 'pending');
   protected readonly mayOpenPayment = computed(() => {
     const order = this.order();
-    return this.checkoutAvailable() && order?.status === 'pending_payment' && order.payment_state !== 'pending'
+    return this.canAttemptPayment() && order?.status === 'pending_payment' && order.payment_state !== 'pending'
       && (!this.returned() || this.rejectionConfirmed() || this.canResumePayment());
   });
   protected readonly money = formatMoney;

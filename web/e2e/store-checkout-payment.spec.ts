@@ -2,9 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 
 const sandbox = 'https://sandbox.mercadopago.com.uy/checkout/v1/redirect?pref_id=fixture';
 
-async function checkout(page: Page) {
+async function checkout(page: Page, storeInfoStatus = 200) {
   await page.route('**/api/v1/store-info', route =>
-    route.fulfill({ json: { data: { checkout_pro_available: true } } }),
+    route.fulfill({ status: storeInfoStatus, json: { data: { checkout_pro_available: true } } }),
   );
   await page.goto('/producto/remera-lisa');
   await page.getByRole('button', { name: 'Agregar al carrito' }).click();
@@ -14,6 +14,31 @@ async function checkout(page: Page) {
   await page.getByLabel('Correo electrónico').fill('checkout-qa@camba.test');
   await page.getByRole('radio', { name: /Retiro/ }).check();
 }
+
+test('a failed store-info request does not skip payment or hide retry on the same order', async ({ page }) => {
+  await checkout(page, 503);
+  let orders = 0;
+  const attempts: string[] = [];
+  page.on('request', request => {
+    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/v1/orders') orders++;
+  });
+  await page.route('**/api/v1/orders/*/payments', route => {
+    attempts.push(new URL(route.request().url()).pathname);
+    return attempts.length === 1
+      ? route.fulfill({ status: 503, json: { message: 'No disponible' } })
+      : route.fulfill({ status: 201, json: { data: { status: 'ready', checkout_url: sandbox } } });
+  });
+  await page.route(sandbox, route => route.fulfill({ status: 200, body: 'Checkout Pro fixture' }));
+
+  await page.getByRole('button', { name: 'Confirmar pedido', exact: true }).click();
+  await expect(page).toHaveURL(/\/pedidos\//);
+  expect(attempts).toHaveLength(1);
+  await expect(page.getByText(/Podés reintentar desde este pedido sin crear otro/)).toBeVisible();
+  await page.getByRole('button', { name: 'Pagar con Mercado Pago' }).click();
+  await expect(page).toHaveURL(sandbox);
+  expect(orders).toBe(1);
+  expect(attempts).toEqual([attempts[0], attempts[0]]);
+});
 
 test('Checkout Pro opens from checkout and the owned order waits for verified evidence', async ({
   page,

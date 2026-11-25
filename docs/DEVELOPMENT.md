@@ -35,10 +35,10 @@ Each app imports `src/environments/environment.ts`; `angular.json` replaces it f
 | Build | Configuration | Environment in that app |
 | --- | --- | --- |
 | Local Store (4200) | `production,editorial` (optimized with local photos) | `environment.development.ts` |
-| Local Store with `CAMBA_DEV_ENABLE_PAYMENTS=false` | `production,editorial,editorial-no-payment` | `environment.no-payment.ts` |
+| Local Store with `CAMBA_DEV_ENABLE_PAYMENTS=false` | `production,editorial,no-payment` | `environment.development.ts` (payment opt-out independent of the environment file) |
 | Local Admin (4300) | `ng serve admin`, `development` | `environment.development.ts` |
 | Production Store and Admin images | `production` | `environment.production.ts` |
-| Offline Store / Admin | `development,demo` | Store `environment.no-payment.ts` / Admin `environment.development.ts` |
+| Offline Store / Admin | `development,demo` | `environment.development.ts` for both (Store payment opt-out enabled) |
 
 The browser stays same-origin for API, CSRF and session cookies. Standalone dev proxy requests use `CAMBA_DEV_API_ORIGIN` (default `http://127.0.0.1:8000`). Docker supplies the internal target. Store SSR and the local Store preview proxy use its runtime `CAMBA_SSR_API_ORIGIN`; the public canonical origin remains `CAMBA_PUBLIC_STORE_ORIGIN`. Neither internal routing nor payment credentials are placed in browser configuration.
 

@@ -160,6 +160,8 @@
             <p class="muted small" role="status">Estamos consultando si Mercado Pago está disponible.</p>
           } @else if (checkoutAvailable()) {
             <p class="muted small">Al confirmar vas a continuar en Mercado Pago para completar el pago.</p>
+          } @else if (checkoutAvailable() === null) {
+            <p class="muted small" role="status">Al confirmar vamos a comprobar si podemos abrir Mercado Pago.</p>
           } @else {
             <p class="notice" role="status">
               Mercado Pago no está disponible. Podés confirmar el pedido sin pagar y consultar su estado.

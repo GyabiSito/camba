@@ -289,7 +289,7 @@ export class CheckoutPage {
       this.uncertain.set(false);
       window.dispatchEvent(new Event(CART_CHANGED));
       let paymentOpeningFailed = false;
-      if (this.checkoutAvailable() && data.status === 'pending_payment') {
+      if (this.checkoutAvailable() !== false && data.status === 'pending_payment') {
         this.openingPayment.set(true);
         try {
           if (await this.ordersApi.redirectToPayment(data.reference, this.pending.key, window)) return;

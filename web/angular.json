@@ -166,6 +166,7 @@
             ],
             "styles": ["projects/store/src/styles.css"],
             "server": "projects/store/src/main.server.ts",
+            "define": { "CAMBA_PAYMENTS_ENABLED": "true" },
             "outputMode": "server",
             "security": {
               "allowedHosts": []
@@ -208,18 +209,14 @@
               "sourceMap": true
             },
             "no-payment": {
-              "fileReplacements": [
-                {
-                  "replace": "projects/store/src/environments/environment.ts",
-                  "with": "projects/store/src/environments/environment.no-payment.ts"
-                }
-              ]
+              "define": { "CAMBA_PAYMENTS_ENABLED": "false" }
             },
             "demo": {
+              "define": { "CAMBA_PAYMENTS_ENABLED": "false" },
               "fileReplacements": [
                 {
                   "replace": "projects/store/src/environments/environment.ts",
-                  "with": "projects/store/src/environments/environment.no-payment.ts"
+                  "with": "projects/store/src/environments/environment.development.ts"
                 },
                 {
                   "replace": "projects/shared/src/demo-config.ts",
@@ -263,18 +260,6 @@
                   "glob": "atelier-*.webp",
                   "input": "projects/store/demo-assets",
                   "output": "/demo-home"
-                }
-              ]
-            },
-            "editorial-no-payment": {
-              "fileReplacements": [
-                {
-                  "replace": "projects/store/src/environments/environment.ts",
-                  "with": "projects/store/src/environments/environment.no-payment.ts"
-                },
-                {
-                  "replace": "projects/store/src/app/features/home/editorial-config.ts",
-                  "with": "projects/store/src/app/features/home/editorial-config.enabled.ts"
                 }
               ]
             }
