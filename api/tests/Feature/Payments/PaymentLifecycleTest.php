@@ -356,7 +356,7 @@ class PaymentLifecycleTest extends TestCase
 
         Payment::query()->forceCreate([
             'order_id' => $order->id, 'provider_payment_id' => '234', 'status' => 'approved',
-            'amount_cents' => $order->total_cents, 'provider_updated_at' => now()->toISOString(),
+            'amount_cents' => $order->total_cents, 'provider_updated_at' => now()->utc()->format('Y-m-d\TH:i:s.v\Z'),
         ]);
         config(['mercadopago.access_token' => '']);
         $order->forceFill(['payment_reconcile_at' => null])->save();

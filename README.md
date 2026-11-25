@@ -95,5 +95,6 @@ Abrir este repositorio en el equipo que tiene los plugins de diseño y dar esta 
 - [Referencias verificadas y qué aprender de cada proyecto](docs/REFERENCES.md).
 - [Avance, evidencia y pendientes](docs/PROGRESS.md).
 - [Rendimiento móvil en laboratorio](docs/LOCAL_PERFORMANCE.md) y [ensayo local de recuperación](docs/LOCAL_RECOVERY.md).
+- [Arranque en el VPS y ensayo del candidato con PostgreSQL](docs/POSTGRESQL_CUTOVER.md).
 
 El alcance definitivo es el del encargo. Sustituye las propuestas más amplias de la auditoría inicial: no habrá descuentos, cupones, tags, departamentos del catálogo ni subcategorías.
