@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Notices\RecordOrderMail;
 use App\Models\Brand;
 use App\Models\BuyerReminderPreference;
 use App\Models\Cart;
@@ -119,9 +120,11 @@ if (is_string($mailRun) && preg_match('/^[a-f0-9]{32}$/D', $mailRun)) {
         ]);
         $qaOrder->save();
         if ($paid) {
+            $occurredAt = now();
             DB::table('order_fulfilment_events')->insert([
-                'order_id' => $qaOrder->id, 'to_status' => $state, 'created_at' => now(),
+                'order_id' => $qaOrder->id, 'to_status' => $state, 'created_at' => $occurredAt,
             ]);
+            app(RecordOrderMail::class)->fulfilment($qaOrder, $state, $occurredAt);
         }
     }
     BuyerReminderPreference::query()->forceCreate(['user_id' => $qaBuyer->id, 'payment_reminders' => true]);

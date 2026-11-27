@@ -296,7 +296,7 @@ test.describe('Camba transactional mail', () => {
     expect(reset.plain.includes('60 minutos') && reset.html.includes('copiá y pegá')).toBe(true);
     await captures('recuperacion', reset.html, 'Restablecer contraseña');
     await page.goto(reset.link);
-    await page.getByLabel('Correo electrónico').fill(email);
+    await expect(page.getByLabel('Correo electrónico')).toHaveCount(0);
     const replacement = 'Camba-new-account-test-2026';
     await page.getByLabel('Nueva contraseña').fill(replacement);
     await page.getByLabel('Confirmá la contraseña').fill(replacement);
