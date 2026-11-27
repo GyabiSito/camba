@@ -56,7 +56,7 @@ class CheckoutRequest extends OrderSessionRequest
         return [
             ...$rules,
             'idempotency_key' => ['required', 'uuid'],
-            'terms_version' => ['sometimes', 'required', 'date_format:Y-m-d'],
+            'terms_version' => ['sometimes', 'required', 'string', 'max:24', 'regex:/\A\d{4}-\d{2}-\d{2}(?:-v[1-9][0-9]*)?\z/'],
             'shipping_method' => ['required', 'in:pickup,delivery'],
             'quote_token' => ['required', 'string', 'size:64', 'regex:/\A[0-9a-f]{64}\z/'],
             'contact' => ['required', 'array:name,email,phone'],

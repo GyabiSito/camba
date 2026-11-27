@@ -270,6 +270,22 @@ class OrderCheckoutTest extends TestCase
         $this->assertDatabaseCount('orders', 0);
     }
 
+    public function test_checkout_accepts_the_quoted_terms_revision_and_rejects_stale_terms(): void
+    {
+        $product = $this->product();
+        $items = $this->items($product);
+        $quote = $this->postJson(self::QUOTE, ['items' => $items])->assertOk();
+        $this->keepSession($quote);
+        $payload = $this->payload($items, 'pickup', $quote->json('data.shipping_options.0.quote_token'));
+
+        $this->place([...$payload, 'terms_version' => '2026-11-27'])->assertConflict();
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertSame(10, $product->fresh()->stock);
+
+        $this->place([...$payload, 'terms_version' => $quote->json('data.terms_version')])
+            ->assertCreated()->assertJsonPath('data.terms_version', PurchaseTerms::VERSION);
+    }
+
     public function test_order_snapshots_price_delivery_address_and_contact_without_repeated_reservation(): void
     {
         $first = $this->product();
