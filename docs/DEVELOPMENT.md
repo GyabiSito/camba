@@ -17,7 +17,7 @@ To return to API mode, stop using the demo URLs and start the [complete developm
 
 ## Complete development stack
 
-Use the [local demo commands and fixture logins](../README.md#demo-local) to launch `camba-v2-demo-pg`. Its ignored `infra/dev/demo.env.local` holds a dedicated Laravel key. It must not use a production key. The application starts after PostgreSQL and Redis, with migrations applied before the API exposes readiness. The explicit demo seeder manages synthetic content only; the normal default seeder stays empty.
+Use the [local demo commands and fixture logins](../README.md#demo-local) to launch `camba-demo-pg`. Its ignored `infra/dev/demo.env.local` holds a dedicated Laravel key. It must not use a production key. The application starts after PostgreSQL and Redis, with migrations applied before the API exposes readiness. The explicit demo seeder manages synthetic content only; the normal default seeder stays empty.
 
 | Local URL or address | Role |
 | --- | --- |
@@ -53,10 +53,10 @@ To stop development without deleting data, run the same Compose file pair with `
 
 ### PostgreSQL checks
 
-Run database integration checks in a separate Compose project. This creates an empty disposable PostgreSQL volume and its own internal network; it does not connect to, reset or reuse the running `camba-v2-demo-pg` database or volume. The project's development PHP image is used only as a test runner.
+Run database integration checks in a separate Compose project. This creates an empty disposable PostgreSQL volume and its own internal network; it does not connect to, reset or reuse the running `camba-demo-pg` database or volume. The project's development PHP image is used only as a test runner.
 
 ```powershell
-$testProject = 'camba-v2-pg-integration'
+$testProject = 'camba-pg-integration'
 $testNetwork = "${testProject}_postgres-private"
 $testApi = (Resolve-Path api).Path
 $testDemoAssets = (Resolve-Path web/projects/admin/public/demo).Path
@@ -64,16 +64,16 @@ docker compose -p $testProject -f infra/compose.dev.yml up -d --wait postgres
 $testEnv = @('-e', 'APP_ENV=testing', '-e', 'APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
     '-e', 'CACHE_STORE=array', '-e', 'SESSION_DRIVER=array', '-e', 'MAIL_MAILER=array', '-e', 'QUEUE_CONNECTION=sync',
     '-e', 'DB_CONNECTION=pgsql', '-e', 'DB_URL=', '-e', 'DB_HOST=postgres', '-e', 'DB_PORT=5432',
-    '-e', 'DB_DATABASE=camba_v2_demo_test', '-e', 'DB_USERNAME=camba_v2', '-e', 'DB_PASSWORD=camba-local-db')
+    '-e', 'DB_DATABASE=camba_demo_test', '-e', 'DB_USERNAME=camba', '-e', 'DB_PASSWORD=camba-local-db')
 $apiRunner = @('run', '--rm', '--network', $testNetwork, '-v', "${testApi}:/var/www/html", '-v', "${testDemoAssets}:/demo-assets:ro", '-w', '/var/www/html',
-    '--entrypoint', 'php') + $testEnv + @('camba-v2-dev-php-pg')
+    '--entrypoint', 'php') + $testEnv + @('camba-dev-php-pg')
 docker @apiRunner vendor/bin/phpunit --do-not-cache-result --filter '~^(?!Tests\\Feature\\Demo\\)~'
 $seedEnv = @('-e', 'APP_ENV=testing', '-e', 'APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
     '-e', 'CACHE_STORE=array', '-e', 'SESSION_DRIVER=array', '-e', 'MAIL_MAILER=array', '-e', 'QUEUE_CONNECTION=sync',
     '-e', 'DB_CONNECTION=pgsql', '-e', 'DB_URL=', '-e', 'DB_HOST=postgres', '-e', 'DB_PORT=5432',
-    '-e', 'DB_DATABASE=camba_v2_demo_seed_test', '-e', 'DB_USERNAME=camba_v2', '-e', 'DB_PASSWORD=camba-local-db')
+    '-e', 'DB_DATABASE=camba_demo_seed_test', '-e', 'DB_USERNAME=camba', '-e', 'DB_PASSWORD=camba-local-db')
 $seedRunner = @('run', '--rm', '--network', $testNetwork, '-v', "${testApi}:/var/www/html", '-v', "${testDemoAssets}:/demo-assets:ro", '-w', '/var/www/html',
-    '--entrypoint', 'php') + $seedEnv + @('camba-v2-dev-php-pg')
+    '--entrypoint', 'php') + $seedEnv + @('camba-dev-php-pg')
 docker @seedRunner vendor/bin/phpunit --do-not-cache-result tests/Feature/Demo
 cd web
 node e2e/postgres-local-demo.mjs
@@ -81,7 +81,7 @@ node e2e/postgres-local-demo.mjs
 
 The first PHPUnit command runs all API features on real PostgreSQL, except the demo seeder group which uses its separate seed database. It includes all six independent-connection contention cases. The browser smoke test opens both local ports against the shared development stack and leaves the prepared cart intact. Never run PHPUnit against either database in the shared demo project.
 
-To keep the isolated PostgreSQL database for another run, leave the test project stopped. Do not use `down -v` with the shared demo project; only remove the disposable `camba-v2-pg-integration` project after confirming its name and scope.
+To keep the isolated PostgreSQL database for another run, leave the test project stopped. Do not use `down -v` with the shared demo project; only remove the disposable `camba-pg-integration` project after confirming its name and scope.
 
 ### Live store, admin and Mailpit journeys
 

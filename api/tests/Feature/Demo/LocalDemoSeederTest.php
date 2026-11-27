@@ -21,7 +21,7 @@ class LocalDemoSeederTest extends TestCase
     protected function beforeRefreshingDatabase(): void
     {
         $this->assertSame('pgsql', config('database.default'));
-        $this->assertSame('camba_v2_demo_seed_test', config('database.connections.pgsql.database'));
+        $this->assertSame('camba_demo_seed_test', config('database.connections.pgsql.database'));
     }
 
     public function test_local_demo_seed_is_repeatable_and_keeps_existing_orders(): void

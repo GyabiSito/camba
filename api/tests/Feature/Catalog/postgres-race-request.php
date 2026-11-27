@@ -16,7 +16,7 @@ $app = require __DIR__.'/../../../bootstrap/app.php';
 $kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
 
-if (config('database.default') !== 'pgsql' || config('database.connections.pgsql.database') !== 'camba_v2_demo_test'
+if (config('database.default') !== 'pgsql' || config('database.connections.pgsql.database') !== 'camba_demo_test'
     || config('database.connections.pgsql.host') !== 'postgres' || config('database.connections.pgsql.url')
     || $app->configurationIsCached()) {
     exit(2);

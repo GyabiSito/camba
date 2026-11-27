@@ -6,7 +6,7 @@ import { chromium, expect } from '@playwright/test';
 
 const store = 'http://127.0.0.1:4200';
 const admin = 'http://127.0.0.1:4300';
-const mailpitBinding = execFileSync('docker', ['port', 'camba-v2-demo-pg-mailpit-1', '8025/tcp'], { encoding: 'utf8' }).trim();
+const mailpitBinding = execFileSync('docker', ['port', 'camba-demo-pg-mailpit-1', '8025/tcp'], { encoding: 'utf8' }).trim();
 assert.match(mailpitBinding, /^127\.0\.0\.1:[1-9]\d{0,4}$/, 'Mailpit must publish its UI on IPv4 loopback.');
 const inbox = `http://${mailpitBinding}`;
 const out = 'test-results/order-notices-docker';
@@ -57,7 +57,7 @@ async function received(to, subject, reference = '') {
 }
 
 function project() {
-  execFileSync('docker', ['exec', 'camba-v2-demo-pg-scheduler-1', 'php', 'artisan', 'camba:notices'], { timeout: 20_000, stdio: 'pipe' });
+  execFileSync('docker', ['exec', 'camba-demo-pg-scheduler-1', 'php', 'artisan', 'camba:notices'], { timeout: 20_000, stdio: 'pipe' });
 }
 
 function simulatePayment(reference) {
@@ -68,14 +68,14 @@ function simulatePayment(reference) {
   require 'vendor/autoload.php';
   $app = require 'bootstrap/app.php';
   $app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();
-  if (! app()->environment('local') || config('database.default') !== 'pgsql' || config('database.connections.pgsql.database') !== 'camba_v2_demo') throw new RuntimeException('Not the Docker demo.');
+  if (! app()->environment('local') || config('database.default') !== 'pgsql' || config('database.connections.pgsql.database') !== 'camba_demo') throw new RuntimeException('Not the Docker demo.');
   Illuminate\\Support\\Facades\\DB::transaction(function () {
       $order = App\\Models\\Order::query()->where('reference', '${reference}')->lockForUpdate()->sole();
       if (($order->contact['email'] ?? null) !== '${buyer}' || $order->getRawOriginal('status') !== 'pending_payment'
           || $order->shipping_method !== 'delivery' || ! $order->reservation_expires_at->isFuture()) throw new RuntimeException('Unexpected QA order.');
       $order->forceFill(['status' => 'paid', 'paid_at' => now()])->save();
   });`;
-  execFileSync('docker', ['exec', '-i', 'camba-v2-demo-pg-api-1', 'php'], { input: script, timeout: 20_000, stdio: 'pipe' });
+  execFileSync('docker', ['exec', '-i', 'camba-demo-pg-api-1', 'php'], { input: script, timeout: 20_000, stdio: 'pipe' });
 }
 
 async function createAndDeliver(seller) {

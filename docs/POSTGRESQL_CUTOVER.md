@@ -14,18 +14,19 @@ The script builds API, Store and Admin from an archive of the checked-out SHA an
 
 ### Verified candidate
 
-All three images were built and run locally from `e6ae372c333a0d406db21cfb720f73eec3a8ab01`. The fresh PostgreSQL 18.7 cluster applied 18 migrations as `camba_v2`, a non-superuser. Before QA, only reference initialization was present: 19 departments, 1,884 localities and no accounts, products or orders. The API readiness probe, Store and Admin returned HTTP 200; the worker and scheduler processes started. Chromium created a synthetic pickup order (HTTP 201) and confirmed it from Admin (HTTP 200). PostgreSQL stored 24,690 UYU cents, reserved two of five units, and kept matching foreign keys and live sequences. No real payment was started.
+All three images were built and run locally from `e6ae372c333a0d406db21cfb720f73eec3a8ab01`. The fresh PostgreSQL 18.7 cluster applied 18 migrations as `camba`, a non-superuser. Before QA, only reference initialization was present: 19 departments, 1,884 localities and no accounts, products or orders. The API readiness probe, Store and Admin returned HTTP 200; the worker and scheduler processes started. Chromium created a synthetic pickup order (HTTP 201) and confirmed it from Admin (HTTP 200). PostgreSQL stored 24,690 UYU cents, reserved two of five units, and kept matching foreign keys and live sequences. No real payment was started.
 
 The isolated PostgreSQL integration run reported 171 cases, 2,488 assertions, zero failures and one opt-in skip. The skipped legacy staging case passed separately in disposable PostgreSQL (21 assertions). The six contention cases also passed in a focused run (135 assertions). The separate demo-seed database passed 3 cases and 51 assertions. See [the local PostgreSQL test commands](DEVELOPMENT.md#postgresql-checks); the GitHub-hosted workflow was not run as part of this local rehearsal.
 
 ## Single VPS: initialize an empty installation
 
-These commands are for a **fresh PostgreSQL destination**, not a migration of existing MySQL data. Install the tested <code>infra/compose.prod.yml</code> and <code>infra/compose.edge.yml</code> as <code>/etc/camba/compose.prod.yml</code> and <code>/etc/camba/compose.edge.yml</code>. Install the reverse proxy and existing external edge network before exposing Camba. The proxy routes Store/Admin to the Compose edge aliases and <code>/api/*</code>, <code>/sanctum/*</code>, <code>/email/*</code> and <code>/storage/*</code> to <code>camba-v2-api:8080</code>, forwarding the public host and HTTPS scheme.
+These commands are for a **fresh PostgreSQL destination**, not a migration of existing MySQL data. Install the tested <code>infra/compose.prod.yml</code> and <code>infra/compose.edge.yml</code> as <code>/etc/camba/compose.prod.yml</code> and <code>/etc/camba/compose.edge.yml</code>. Install the reverse proxy and existing external edge network before exposing Camba. The proxy routes Store/Admin to the Compose edge aliases and <code>/api/*</code>, <code>/sanctum/*</code>, <code>/email/*</code> and <code>/storage/*</code> to <code>camba-api:8080</code>, forwarding the public host and HTTPS scheme.
 
-Do not use these first-install commands against an existing Compose project. During a data cutover, keep the new stack off the live proxy network until validation is complete; two stacks must not claim the same edge aliases.
+Do not use these first-install commands against an existing Compose project. If `camba` is already in use or data must be carried forward, use the [namespace cutover](TECHNICAL_NAMESPACE_CUTOVER.md#vps-cutover--not-executed-from-development). Keep the new stack off the live proxy network until validation is complete; two stacks must not claim the same edge aliases.
 
 Configure <code>/etc/camba/compose.env</code> with permissions restricted to the operator:
 
+- <code>CAMBA_COMPOSE_PROJECT=camba</code> and <code>CAMBA_EDGE_ALIAS_PREFIX=camba</code> for the example below **only after confirming both are free**. The production Compose and edge overlay have no implicit defaults for these settings.
 - <code>CAMBA_API_IMAGE</code>, <code>CAMBA_STORE_IMAGE</code>, <code>CAMBA_ADMIN_IMAGE</code>: immutable registry digests built and labeled for the chosen source SHA. Do not build or pull source on the host.
 - <code>CAMBA_APP_KEY</code>: existing protected Laravel key for a migration that preserves encrypted data; a new generated key for an empty installation only.
 - <code>CAMBA_APP_URL</code>, <code>CAMBA_ADMIN_URL</code>: actual HTTPS origins. Set <code>CAMBA_SANCTUM_DOMAINS</code> to the corresponding hostnames (and ports if non-default), <code>CAMBA_STORE_ALLOWED_HOSTS</code> to the exact Store host(s), and <code>CAMBA_EDGE_NETWORK</code> to the pre-existing proxy network.
@@ -37,7 +38,7 @@ On the VPS, in Bash, after separately authorizing release and preparing those fi
 
 ~~~bash
 dc() {
-  docker compose --project-name camba-v2 --env-file /etc/camba/compose.env \
+  docker compose --project-name camba --env-file /etc/camba/compose.env \
     -f /etc/camba/compose.prod.yml -f /etc/camba/compose.edge.yml "$@"
 }
 dc config --quiet &&
@@ -50,9 +51,9 @@ Only on the newly initialized destination, at the <code>psql</code> prompt, use 
 
 ~~~sql
 \set ON_ERROR_STOP on
-CREATE ROLE camba_v2 LOGIN;
-\password camba_v2
-ALTER DATABASE camba_v2 OWNER TO camba_v2;
+CREATE ROLE camba LOGIN;
+\password camba
+ALTER DATABASE camba OWNER TO camba;
 \q
 ~~~
 

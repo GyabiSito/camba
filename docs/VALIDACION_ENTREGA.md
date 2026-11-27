@@ -4,6 +4,8 @@ Las pruebas de esta máquina no autorizan operar el Camba anterior ni prueban lo
 
 ## Instancia local entregada
 
+> Registro histórico de la entrega en MySQL. Para el entorno local vigente en PostgreSQL, usá el [arranque de la demo](../README.md#demo-local). No apliques el Compose actual al proyecto histórico.
+
 | Servicio | URL o puerto en esta máquina |
 | --- | --- |
 | Tienda | [http://127.0.0.1:44812/](http://127.0.0.1:44812/) |
@@ -12,7 +14,7 @@ Las pruebas de esta máquina no autorizan operar el Camba anterior ni prueban lo
 | Mailpit | [http://127.0.0.1:49025/](http://127.0.0.1:49025/); SMTP local `127.0.0.1:42025` |
 | MySQL / Redis | `127.0.0.1:44306` / `127.0.0.1:47379` |
 
-El proyecto Compose `camba-v2-local` usa red y volúmenes propios, no las bases de otros Camba. Desde la raíz del repositorio, con Docker Desktop encendido:
+El proyecto Compose histórico `camba-v2-local` usaba red y volúmenes propios. Los siguientes comandos registran aquella entrega y requieren los archivos Compose de esa versión, no los actuales:
 
 ```powershell
 $local = Join-Path $env:LOCALAPPDATA 'Camba\local-preview'

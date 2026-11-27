@@ -15,7 +15,7 @@ class ClassificationFiltersTest extends TestCase
         $connection = config('database.default');
         $this->assertTrue(
             ($connection === 'sqlite' && config('database.connections.sqlite.database') === ':memory:')
-            || ($connection === 'pgsql' && config('database.connections.pgsql.database') === 'camba_v2_demo_test'
+            || ($connection === 'pgsql' && config('database.connections.pgsql.database') === 'camba_demo_test'
                 && config('database.connections.pgsql.host') === 'postgres' && empty(config('database.connections.pgsql.url'))
                 && $this->app->environment('testing')),
             'Only disposable classification test databases may be reset.',

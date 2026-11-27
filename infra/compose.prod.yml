@@ -1,4 +1,4 @@
-name: camba-v2
+name: ${CAMBA_COMPOSE_PROJECT:?Set the approved production Compose project}
 
 x-backend: &backend
   image: ${CAMBA_API_IMAGE:?Set the immutable API image reference}
@@ -23,8 +23,8 @@ x-backend: &backend
     DB_URL: ''
     DB_HOST: postgres
     DB_PORT: '5432'
-    DB_DATABASE: camba_v2
-    DB_USERNAME: camba_v2
+    DB_DATABASE: camba
+    DB_USERNAME: camba
     DB_PASSWORD: ${CAMBA_DB_PASSWORD:?Set the PostgreSQL application password}
     REDIS_CLIENT: phpredis
     REDIS_URL: ''
@@ -134,7 +134,7 @@ services:
     # Match the pinned PostgreSQL 18.7 development image and data-directory mount.
     image: postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
     environment:
-      POSTGRES_DB: camba_v2
+      POSTGRES_DB: camba
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${CAMBA_DB_ADMIN_PASSWORD:?Set the PostgreSQL administrator password}
     networks: [data]

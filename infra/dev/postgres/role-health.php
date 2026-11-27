@@ -17,7 +17,7 @@ $app->make(Kernel::class)->bootstrap();
 try {
     $connection = DB::connection();
     $database = $connection->selectOne('select current_database() as name');
-    exit($connection->getDriverName() === 'pgsql' && $database?->name === 'camba_v2_demo'
+    exit($connection->getDriverName() === 'pgsql' && $database?->name === 'camba_demo'
         && (bool) Redis::connection()->ping() ? 0 : 1);
 } catch (Throwable) {
     exit(1);

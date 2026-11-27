@@ -1,5 +1,5 @@
 x-api: &api-runtime
-  image: camba-v2-dev-php-pg
+  image: camba-dev-php-pg
   build:
     context: ../api
     target: development
@@ -28,8 +28,8 @@ x-api: &api-runtime
     DB_URL: ''
     DB_HOST: postgres
     DB_PORT: '5432'
-    DB_DATABASE: camba_v2_demo
-    DB_USERNAME: camba_v2
+    DB_DATABASE: camba_demo
+    DB_USERNAME: camba
     DB_PASSWORD: ${CAMBA_DEV_DB_PASSWORD:-camba-local-db}
     REDIS_HOST: redis
     REDIS_CLIENT: phpredis
@@ -114,7 +114,7 @@ services:
       retries: 8
 
   store:
-    image: camba-v2-dev-store-editorial
+    image: camba-dev-store-editorial
     build:
       context: ../web
       target: store-editorial-local

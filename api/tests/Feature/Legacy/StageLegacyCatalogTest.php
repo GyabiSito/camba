@@ -89,7 +89,7 @@ class StageLegacyCatalogTest extends TestCase
 
         $this->app->detectEnvironment(fn () => 'testing');
         $connection = DB::connection();
-        $connection->setDatabaseName('camba_v2');
+        $connection->setDatabaseName('camba');
         try {
             [$status, $raw] = $this->stage();
             $this->assertSame(1, $status);
@@ -106,7 +106,7 @@ class StageLegacyCatalogTest extends TestCase
         $this->app->detectEnvironment(fn () => 'testing');
         config(['database.default' => 'pgsql', 'database.connections.pgsql' => [
             'driver' => 'pgsql', 'url' => null, 'host' => 'postgres', 'port' => '5432',
-            'database' => 'camba_v2_migration', 'username' => 'camba_test', 'password' => 'secret',
+            'database' => 'camba_migration', 'username' => 'camba_test', 'password' => 'secret',
         ]]);
         DB::purge('pgsql');
         $action = app(StageLegacyCatalogAction::class);
@@ -122,7 +122,7 @@ class StageLegacyCatalogTest extends TestCase
             $this->assertStringContainsString('dedicated local PostgreSQL', $exception->getMessage());
         }
 
-        config(['database.default' => 'pgsql', 'database.connections.pgsql.url' => 'pgsql://user:pass@postgres/camba_v2_migration']);
+        config(['database.default' => 'pgsql', 'database.connections.pgsql.url' => 'pgsql://user:pass@postgres/camba_migration']);
         DB::purge('pgsql');
         try {
             $guard->invoke($action);
@@ -139,7 +139,7 @@ class StageLegacyCatalogTest extends TestCase
     {
         config(['database.default' => 'mysql', 'database.connections.mysql' => [
             'driver' => 'mysql', 'url' => null, 'host' => '127.0.0.1', 'port' => '3306',
-            'database' => 'camba_v2_migration', 'username' => 'camba_test', 'password' => 'secret',
+            'database' => 'camba_migration', 'username' => 'camba_test', 'password' => 'secret',
         ]]);
         DB::purge('mysql');
         $action = app(StageLegacyCatalogAction::class);
@@ -157,14 +157,14 @@ class StageLegacyCatalogTest extends TestCase
     public function test_real_postgres_rehearsal_preserves_draft_money_relations_ids_and_replay(): void
     {
         if (getenv('LEGACY_PG_TEST') !== '1') {
-            $this->markTestSkipped('Set LEGACY_PG_TEST=1 only for a fresh disposable PostgreSQL camba_v2_migration database.');
+            $this->markTestSkipped('Set LEGACY_PG_TEST=1 only for a fresh disposable PostgreSQL camba_migration database.');
         }
 
         config(['database.default' => 'pgsql']);
         DB::purge('pgsql');
         $connection = DB::connection();
         $this->assertSame('pgsql', $connection->getDriverName());
-        $this->assertSame('camba_v2_migration', $connection->getDatabaseName());
+        $this->assertSame('camba_migration', $connection->getDatabaseName());
         $this->assertNull($connection->getConfig('url'));
         $this->assertContains($connection->getConfig('host'), ['127.0.0.1', '::1', 'localhost', 'postgres']);
         $this->assertSame([], DB::select("select tablename from pg_tables where schemaname = 'public'"), 'The disposable rehearsal database must be empty before migrations.');
@@ -172,12 +172,12 @@ class StageLegacyCatalogTest extends TestCase
         $category = Category::query()->create(['name' => 'Lighting', 'slug' => 'lighting']);
         $this->review([$this->product()]);
 
-        config(['database.connections.pgsql.database' => 'not_camba_v2_migration']);
+        config(['database.connections.pgsql.database' => 'not_camba_migration']);
         DB::purge('pgsql');
         [$status, $raw] = $this->stage();
         $this->assertSame(1, $status);
         $this->assertStringContainsString('dedicated local PostgreSQL', $raw);
-        config(['database.connections.pgsql.database' => 'camba_v2_migration']);
+        config(['database.connections.pgsql.database' => 'camba_migration']);
         DB::purge('pgsql');
         $this->assertSame(0, Product::query()->count());
         $this->assertSame(0, DB::table('legacy_catalog_receipts')->count());

@@ -25,11 +25,11 @@ check(getenv('CAMBA_PG_REHEARSAL') === '1' && $app->environment('production')
     && config('mail.default') === 'array'
     && ! filled(config('mercadopago.access_token'))
     && DB::getDriverName() === 'pgsql'
-    && DB::getDatabaseName() === 'camba_v2'
+    && DB::getDatabaseName() === 'camba'
     && DB::connection()->getConfig('host') === 'postgres', 'Refusing a non-isolated candidate');
 
 $identity = DB::selectOne("select current_user as role, current_setting('server_version') as version, case when rolsuper then 1 else 0 end as privileged from pg_roles where rolname = current_user");
-check($identity->role === 'camba_v2' && (int) $identity->privileged === 0, 'Laravel must use the non-superuser application role');
+check($identity->role === 'camba' && (int) $identity->privileged === 0, 'Laravel must use the non-superuser application role');
 
 if (getenv('CAMBA_PG_FIXTURE_PHASE') === 'seed') {
     $migrations = DB::table('migrations')->count();

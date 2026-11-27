@@ -25,13 +25,13 @@ class ProductImagesTest extends TestCase
         $connection = config('database.default');
         $database = config("database.connections.$connection.database");
         $isolatedPostgres = $connection === 'pgsql'
-            && $database === 'camba_v2_demo_test'
+            && $database === 'camba_demo_test'
             && $this->app->environment('testing')
             && config('database.connections.pgsql.host') === 'postgres'
             && empty(config('database.connections.pgsql.url'));
 
         $this->assertTrue(
-            ($connection === 'sqlite' && $database === ':memory:') || ($connection === 'mysql' && $database === 'camba_v2_test') || $isolatedPostgres,
+            ($connection === 'sqlite' && $database === ':memory:') || ($connection === 'mysql' && $database === 'camba_test') || $isolatedPostgres,
             'The image suite may only reset an in-memory database or a dedicated Camba v2 test database.',
         );
     }

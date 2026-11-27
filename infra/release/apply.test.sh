@@ -7,6 +7,7 @@ trap 'case "$work" in /tmp/tmp.*) rm -r -- "$work";; esac' EXIT
 mkdir "$work/bin" "$work/state"
 touch "$work/runtime.env" "$work/compose.yml"
 export CAMBA_RELEASE_DIR="$work/state" CAMBA_RUNTIME_ENV_FILE="$work/runtime.env" CAMBA_COMPOSE_FILE="$work/compose.yml"
+export CAMBA_COMPOSE_PROJECT=camba-prod
 export DOCKER_LOG="$work/docker.log" PATH="$work/bin:$PATH"
 unset FAIL_NEXT_UP HOLD_STORE_UP
 
@@ -18,7 +19,8 @@ shift
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --env-file) version_file=$2; shift 2;;
-    -f|--project-name) shift 2;;
+    --project-name) test "$2" = "${EXPECTED_DOCKER_PROJECT:-$CAMBA_COMPOSE_PROJECT}"; shift 2;;
+    -f) shift 2;;
     *) break;;
   esac
 done
@@ -47,6 +49,21 @@ admin=$(ref admin 11)
 store2=$(ref store 12)
 api2=$(ref api 13)
 apply() { bash "$src/apply.sh" "$@"; }
+
+if (unset CAMBA_COMPOSE_PROJECT; apply 11 "api=$api" "store=$store" "admin=$admin") >"$work/no-project" 2>&1; then exit 1; fi
+grep -q 'Set the approved Compose project explicitly' "$work/no-project"
+test ! -e "$DOCKER_LOG"
+
+# Keep the previous release entry point working while its legacy Compose file stays installed.
+mkdir "$work/legacy-state"
+printf 'name: camba-v2\n' >"$work/legacy-compose.yml"
+(
+  unset CAMBA_COMPOSE_PROJECT
+  export CAMBA_COMPOSE_FILE="$work/legacy-compose.yml" CAMBA_RELEASE_DIR="$work/legacy-state"
+  export DOCKER_LOG="$work/legacy-docker.log" EXPECTED_DOCKER_PROJECT=camba-v2
+  apply 11 "api=$api" "store=$store" "admin=$admin"
+)
+grep -q '^up ' "$work/legacy-docker.log"
 
 apply 11 "api=$api" "store=$store" "admin=$admin"
 grep -q '^pull api api-fpm worker scheduler store admin |' "$DOCKER_LOG"

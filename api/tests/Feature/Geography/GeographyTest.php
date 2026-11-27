@@ -17,8 +17,8 @@ class GeographyTest extends TestCase
         $database = config("database.connections.$connection.database");
         $isolated = match ($connection) {
             'sqlite' => $database === ':memory:',
-            'mysql' => $database === 'camba_v2_test',
-            'pgsql' => $database === 'camba_v2_demo_test' && config('database.connections.pgsql.host') === 'postgres',
+            'mysql' => $database === 'camba_test',
+            'pgsql' => $database === 'camba_demo_test' && config('database.connections.pgsql.host') === 'postgres',
             default => false,
         };
 

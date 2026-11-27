@@ -7,7 +7,7 @@ El canal Laravel `refunds` escribe una línea JSON por pago reintegrado en `/var
 El Compose de desarrollo ya comparte `api-storage` entre API, worker y scheduler. Los archivos anteriores siguen en `storage/logs/refounds` dentro de ese volumen. No borres ni reemplaces el volumen y no montes una carpeta vacía encima para buscarlos.
 
 ```sh
-docker exec camba-v2-demo-pg-api-1 php artisan camba:import-refund-logs
+docker exec camba-demo-pg-api-1 php artisan camba:import-refund-logs
 ```
 
 Sin argumentos, el comando busca solamente el directorio anterior dentro de Laravel storage. Si no existe, informa que no hay historial. El origen queda intacto y repetir el comando no duplica líneas. Los archivos nuevos no aparecen en la carpeta del host: solo `pagos` tiene un bind mount local.

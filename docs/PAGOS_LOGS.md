@@ -19,7 +19,7 @@ Start the regular Docker demo first. The probe runs the existing Laravel HTTP fa
 
 ~~~powershell
 $api = (Resolve-Path api).Path
-$mounts = docker inspect camba-v2-demo-pg-api-1 --format '{{json .Mounts}}' | ConvertFrom-Json
+$mounts = docker inspect camba-demo-pg-api-1 --format '{{json .Mounts}}' | ConvertFrom-Json
 $logs = (Resolve-Path api/storage/logs/pagos).Path
 $vendor = ($mounts | Where-Object Destination -eq '/var/www/html/vendor').Name
 if (-not $logs -or -not $vendor) { throw 'Expected the host logs folder and vendor volume of the local demo.' }
@@ -32,7 +32,7 @@ docker run --rm --pull never --network none --entrypoint sh -w /work `
   -e APP_ENV=testing -e DB_CONNECTION=sqlite -e 'DB_DATABASE=:memory:' -e DB_URL= `
   -e CACHE_STORE=array -e SESSION_DRIVER=array -e QUEUE_CONNECTION=sync -e MAIL_MAILER=array `
   -e 'APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' -e CAMBA_PAGOS_DOCKER_PROOF=1 `
-  camba-v2-dev-php-pg -c "$copy; $proof"
+  camba-dev-php-pg -c "$copy; $proof"
 ~~~
 
-The test prints sanitized matching records. To verify a worker can still see the files after the test container is removed, inspect the corresponding date in `docker exec camba-v2-demo-pg-worker-1 ls -l /var/www/html/storage/logs/pagos`. The channel regression `PaymentLogChannelTest` sends records at `02:59:59Z` and `03:00:00Z` on November 26, 2026 to the **same logger**; in Uruguay those records belong to distinct files.
+The test prints sanitized matching records. To verify a worker can still see the files after the test container is removed, inspect the corresponding date in `docker exec camba-demo-pg-worker-1 ls -l /var/www/html/storage/logs/pagos`. The channel regression `PaymentLogChannelTest` sends records at `02:59:59Z` and `03:00:00Z` on November 26, 2026 to the **same logger**; in Uruguay those records belong to distinct files.

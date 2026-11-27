@@ -2,15 +2,15 @@ services:
   api:
     networks:
       edge:
-        aliases: [camba-v2-api]
+        aliases: ["${CAMBA_EDGE_ALIAS_PREFIX:?Set the approved edge alias prefix}-api"]
   store:
     networks:
       edge:
-        aliases: [camba-v2-store]
+        aliases: ["${CAMBA_EDGE_ALIAS_PREFIX:?Set the approved edge alias prefix}-store"]
   admin:
     networks:
       edge:
-        aliases: [camba-v2-admin]
+        aliases: ["${CAMBA_EDGE_ALIAS_PREFIX:?Set the approved edge alias prefix}-admin"]
 networks:
   edge:
     external: true

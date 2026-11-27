@@ -51,10 +51,6 @@ El cambio de este cierre oculta la reapertura si un Orders verificado ya está e
 
 Validación final: **96 pruebas / 1413 aserciones** (Payments, Orders, Cart, Notices en PostgreSQL aislado), **Pint** y build SSR de Tienda. Solo se reconstruyó la Tienda. El túnel existente volvió a apuntar a su proxy de 4200; el dominio y la ruta de webhook se mantuvieron. Las transiciones de stock están en `api/storage/logs/pagos/26112026.log`, filtradas por la referencia del pedido.
 
-Para reproducir la suite sin usar las credenciales del Docker habitual:
-
-```powershell
-docker exec -e APP_ENV=testing -e DB_DATABASE=camba_v2_demo_test -e SANCTUM_STATEFUL_DOMAINS=localhost -e CAMBA_MP_CHECKOUT_ORDERS=false -e MERCADOPAGO_ACCESS_TOKEN=X -e CAMBA_MP_ACCESS_TOKEN=X -e CAMBA_MP_COLLECTOR_ID= camba-v2-demo-pg-api-1 php artisan test tests/Feature/Payments tests/Feature/Orders tests/Feature/Cart tests/Feature/Notices
-```
+Para repetir las regresiones de Payments, Orders, Cart y Notices, usá el [PostgreSQL aislado de pruebas](DEVELOPMENT.md#postgresql-checks), sin credenciales del proveedor y fuera del proyecto Docker habitual.
 
 Verificación independiente: inspección estática de la guardia de reserva; se incorporó y ejecutó su regresión de `processing` después del plazo local. El análisis nativo quedó sin resolución porque el checkout tiene archivos no rastreados y requiere declarar el alcance; no se modificó el índice de Git ni se creó un commit con cambios mezclados.

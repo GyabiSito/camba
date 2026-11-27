@@ -28,8 +28,8 @@ class BuyerPasswordChangeTest extends TestCase
         $database = config("database.connections.$connection.database");
         $this->assertTrue(
             ($connection === 'sqlite' && $database === ':memory:')
-                || ($connection === 'mysql' && $database === 'camba_v2_test')
-                || ($connection === 'pgsql' && $database === 'camba_v2_demo_test'
+                || ($connection === 'mysql' && $database === 'camba_test')
+                || ($connection === 'pgsql' && $database === 'camba_demo_test'
                     && config('database.connections.pgsql.host') === 'postgres' && ! config('database.connections.pgsql.url')),
             'Password change tests require an isolated database.',
         );

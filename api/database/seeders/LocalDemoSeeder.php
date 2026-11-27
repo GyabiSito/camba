@@ -127,7 +127,7 @@ class LocalDemoSeeder extends Seeder
         $connection = config('database.default');
         $database = config("database.connections.$connection.database");
         if (! app()->environment(['local', 'testing']) || $connection !== 'pgsql'
-            || ! in_array($database, ['camba_v2_demo', 'camba_v2_demo_seed_test'], true)) {
+            || ! in_array($database, ['camba_demo', 'camba_demo_seed_test'], true)) {
             throw new RuntimeException('LocalDemoSeeder is restricted to the local PostgreSQL demo database.');
         }
     }

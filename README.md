@@ -80,7 +80,7 @@ Podés subir fotos JPEG, PNG o WebP de hasta 10 MiB y 4096 px por lado, o volver
 docker compose --env-file infra/dev/demo.env.local -f infra/compose.dev.yml -f infra/compose.dev.apps.yml stop
 ```
 
-El proyecto `camba-v2-demo-pg` conserva su propio volumen y no usa ni borra MySQL. No uses `down -v` para detenerlo. Para ejecutar las pruebas sin cambiar los datos de la demo, ver [Pruebas en PostgreSQL](docs/DEVELOPMENT.md#postgresql-checks).
+El proyecto `camba-demo-pg` usa sus propios volúmenes y no usa ni borra MySQL. Si todavía tenés `camba-v2-demo-pg`, seguí el [corte de nombres](docs/TECHNICAL_NAMESPACE_CUTOVER.md) antes de ejecutar `up`: cambiar de proyecto no migra los volúmenes. No uses `down -v` para detenerlo. Para probar sin cambiar datos de la demo, ver [Pruebas en PostgreSQL](docs/DEVELOPMENT.md#postgresql-checks).
 
 ## Empezar con Codex local
 

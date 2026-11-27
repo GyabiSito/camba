@@ -25,7 +25,7 @@ class DashboardSummaryTest extends TestCase
         $database = config("database.connections.$connection.database");
         $this->assertTrue($this->app->environment('testing') && (
             ($connection === 'sqlite' && $database === ':memory:')
-            || ($connection === 'pgsql' && $database === 'camba_v2_demo_test'
+            || ($connection === 'pgsql' && $database === 'camba_demo_test'
                 && config('database.connections.pgsql.host') === 'postgres'
                 && empty(config('database.connections.pgsql.url')))
         ), 'Dashboard tests must only reset an isolated test database.');

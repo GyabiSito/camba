@@ -30,7 +30,7 @@ class PostgreSqlCatalogContentionTest extends TestCase
         $this->assertTrue($this->app->environment('testing'));
         $this->assertFalse($this->app->configurationIsCached());
         $this->assertSame('pgsql', $db->getDriverName());
-        $this->assertSame('camba_v2_demo_test', $db->getDatabaseName());
+        $this->assertSame('camba_demo_test', $db->getDatabaseName());
         $this->assertSame('postgres', $db->getConfig('host'));
         $this->assertEmpty($db->getConfig('url'));
         DB::selectOne("SELECT set_config('application_name', ?, false)", ['camba_catalog_contention_owner']);
@@ -306,7 +306,7 @@ class PostgreSqlCatalogContentionTest extends TestCase
         return new Process([PHP_BINARY, __DIR__.'/postgres-race-request.php', json_encode($request, JSON_THROW_ON_ERROR), $gate], base_path(), [
             'APP_ENV' => 'testing', 'APP_KEY' => config('app.key'), 'APP_DEBUG' => 'false',
             'CACHE_STORE' => 'array', 'SESSION_DRIVER' => 'array', 'QUEUE_CONNECTION' => 'sync', 'MAIL_MAILER' => 'array',
-            'DB_CONNECTION' => 'pgsql', 'DB_URL' => '', 'DB_HOST' => $db->getConfig('host'), 'DB_DATABASE' => 'camba_v2_demo_test',
+            'DB_CONNECTION' => 'pgsql', 'DB_URL' => '', 'DB_HOST' => $db->getConfig('host'), 'DB_DATABASE' => 'camba_demo_test',
             'DB_PORT' => (string) $db->getConfig('port'), 'DB_USERNAME' => $db->getConfig('username'),
             'DB_PASSWORD' => (string) $db->getConfig('password'),
             'DB_SSLMODE' => $db->getConfig('sslmode'),

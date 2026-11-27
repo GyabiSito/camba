@@ -49,6 +49,7 @@ try {
         'DB_CONNECTION=mysql', 'DB_HOST=ignored.invalid', 'DB_PORT=3306', 'DB_URL=mysql://ignored.invalid/legacy'
     ), $utf8)
     $config = [ordered]@{
+        CAMBA_COMPOSE_PROJECT = $project
         CAMBA_API_IMAGE = "camba-pg-local/api:$source"
         CAMBA_STORE_IMAGE = "camba-pg-local/store:$source"
         CAMBA_ADMIN_IMAGE = "camba-pg-local/admin:$source"
@@ -106,8 +107,8 @@ try {
     foreach ($role in @('api-fpm', 'worker', 'scheduler', 'migrate')) {
         $db = $render.services.$role.environment
         if ($db.DB_CONNECTION -ne 'pgsql' -or $db.DB_HOST -ne 'postgres' -or
-            $db.DB_PORT -ne '5432' -or $db.DB_URL -ne '' -or $db.DB_DATABASE -ne 'camba_v2' -or
-            $db.DB_USERNAME -ne 'camba_v2' -or $db.DB_PASSWORD -ne $config.CAMBA_DB_PASSWORD) {
+            $db.DB_PORT -ne '5432' -or $db.DB_URL -ne '' -or $db.DB_DATABASE -ne 'camba' -or
+            $db.DB_USERNAME -ne 'camba' -or $db.DB_PASSWORD -ne $config.CAMBA_DB_PASSWORD) {
             throw "Invalid DB settings for $role."
         }
     }
@@ -120,8 +121,8 @@ try {
     Compose up -d --wait postgres redis
     @"
 \set app_password $($config.CAMBA_DB_PASSWORD)
-CREATE ROLE camba_v2 LOGIN PASSWORD :'app_password';
-ALTER DATABASE camba_v2 OWNER TO camba_v2;
+CREATE ROLE camba LOGIN PASSWORD :'app_password';
+ALTER DATABASE camba OWNER TO camba;
 "@ | docker compose @files exec -T postgres psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres
     if ($LASTEXITCODE -ne 0) { throw 'Cannot initialize the disposable application role.' }
     Compose --profile release run --rm --no-deps migrate

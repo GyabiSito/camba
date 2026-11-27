@@ -74,18 +74,18 @@ class StageLegacyCatalogAction
         if ($driver === 'sqlite' && $name === ':memory:' && app()->environment('testing')) {
             return true;
         }
-        if ($driver === 'sqlite' && ($path = $this->files->localPath($name)) && is_file($path) && basename($path) === 'camba_v2_migration.sqlite') {
+        if ($driver === 'sqlite' && ($path = $this->files->localPath($name)) && is_file($path) && basename($path) === 'camba_migration.sqlite') {
             return false;
         }
         $host = $connection->getConfig('host');
         $port = (string) $connection->getConfig('port');
-        if ($driver === 'pgsql' && $name === 'camba_v2_migration'
+        if ($driver === 'pgsql' && $name === 'camba_migration'
             && (in_array($host, ['127.0.0.1', '::1', 'localhost'], true)
                 || ($host === 'postgres' && $port === '5432'))) {
             return false;
         }
 
-        throw new RuntimeException('Use a dedicated local PostgreSQL database camba_v2_migration on loopback or the internal postgres:5432 host, or a local camba_v2_migration.sqlite file; unset DB_URL.');
+        throw new RuntimeException('Use a dedicated local PostgreSQL database camba_migration on loopback or the internal postgres:5432 host, or a local camba_migration.sqlite file; unset DB_URL.');
     }
 
     private function redirects(array $rows, mixed $selections): array
@@ -150,8 +150,8 @@ class StageLegacyCatalogAction
     {
         $root = $this->files->localPath((string) config('filesystems.disks.public.root'));
         if (config('filesystems.disks.public.driver') !== 'local' || $root === null || ! is_dir($root)
-            || (! $memory && basename(dirname($root, 2)) !== 'camba_v2_migration_media')) {
-            throw new RuntimeException('Configure a dedicated local public disk under camba_v2_migration_media/app/public.');
+            || (! $memory && basename(dirname($root, 2)) !== 'camba_migration_media')) {
+            throw new RuntimeException('Configure a dedicated local public disk under camba_migration_media/app/public.');
         }
         $paths = array_map(fn ($path) => rtrim(str_replace('\\', '/', $path), '/').'/', [$root, $source]);
         [$destination, $origin] = windows_os() ? array_map('strtolower', $paths) : $paths;

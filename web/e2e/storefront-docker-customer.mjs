@@ -6,7 +6,7 @@ import { chromium, expect } from '@playwright/test';
 
 // Runs only against the already-running local stack; never seeds or clears shared data/inbox.
 const store = 'http://127.0.0.1:4200';
-const mailpitBinding = execFileSync('docker', ['port', 'camba-v2-demo-pg-mailpit-1', '8025/tcp'], { encoding: 'utf8' }).trim();
+const mailpitBinding = execFileSync('docker', ['port', 'camba-demo-pg-mailpit-1', '8025/tcp'], { encoding: 'utf8' }).trim();
 assert.match(mailpitBinding, /^127\.0\.0\.1:[1-9]\d{0,4}$/, 'Mailpit must publish its UI on IPv4 loopback.');
 const mailpit = `http://${mailpitBinding}`;
 const output = 'test-results/storefront-docker-account';

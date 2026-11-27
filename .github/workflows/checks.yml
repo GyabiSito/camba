@@ -39,19 +39,19 @@ jobs:
       postgres:
         image: postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
         env:
-          POSTGRES_DB: camba_v2_demo_test
-          POSTGRES_USER: camba_v2
+          POSTGRES_DB: camba_demo_test
+          POSTGRES_USER: camba
           POSTGRES_PASSWORD: camba-ci-only
         ports:
           - 5432/tcp
         options: >-
-          --health-cmd="pg_isready -h 127.0.0.1 -U camba_v2 -d camba_v2_demo_test"
+          --health-cmd="pg_isready -h 127.0.0.1 -U camba -d camba_demo_test"
           --health-interval=5s --health-timeout=5s --health-retries=20
     env:
       DB_CONNECTION: pgsql
       DB_HOST: postgres
-      DB_DATABASE: camba_v2_demo_test
-      DB_USERNAME: camba_v2
+      DB_DATABASE: camba_demo_test
+      DB_USERNAME: camba
       DB_PASSWORD: camba-ci-only
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -70,14 +70,14 @@ jobs:
           PG_SERVICE: ${{ job.services.postgres.id }}
         run: |
           echo '127.0.0.1 postgres' | sudo tee -a /etc/hosts >/dev/null
-          docker exec "$PG_SERVICE" psql -U camba_v2 -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE camba_v2_demo_seed_test'
+          docker exec "$PG_SERVICE" psql -U camba -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE camba_demo_seed_test'
       - name: Run the PostgreSQL integration suite
         env:
           DB_PORT: ${{ job.services.postgres.ports['5432'] }}
         run: |
           export APP_KEY="$(php artisan key:generate --show)"
           php vendor/bin/phpunit --filter '~^(?!Tests\\Feature\\Demo\\)~'
-          DB_DATABASE=camba_v2_demo_seed_test php vendor/bin/phpunit tests/Feature/Demo
+          DB_DATABASE=camba_demo_seed_test php vendor/bin/phpunit tests/Feature/Demo
 
   web:
     needs: changes
@@ -133,10 +133,20 @@ jobs:
           CAMBA_API_IMAGE: camba-api:ci
           CAMBA_STORE_IMAGE: camba-store:ci
           CAMBA_ADMIN_IMAGE: camba-admin:ci
+          CAMBA_COMPOSE_PROJECT: camba-ci
           CAMBA_EDGE_NETWORK: camba-ci-edge
+          CAMBA_EDGE_ALIAS_PREFIX: camba-ci
         run: |
           docker compose -f infra/compose.dev.yml -f infra/compose.dev.apps.yml config --quiet
           docker compose -f infra/compose.prod.yml -f infra/compose.edge.yml config --quiet
+          if CAMBA_COMPOSE_PROJECT='' docker compose -f infra/compose.prod.yml config --quiet; then
+            echo 'Production Compose must reject a missing project name' >&2
+            exit 1
+          fi
+          if CAMBA_EDGE_ALIAS_PREFIX='' docker compose -f infra/compose.prod.yml -f infra/compose.edge.yml config --quiet; then
+            echo 'Edge Compose must reject a missing alias prefix' >&2
+            exit 1
+          fi
           if CAMBA_TRUSTED_PROXY_IPS='' docker compose -f infra/compose.prod.yml -f infra/compose.edge.yml config --quiet; then
             echo 'Production Compose must reject a missing ingress allowlist' >&2
             exit 1

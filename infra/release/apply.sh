@@ -14,9 +14,15 @@ shift
 state_dir=${CAMBA_RELEASE_DIR:?Set CAMBA_RELEASE_DIR to a protected, persistent directory}
 env_file=${CAMBA_RUNTIME_ENV_FILE:?Set CAMBA_RUNTIME_ENV_FILE to protected runtime configuration}
 compose_file=${CAMBA_COMPOSE_FILE:?Set CAMBA_COMPOSE_FILE to the installed Compose file}
-project=${CAMBA_COMPOSE_PROJECT:-camba-v2}
 [[ $state_dir = /* && $env_file = /* && $compose_file = /* ]] || fail 'release and configuration paths must be absolute'
 [[ -d $state_dir && -f $env_file && -r $compose_file ]] || fail 'release state, runtime configuration, or Compose file unavailable'
+project=${CAMBA_COMPOSE_PROJECT:-}
+if [[ -z $project ]]; then
+  # Compat: preserve the documented default only for the installed pre-cutover file.
+  grep -qx 'name: camba-v2' "$compose_file" || fail 'Set the approved Compose project explicitly; camba may belong to the legacy installation'
+  project=camba-v2
+fi
+[[ $project =~ ^[a-z0-9][a-z0-9_-]*$ ]] || fail 'invalid Compose project name'
 compose_files=(-f "$compose_file")
 if [[ -n ${CAMBA_EDGE_COMPOSE_FILE:-} ]]; then
   [[ $CAMBA_EDGE_COMPOSE_FILE = /* && -r $CAMBA_EDGE_COMPOSE_FILE ]] || fail 'edge Compose file unavailable'
@@ -100,6 +106,7 @@ compose() (
   shift
   # Only the validated manifest controls image selection. Do not source runtime secrets.
   unset CAMBA_API_IMAGE CAMBA_STORE_IMAGE CAMBA_ADMIN_IMAGE
+  export CAMBA_COMPOSE_PROJECT="$project"
   docker compose --project-name "$project" --env-file "$env_file" --env-file "$manifest" "${compose_files[@]}" "$@"
 )
 

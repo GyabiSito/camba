@@ -1,12 +1,12 @@
-name: camba-v2-demo-pg
+name: camba-demo-pg
 
 services:
   postgres:
     # The pinned official image contains PostgreSQL 18.7.
     image: postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
     environment:
-      POSTGRES_DB: camba_v2_demo
-      POSTGRES_USER: camba_v2
+      POSTGRES_DB: camba_demo
+      POSTGRES_USER: camba
       POSTGRES_PASSWORD: ${CAMBA_DEV_DB_PASSWORD:-camba-local-db}
     networks:
       - postgres-private
@@ -21,6 +21,8 @@ services:
 
   redis:
     image: redis:7.2.16-alpine3.21
+    volumes:
+      - redis-data:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 3s
@@ -40,6 +42,7 @@ services:
 
 volumes:
   postgres-demo:
+  redis-data:
   mailpit-data:
 
 networks:

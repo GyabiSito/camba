@@ -12,7 +12,7 @@ final class TestDatabase
         $database = config("database.connections.$connection.database");
         $isolated = match ($connection) {
             'sqlite' => $database === ':memory:' && empty(config('database.connections.sqlite.url')),
-            'pgsql' => $database === 'camba_v2_demo_test' && config('database.connections.pgsql.host') === 'postgres'
+            'pgsql' => $database === 'camba_demo_test' && config('database.connections.pgsql.host') === 'postgres'
                 && empty(config('database.connections.pgsql.url')),
             default => false,
         };

@@ -80,8 +80,8 @@ The example yields seven `Lamp / Blue / Tall` units and two `Lamp / Blue / Stand
 
 ## Rehearse an apply in disposable v2 only
 
-1. Use `APP_ENV=local` or `testing` and migrate **only the disposable target**. The apply command allows a local SQLite file named `camba_v2_migration.sqlite`, in-memory SQLite only during tests, or PostgreSQL database `camba_v2_migration` on loopback or the internal Compose host `postgres:5432`. `DB_URL` must be unset. MySQL/MariaDB is not an apply target. Create or verify the exact mapped active categories and optional brands first.
-2. For photos, use a separate, pre-created local public disk under `camba_v2_migration_media/app/public`; in an isolated Laravel process, set `LARAVEL_STORAGE_PATH` to the `camba_v2_migration_media` directory before boot. Keep both copies unchanged and stop other writers during the rehearsal. Do not point either input or output at the old installation.
+1. Use `APP_ENV=local` or `testing` and migrate **only the disposable target**. The apply command allows a local SQLite file named `camba_migration.sqlite`, in-memory SQLite only during tests, or PostgreSQL database `camba_migration` on loopback or the internal Compose host `postgres:5432`. `DB_URL` must be unset. MySQL/MariaDB is not an apply target. Create or verify the exact mapped active categories and optional brands first.
+2. For photos, use a separate, pre-created local public disk under `camba_migration_media/app/public`; in an isolated Laravel process, set `LARAVEL_STORAGE_PATH` to the `camba_migration_media` directory before boot. Keep both copies unchanged and stop other writers during the rehearsal. Do not point either input or output at the old installation.
 3. Review the complete mapping. For a previously published slug with more than one new product, choose exactly one `source_unit` belonging to that slug under `redirects`. A single destination is inferred; an unpublished legacy row does not get a redirect.
 4. Save a clean dry-run report to a UTF-8 file without a BOM, record the SHA-256 of the exact reviewed mapping file, then run the separate apply command:
 
@@ -100,7 +100,7 @@ For a standalone rehearsal, run a fresh, throwaway PostgreSQL container with no 
 
 ```sh
 docker run --rm --name camba-legacy-pg-rehearsal \
-  -e POSTGRES_DB=camba_v2_migration -e POSTGRES_USER=camba_migration \
+  -e POSTGRES_DB=camba_migration -e POSTGRES_USER=camba_migration \
   -e POSTGRES_PASSWORD=local-only-change-me \
   -p 127.0.0.1:55432:5432 postgres:18-alpine
 ```
@@ -110,12 +110,12 @@ In a second shell, configure an isolated Laravel process and migrate only that d
 ```sh
 cd api
 export APP_ENV=local DB_CONNECTION=pgsql DB_URL=
-export DB_HOST=127.0.0.1 DB_PORT=55432 DB_DATABASE=camba_v2_migration
+export DB_HOST=127.0.0.1 DB_PORT=55432 DB_DATABASE=camba_migration
 export DB_USERNAME=camba_migration DB_PASSWORD=local-only-change-me
 php artisan migrate --no-interaction
 ```
 
-Create the exact active category/brand mappings in this disposable database, then run the reviewed `camba:stage-legacy-catalog` command above with the same environment. Stop the standalone container when finished; its ephemeral database is discarded. The internal `postgres:5432` option is for a specifically isolated Compose PostgreSQL service and database, not permission to use the shared `camba_v2_demo` database.
+Create the exact active category/brand mappings in this disposable database, then run the reviewed `camba:stage-legacy-catalog` command above with the same environment. Stop the standalone container when finished; its ephemeral database is discarded. The internal `postgres:5432` option is for a specifically isolated Compose PostgreSQL service and database, not permission to use the shared `camba_demo` database.
 
 This command is only a catalog-draft rehearsal from an already-exported JSON catalog and local photos. It does **not** transfer a MySQL database to PostgreSQL: historical users, addresses, orders, payments, schema/data conversions, IDs outside the catalog source lineage, and full-database reconciliation require a separately designed and authorized transfer. Do not treat the planner/stager or a historic SQL dump as that transfer.
 
