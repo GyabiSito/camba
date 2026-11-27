@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Orders;
 
+use App\Actions\Payments\ApplyPaymentEvidence;
 use App\Jobs\SendCommerceNotice;
 use App\Models\Category;
 use App\Models\CommerceNotice;
@@ -14,6 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
@@ -50,6 +52,31 @@ class OrderCheckoutTest extends TestCase
         parent::setUp();
         config(['session.driver' => 'database', 'checkout.pickup_address' => 'Pickup Counter', 'checkout.delivery_cents' => 3500]);
         $this->withCredentials()->withHeader('Origin', 'http://localhost');
+        $this->login(User::factory()->create());
+    }
+
+    public function test_guest_cannot_create_orders_or_start_or_resume_payments(): void
+    {
+        $this->useSession('anonymous-checkout');
+        Http::fake();
+        $product = $this->product();
+        $items = $this->items($product);
+        $payload = $this->payload($items, 'pickup', $this->quote($items, 'pickup'));
+        $reference = (string) Str::uuid();
+
+        $this->place($payload, (string) Str::uuid())->assertUnauthorized();
+        $this->postJson(self::ORDERS.'/'.$reference.'/payments')->assertUnauthorized();
+        $this->postJson('/api/v1/cart/checkout/'.$reference.'/resume')->assertUnauthorized();
+
+        $this->login(User::factory()->create(['role' => 'admin']));
+        $this->place($payload, (string) Str::uuid())->assertForbidden();
+        $this->postJson(self::ORDERS.'/'.$reference.'/payments')->assertForbidden();
+        $this->postJson('/api/v1/cart/checkout/'.$reference.'/resume')->assertForbidden();
+
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertDatabaseCount('payment_attempts', 0);
+        $this->assertSame(10, $product->fresh()->stock);
+        Http::assertNothingSent();
     }
 
     public function test_checkout_logs_rejection_and_committed_order_without_logging_input_or_replays(): void
@@ -251,7 +278,7 @@ class OrderCheckoutTest extends TestCase
         $reference = $created->json('data.reference');
         $this->assertTrue(Str::isUuid($reference));
         $this->assertNotNull($created->json('data.reservation_expires_at'));
-        $this->assertNotNull($created->json('data.guest_access_expires_at'));
+        $created->assertJsonPath('data.guest_access_expires_at', null);
         $this->assertDatabaseHas('orders', ['reference' => $reference, 'total_cents' => 28388, 'stock_released_at' => null]);
         $stored = DB::table('orders')->where('reference', $reference)->first();
         $this->assertStringNotContainsString('buyer@example.test', $stored->contact);
@@ -309,7 +336,7 @@ class OrderCheckoutTest extends TestCase
         $this->assertDatabaseCount('cart_items', 2);
     }
 
-    public function test_single_unit_checkout_consumes_only_its_owner_cart_and_replay_keeps_it_empty(): void
+    public function test_single_unit_pending_checkout_keeps_both_carts_and_cannot_be_reserved_twice(): void
     {
         $product = $this->product(stock: 1);
         $items = [['product_id' => $product->id, 'quantity' => 1]];
@@ -319,6 +346,7 @@ class OrderCheckoutTest extends TestCase
         $payload = $this->payload($items, 'pickup', $this->quote($items, 'pickup'));
 
         $this->useSession('competing-checkout-session');
+        $this->login(User::factory()->create());
         $this->keepSession($this->getJson('/api/v1/cart')->assertOk());
         $this->putJson('/api/v1/cart/items/'.$product->id, ['quantity' => 1])->assertOk();
         $otherSession = $this->app['session']->driver()->getId();
@@ -332,20 +360,20 @@ class OrderCheckoutTest extends TestCase
         $this->assertDatabaseHas('orders', ['reference' => $reference, 'stock_released_at' => null]);
         $this->assertDatabaseCount('order_items', 1);
         $this->useSession($ownerSession);
-        $this->getJson('/api/v1/cart')->assertOk()->assertJsonPath('data.items', []);
+        $this->getJson('/api/v1/cart')->assertOk()->assertJsonPath('data.items.0.quantity', 1);
         $this->place($payload, $key)->assertOk()->assertJsonPath('data.reference', $reference);
-        $this->getJson('/api/v1/cart')->assertOk()->assertJsonPath('data.items', []);
+        $this->getJson('/api/v1/cart')->assertOk()->assertJsonPath('data.items.0.quantity', 1);
 
         $this->useSession($otherSession);
         $this->place($otherPayload)->assertUnprocessable()->assertJsonValidationErrors('items');
         $this->getJson('/api/v1/cart')->assertOk()->assertJsonPath('data.items.0.quantity', 1);
-        $this->assertDatabaseCount('cart_items', 1);
+        $this->assertDatabaseCount('cart_items', 2);
         $this->assertDatabaseCount('orders', 1);
         $this->assertDatabaseCount('order_items', 1);
         $this->assertSame(0, $product->fresh()->stock);
     }
 
-    public function test_checkout_consumes_only_purchased_quantities_and_replay_preserves_later_cart_edits(): void
+    public function test_checkout_keeps_edits_until_verified_payment_consumes_only_purchased_quantities_once(): void
     {
         $this->login(User::factory()->create());
         $partial = $this->product();
@@ -359,13 +387,13 @@ class OrderCheckoutTest extends TestCase
         $payload = $this->payload($items, 'pickup', $this->quote($items, 'pickup'));
         $key = (string) Str::uuid();
         $reference = $this->place($payload, $key)->assertCreated()->json('data.reference');
-        $this->getJson('/api/v1/cart')->assertOk()->assertJsonCount(2, 'data.items')
-            ->assertJsonPath('data.items.0.product_id', $partial->id)->assertJsonPath('data.items.0.quantity', 1)
-            ->assertJsonPath('data.items.1.product_id', $untouched->id)->assertJsonPath('data.items.1.quantity', 2);
-        $this->assertDatabaseMissing('cart_items', ['product_id' => $removed->id]);
+        $this->getJson('/api/v1/cart')->assertOk()->assertJsonCount(3, 'data.items')
+            ->assertJsonPath('data.items.0.product_id', $partial->id)->assertJsonPath('data.items.0.quantity', 3)
+            ->assertJsonPath('data.items.1.product_id', $removed->id)->assertJsonPath('data.items.1.quantity', 1)
+            ->assertJsonPath('data.items.2.product_id', $untouched->id)->assertJsonPath('data.items.2.quantity', 2);
         $this->assertDatabaseMissing('cart_items', ['product_id' => $outsideCart->id]);
         $this->place($payload, $key)->assertOk()->assertJsonPath('data.reference', $reference);
-        $this->getJson('/api/v1/cart')->assertOk()->assertJsonPath('data.items.0.quantity', 1);
+        $this->getJson('/api/v1/cart')->assertOk()->assertJsonPath('data.items.0.quantity', 3);
 
         $this->putJson('/api/v1/cart/items/'.$partial->id, ['quantity' => 2])->assertOk();
         $this->putJson('/api/v1/cart/items/'.$removed->id, ['quantity' => 3])->assertOk();
@@ -380,6 +408,20 @@ class OrderCheckoutTest extends TestCase
         $this->assertSame(8, $removed->fresh()->stock);
         $this->assertSame(10, $untouched->fresh()->stock);
         $this->assertSame(8, $outsideCart->fresh()->stock);
+
+        $order = Order::where('reference', $reference)->sole();
+        $evidence = [[
+            'reference' => $reference, 'status' => 'approved', 'id' => '173159',
+            'updated_at' => now()->format('Y-m-d\TH:i:s.v\Z'), 'amount_cents' => $order->total_cents,
+        ]];
+        $apply = app(ApplyPaymentEvidence::class);
+        $this->assertSame('verified', $apply->execute($reference, $evidence));
+        $this->assertSame('verified', $apply->execute($reference, $evidence));
+        $this->getJson(self::ORDERS.'/'.$reference)->assertOk()->assertJsonPath('data.status', 'paid');
+        $this->getJson('/api/v1/cart')->assertOk()->assertJsonCount(2, 'data.items')
+            ->assertJsonPath('data.items.0.product_id', $removed->id)->assertJsonPath('data.items.0.quantity', 1)
+            ->assertJsonPath('data.items.1.product_id', $untouched->id)->assertJsonPath('data.items.1.quantity', 2)
+            ->assertJsonPath('data.checkout', null);
     }
 
     public function test_history_and_references_are_scoped_to_account_or_unexpired_guest_session(): void
@@ -387,10 +429,15 @@ class OrderCheckoutTest extends TestCase
         $product = $this->product();
         $items = $this->items($product);
         $key = (string) Str::uuid();
-        $guestQuote = $this->quote($items, 'pickup');
-        $guestSession = $this->app['session']->driver()->getId();
-        $guestOrder = $this->place($this->payload($items, 'pickup', $guestQuote), $key)
+        $guestSession = Str::random(40);
+        $token = $this->quote($items, 'pickup');
+        $guestOrder = $this->place($this->payload($items, 'pickup', $token), $key)
             ->assertCreated()->json('data.reference');
+        Order::where('reference', $guestOrder)->sole()->forceFill([
+            'user_id' => null,
+            'owner_key' => Order::ownerKey(null, $guestSession),
+            'guest_access_expires_at' => now()->addDay(),
+        ])->save();
         $this->useSession($guestSession);
         $this->getJson(self::ORDERS.'/'.$guestOrder)->assertOk();
         $this->getJson(self::ORDERS)->assertOk()->assertJsonCount(1, 'data')->assertJsonMissingPath('data.0.contact');
@@ -413,7 +460,7 @@ class OrderCheckoutTest extends TestCase
         $this->travel(25)->hours();
         $this->getJson(self::ORDERS.'/'.$guestOrder)->assertNotFound();
         $this->getJson(self::ORDERS)->assertOk()->assertJsonPath('data', []);
-        $this->place($this->payload($items, 'pickup', $guestQuote), $key)->assertConflict();
+        $this->place($this->payload($items, 'pickup', $token), $key)->assertUnauthorized();
         $this->assertDatabaseCount('orders', 2);
         $this->assertSame(6, $product->fresh()->stock, 'Guest access expiry does not release stock.');
     }

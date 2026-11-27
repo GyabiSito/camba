@@ -31,6 +31,7 @@
           class="button button--quiet"
           [disabled]="
             profileBusy() ||
+            passwordBusy() ||
             addressBusy() ||
             addressesLoading() ||
             preferencesBusy() ||
@@ -41,8 +42,12 @@
           Cerrar sesión
         </button>
       </div>
-      @if (returnToCheckout) {
-        <p><a routerLink="/checkout">Volver a la compra</a></p>
+      @if (returnTo(); as destination) {
+        @if (current.role === 'buyer') {
+          <p><a [routerLink]="destination.commands">{{ destination.label }}</a></p>
+        } @else {
+          <p class="muted">Para usar el carrito, ingresá con una cuenta compradora.</p>
+        }
       }
     </header>
     <div class="shop-columns account-columns">
@@ -117,6 +122,45 @@
             </fieldset>
           </form>
         </section>
+        @if (current.role === 'buyer') {
+          <section class="shop-panel" aria-labelledby="change-password-title">
+            <h2 id="change-password-title">Cambiar contraseña</h2>
+            @if (passwordFeedback(); as feedback) {
+              <p [attr.role]="feedback.error ? 'alert' : 'status'" [class.problem]="feedback.error">
+                {{ feedback.text }}
+              </p>
+            }
+            <form [formGroup]="password" (ngSubmit)="savePassword()" novalidate>
+              <fieldset class="stack" [disabled]="passwordBusy()">
+                @for (field of passwordFields; track field.name) {
+                  @let problem = passwordError(field.name);
+                  @let inputId = 'change-password-' + field.name;
+                  <label class="field" [attr.for]="inputId">
+                    {{ field.label }}
+                    <input
+                      type="password"
+                      [id]="inputId"
+                      [formControlName]="field.name"
+                      [attr.autocomplete]="field.autocomplete"
+                      [attr.aria-invalid]="problem ? 'true' : null"
+                      [attr.aria-describedby]="problem ? inputId + '-error' : null"
+                      required
+                      maxlength="1024"
+                    />
+                  </label>
+                  @if (problem) {
+                    <p [id]="inputId + '-error'" class="field-error" role="alert">{{ problem }}</p>
+                  }
+                }
+                <div class="actions">
+                  <button type="submit" class="button">
+                    {{ passwordBusy() ? 'Un momento…' : 'Guardar contraseña' }}
+                  </button>
+                </div>
+              </fieldset>
+            </form>
+          </section>
+        }
       </div>
       <section class="shop-panel account-addresses" aria-labelledby="addresses-title">
         <h2 id="addresses-title">Direcciones guardadas</h2>
@@ -307,5 +351,5 @@
     </div>
   </section>
 } @else {
-  <camba-shopper-auth (signedIn)="loadBuyer(true)" />
+  <camba-shopper-auth [returnTo]="returnTo()" (signedIn)="loadBuyer(true)" />
 }

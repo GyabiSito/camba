@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Payments;
 
+use App\Actions\Payments\ReconcilePayments;
 use App\Actions\Payments\RequestPaymentRefresh;
 use App\Actions\Payments\StartPayment;
+use App\Enums\OrderStatus;
 use App\Enums\PaymentAttemptStatus;
 use App\Http\Requests\Orders\OrderSessionRequest;
 use App\Http\Requests\Payments\StartPaymentRequest;
@@ -33,6 +35,17 @@ class OrderPaymentController
         $refresh->execute($order);
 
         return response('', 202)->header('Cache-Control', 'private, no-store');
+    }
+
+    public function cancel(OrderSessionRequest $request, string $reference, ReconcilePayments $reconcile): JsonResponse
+    {
+        $order = Order::query()->owned($request->user('web')?->id, $request->session()->getId())
+            ->where('reference', $reference)->firstOrFail();
+        $reconcile->cancel($order);
+        $status = $order->refresh()->status;
+
+        return response()->json(['data' => ['status' => $status->value]], $status === OrderStatus::PendingPayment ? 202 : 200)
+            ->header('Cache-Control', 'private, no-store');
     }
 
     public function refreshAsAdmin(OrderSessionRequest $request, string $reference, RequestPaymentRefresh $refresh): Response

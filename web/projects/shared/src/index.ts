@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { isPlatformServer } from '@angular/common';
-import { Injectable, InjectionToken, PLATFORM_ID, TransferState, inject, makeStateKey } from '@angular/core';
+import { DOCUMENT, Injectable, InjectionToken, PLATFORM_ID, TransferState, inject, makeStateKey } from '@angular/core';
 import { Observable, catchError, defer, finalize, of, shareReplay, switchMap, tap, throwError } from 'rxjs';
 import { demoMode } from './demo-config';
 
@@ -11,6 +11,8 @@ export const CAMBA_API_ORIGIN = new InjectionToken<string>('Internal Camba API o
   factory: () => '',
 });
 
+export const CAMBA_DEV_NGROK_ORIGIN = makeStateKey<string>('camba:dev-ngrok-origin');
+
 export const CART_CHANGED = 'camba:cart-changed';
 
 type Query = Record<string, string | number | boolean | null | undefined>;
@@ -18,6 +20,7 @@ type RequestHeaders = Record<string, string> | HttpHeaders;
 
 @Injectable({ providedIn: 'root' })
 export class ApiClient {
+  private readonly document = inject(DOCUMENT);
   private readonly http = inject(HttpClient);
   private readonly state = inject(TransferState);
   private readonly origin = inject(CAMBA_API_ORIGIN);
@@ -49,10 +52,12 @@ export class ApiClient {
         this.state.remove(key);
         return of(result);
       }
+      const tunnel = this.server ? '' : this.state.get(CAMBA_DEV_NGROK_ORIGIN, '');
+      const useNgrokHeader = tunnel !== '' && this.document.location?.origin === tunnel;
       return this.http
         .get<T>((this.server ? this.origin : '') + path, {
           params,
-          headers: this.headers(),
+          headers: this.headers(useNgrokHeader ? { 'ngrok-skip-browser-warning': '1' } : undefined),
           credentials: 'omit',
           transferCache: false,
         })

@@ -165,6 +165,29 @@ paths:
         '401': { description: No authenticated session }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Invalid name or attempt to change a protected field }
+  /api/v1/account/password:
+    patch:
+      operationId: changeBuyerPassword
+      description: Changes the signed-in buyer's password without ending the current session. Requires the current password and the regular CSRF token.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, password, password_confirmation]
+              properties:
+                current_password: { type: string, format: password, writeOnly: true }
+                password: { type: string, format: password, minLength: 12, writeOnly: true, description: Maximum 72 UTF-8 bytes; no NUL bytes. }
+                password_confirmation: { type: string, format: password, writeOnly: true }
+      responses:
+        '204': { description: Password updated; the current session remains authenticated }
+        '401': { description: No authenticated session }
+        '403': { description: Account does not have the buyer role }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Wrong current password or field validation failed }
+        '429': { description: Too many attempts }
   /api/v1/geography/departments:
     get:
       operationId: listGeographicDepartments
@@ -246,27 +269,60 @@ paths:
   /api/v1/cart:
     get:
       operationId: getCart
-      description: Returns only the current guest session or signed-in buyer cart. Inventory is not reserved.
+      description: Returns only the signed-in buyer's cart. Inventory is not reserved.
+      security: [{ sessionCookie: [] }]
       externalDocs: { url: docs/cart.md }
       responses:
         '200': { $ref: '#/components/responses/CartEnvelope' }
         '400': { description: First-party session required }
+        '401': { description: Buyer session missing }
+        '403': { description: Signed-in account is not a buyer }
+  /api/v1/cart/checkout/{reference}/resume:
+    post:
+      operationId: resumeCartCheckout
+      description: Rechecks ownership, cart quantities and reservation before returning the original Checkout Pro URL. Never creates a preference or reserves stock.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: reference, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Current checkout state; only ready includes the original URL.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/CartCheckout'
+                      - type: object
+                        properties:
+                          checkout_url: { type: [string, 'null'], format: uri }
+        '400': { description: First-party session required }
+        '401': { description: Buyer session missing }
+        '403': { description: Signed-in account is not a buyer }
+        '404': { description: Checkout does not belong to the active cart and owner }
+        '409': { description: Cart contents changed or the checkout is no longer resumable }
+        '419': { description: Missing or invalid CSRF token }
   /api/v1/cart/items/{product}:
     parameters:
       - { name: product, in: path, required: true, schema: { type: integer } }
     post:
       operationId: addCartUnit
       description: Atomically adds one unit using current server stock. No request body is used. If the result is unknown, read the cart before sending another POST.
+      security: [{ sessionCookie: [] }]
       responses:
         '200': { $ref: '#/components/responses/CartEnvelope' }
         '400': { description: First-party session required }
+        '401': { description: Buyer session missing }
+        '403': { description: Signed-in account is not a buyer }
         '404': { description: Product does not exist or is not published }
-        '409': { description: Guest cart already associated with an account; use the active session }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Insufficient stock for another unit }
     put:
       operationId: setCartQuantity
       description: Sets the exact quantity rather than incrementing it.
+      security: [{ sessionCookie: [] }]
       requestBody:
         required: true
         content:
@@ -279,16 +335,19 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/CartEnvelope' }
         '400': { description: First-party session required }
+        '401': { description: Buyer session missing }
+        '403': { description: Signed-in account is not a buyer }
         '404': { description: Product does not exist or is not published }
-        '409': { description: Guest cart already associated with an account; use the active session }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Invalid quantity or insufficient stock }
     delete:
       operationId: removeCartItem
+      security: [{ sessionCookie: [] }]
       responses:
         '204': { description: Item removed or already absent from the current cart }
         '400': { description: First-party session required }
-        '409': { description: Guest cart already associated with an account; use the active session }
+        '401': { description: Buyer session missing }
+        '403': { description: Signed-in account is not a buyer }
         '419': { description: Missing or invalid CSRF token }
   /api/v1/checkout/quote:
     post:
@@ -319,7 +378,8 @@ paths:
         '400': { description: First-party session required }
     post:
       operationId: placeOrder
-      description: Snapshots the exact server-calculated total and reserves inventory once for this owner and idempotency key.
+      description: Requires a signed-in buyer. Snapshots the exact server-calculated total and reserves inventory once for this owner and idempotency key.
+      security: [{ sessionCookie: [] }]
       externalDocs: { url: docs/orders.md }
       parameters:
         - name: Idempotency-Key
@@ -353,6 +413,8 @@ paths:
         '200': { description: Existing same-owner order for a valid same-payload replay }
         '201': { description: Order snapshot and inventory reservation created; payment is still pending }
         '400': { description: First-party session required }
+        '401': { description: Buyer session missing }
+        '403': { description: Signed-in account is not a buyer }
         '409': { description: 'Quote changed, idempotency conflict, or stale session' }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Invalid input or unavailable products/shipping }
@@ -379,15 +441,18 @@ paths:
       - { name: reference, in: path, required: true, schema: { type: string, format: uuid } }
     post:
       operationId: startOrderPayment
-      description: Begins or resumes the owned first-party order's Checkout Pro preference. No browser amounts or payment result are accepted.
+      description: Begins or resumes a signed-in buyer's own Checkout Pro attempt. New checkouts can use Orders; existing preferences keep their original protocol. No browser amounts or payment result are accepted.
+      security: [{ sessionCookie: [] }]
       externalDocs: { url: docs/payment-lifecycle.md }
       parameters:
         - { name: Idempotency-Key, in: header, required: true, schema: { type: string, format: uuid } }
       responses:
-        '200': { description: Existing eligible preference with private checkout URL }
-        '201': { description: Newly created preference with private checkout URL }
-        '202': { description: Preference creation in progress }
+        '200': { description: Existing eligible attempt with private checkout URL }
+        '201': { description: Newly created checkout with private checkout URL }
+        '202': { description: Checkout creation in progress }
         '400': { description: First-party session required }
+        '401': { description: Buyer session missing }
+        '403': { description: Signed-in account is not a buyer }
         '404': { description: Order not found for the current session }
         '409': { description: Order not eligible or provider creation uncertain }
         '419': { description: Missing or invalid CSRF token }
@@ -401,6 +466,19 @@ paths:
         '202': { description: A server-side lookup is scheduled or already pending }
         '400': { description: First-party session required }
         '404': { description: Order not found for the current session }
+        '419': { description: Missing or invalid CSRF token }
+  /api/v1/orders/{reference}/payments/cancel:
+    parameters:
+      - { name: reference, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: cancelOwnPaymentAttempt
+      description: Requests cancellation for the owned Orders attempt and rechecks the provider before releasing stock. Returns the order status; a pending response does not release the reservation.
+      responses:
+        '200': { description: Order has a verified final state or was already finalized }
+        '202': { description: Cancellation is not confirmed; reservation is unchanged }
+        '400': { description: First-party session required }
+        '404': { description: Order not found for the current session }
+        '409': { description: No cancellable Orders attempt or provider identity did not match }
         '419': { description: Missing or invalid CSRF token }
   /api/v1/admin/dashboard:
     get:
@@ -1060,6 +1138,12 @@ paths:
         '429': { description: Too many requests }
 components:
   schemas:
+    CartCheckout:
+      type: object
+      required: [reference, state]
+      properties:
+        reference: { type: string, format: uuid }
+        state: { type: string, enum: [ready, checking, paid] }
     AdminDashboard:
       type: object
       required: [priorities, recent_orders, sales]
@@ -1488,6 +1572,10 @@ components:
                 required: [currency, items]
                 properties:
                   currency: { const: UYU }
+                  checkout:
+                    anyOf:
+                      - $ref: '#/components/schemas/CartCheckout'
+                      - type: 'null'
                   items:
                     type: array
                     items:
@@ -1497,6 +1585,7 @@ components:
                         product_id: { type: integer, minimum: 1 }
                         quantity: { type: integer, minimum: 1 }
                         available: { type: boolean }
+                        reserved: { type: boolean }
                         product:
                           type: [object, 'null']
                           required: [name, slug, price_cents, stock]

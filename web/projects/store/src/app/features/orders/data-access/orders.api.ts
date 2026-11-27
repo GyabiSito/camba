@@ -14,6 +14,9 @@ export class OrdersApi {
   list(page: number) { return this.client.get<Page<Order>>(this.base, { page }); }
   get(reference: string) { return this.client.get<Data<Order>>(this.base + '/' + encodeURIComponent(reference)); }
   refreshPayment(reference: string) { return this.client.post<void>(this.base + '/' + encodeURIComponent(reference) + '/payments/refresh'); }
+  cancelPayment(reference: string) {
+    return this.client.post<Data<{ status: string }>>(this.base + '/' + encodeURIComponent(reference) + '/payments/cancel');
+  }
   rejectionAtDeparture(reference: string, browser: Window | null) {
     try {
       return browser?.sessionStorage.getItem(rejectionKey(reference)) ?? undefined;

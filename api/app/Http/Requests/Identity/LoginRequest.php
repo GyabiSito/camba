@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Identity;
 
+use App\Rules\PasswordRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 
@@ -21,11 +22,7 @@ class LoginRequest extends FormRequest
     {
         return [
             'email' => ['required', 'string', 'email', 'max:254'],
-            'password' => ['bail', 'required', 'string', function (string $attribute, mixed $value, \Closure $fail): void {
-                if (strlen($value) > 72 || str_contains($value, "\0")) {
-                    $fail('La contraseña no es válida o supera el límite de 72 bytes.');
-                }
-            }],
+            'password' => PasswordRules::input(),
         ];
     }
 }

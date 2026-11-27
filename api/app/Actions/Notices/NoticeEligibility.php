@@ -25,7 +25,7 @@ class NoticeEligibility
 
     public function recipient(CommerceNotice $notice): ?array
     {
-        if ($notice->kind === CommerceNotice::BUYER_WELCOME) {
+        if (in_array($notice->kind, CommerceNotice::BUYER_ACCOUNT_MAIL_KINDS, true)) {
             $buyer = User::query()->where('role', 'buyer')->find($notice->subject_id);
 
             return $buyer && filter_var($buyer->email, FILTER_VALIDATE_EMAIL)

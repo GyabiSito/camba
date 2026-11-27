@@ -23,10 +23,13 @@ Use the [local demo commands and fixture logins](../README.md#demo-local) to lau
 | --- | --- |
 | `http://127.0.0.1:4200` | Store (optimized SSR build with local editorial photography) |
 | `http://127.0.0.1:4300` | Admin (CSR development server) |
-| `http://127.0.0.1:48025` | Mailpit messages from local work only |
+| `http://localhost:8000/api/v1/store-info` | Local API smoke check |
+| `http://localhost:8025` | Mailpit messages from local work only |
 | `http://api:8000/ready`, `postgres:5432`, `redis:6379` | Internal API readiness, PostgreSQL and Redis |
 
 The frontends proxy Laravel on their own origins. Do not mix `localhost` and `127.0.0.1` in a single cookie journey. Separate browser profiles keep the demo buyer and admin sessions independent. PostgreSQL 18.7 is pinned by image digest and joins only an internal Docker network with no published port. The three Laravel roles share that network and the database; this demo does not reuse MySQL or any existing application volume.
+
+The local API starts with `--no-reload` so Laravel's development server keeps the Compose environment even when `api/.env` exists. Recreate the `api` service after changing its Compose settings.
 
 ### Angular environments and Docker builds
 

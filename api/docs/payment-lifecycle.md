@@ -6,20 +6,21 @@ Camba saves the order and reserves stock before connecting to Mercado Pago. The 
 
 | Request | Result |
 | --- | --- |
-| `POST /api/v1/orders/{reference}/payments` | With the owner's first-party session, CSRF token and a UUID `Idempotency-Key` header. The body is empty. |
+| `POST /api/v1/orders/{reference}/payments` | Requires the owning buyer's first-party session, CSRF token and a UUID `Idempotency-Key` header. The body is empty. |
 | `POST /api/v1/orders/{reference}/payments/refresh` | Owner only; `202` queues or preserves a scheduled server lookup. |
+| `POST /api/v1/orders/{reference}/payments/cancel` | Owner only. Orders only; `200` for a final result, `202` while still unconfirmed. |
 | `POST /api/v1/admin/orders/{reference}/payments/refresh` | Verified administrator only; the same `202` behavior. |
 | `GET /api/v1/orders/{reference}` | The owner reads the latest order status. Polling this route never contacts the provider. |
 
-Start returns `data.status`, `data.checkout_url` and `data.expires_at`. A new ready preference returns `201`; while an existing preference is still eligible, retries return the same redirect with `200`. `202` means creation is in progress. An uncertain creation returns `409` with no redirect; wait for reconciliation and do not repeat the external create. An expired order, an order settled while starting, or one with an existing unresolved provider payment is not eligible for a redirect. Another owner's order remains `404`. Redirect responses are private and cannot be stored by HTTP caches.
+Start returns `data.status`, `data.checkout_url` and `data.expires_at`. A new ready checkout returns `201`; resuming a ready attempt returns its existing URL with `200`. `202` means creation is in progress. An uncertain creation returns `409` with no redirect. An Orders retry during the reservation can replay only the persisted key and body; ambiguous legacy Preferences are not posted again. Another owner's order remains `404`. Redirect responses are private and cannot be stored by HTTP caches.
 
-There is one preference record per order: changing the header key cannot bypass that bound. After a verified rejection or cancellation, the same still-open preference can be retried. The payment ledger records each provider payment ID separately; no retry creates a new order or reserves stock a second time. The provider's ability to resume the same preference after rejection still needs test-account verification.
+There is at most one active attempt per order. Changing the incoming key does not bypass that bound. A replacement after a confirmed terminal result keeps the same payment aggregate and re-reserves stock only if available.
 
 ## Webhook and unattended reconciliation
 
-1. Register the Checkout Pro **payment** webhook at `POST /api/v1/webhooks/mercadopago`. Preserve the literal `data.id` query parameter and the signed headers. The handler verifies the signature and bounds the request. It acknowledges a valid payment delivery with `200` only after the inbox write; it performs no provider request inline.
+1. Register **Order (Mercado Pago)** in the test environment and retain the legacy **payment** receiver at `POST /api/v1/webhooks/mercadopago`. Preserve the literal `data.id` query parameter and the signed headers. A valid delivery receives `200` only after the inbox write; the handler performs no provider request inline.
 2. Run Laravel's scheduler in the background. It calls `camba:reconcile-payments` once per minute. The same command runs one bounded inbox/order batch from a trusted shell; it is safe to repeat. Do not direct it to real credentials during tests.
-3. Reconciliation searches the stored reference and re-fetches every result and every known payment by ID. The adapter checks collector, mode and currency. Camba checks reference and exact amount before persisting authority. The inbox and order hold short leases to recover from interruption. Lookup errors reschedule with bounded backoff; neither a provider error nor incomplete evidence means no payment.
+3. Orders uses `GET /v1/orders/{order_id}`; if creation lost its response, search for the exact attempt reference first. Preferences still search the reference and re-fetch numeric payment IDs. The adapter checks collector, mode and currency; Camba checks the attempt, reference and exact amount. Lookup errors reschedule with bounded backoff. A known Orders checkout must reach a terminal state before an unpaid reservation is released, even after the local deadline.
 
 Refresh requests never make a provider call inline or bypass a scheduled backoff. A browser return can request a refresh and read the owned order instead of trusting a query parameter. A chargeback or refund is saved and flagged for review, not automatically restocked or refunded again.
 

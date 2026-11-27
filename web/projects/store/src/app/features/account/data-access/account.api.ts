@@ -21,6 +21,9 @@ export class AccountApi {
   }
   logout() { return this.client.post<void>(this.base + '/auth/logout'); }
   updateProfile(body: { name: string }) { return this.client.patch<Data<Buyer>>(this.base + '/account/profile', body); }
+  changePassword(body: { current_password: string; password: string; password_confirmation: string }) {
+    return this.client.patch<void>(this.base + '/account/password', body);
+  }
   requestEmailVerification() { return this.client.post<void>(this.base + '/auth/email/verification-notification'); }
   addresses() { return this.client.get<Data<Address[]>>(this.base + '/account/addresses'); }
   saveAddress(id: number | null, body: AddressInput & { phone?: string | null }) {

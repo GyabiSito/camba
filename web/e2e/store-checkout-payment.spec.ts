@@ -6,6 +6,20 @@ async function checkout(page: Page, storeInfoStatus = 200) {
   await page.route('**/api/v1/store-info', route =>
     route.fulfill({ status: storeInfoStatus, json: { data: { checkout_pro_available: true } } }),
   );
+  await page.goto('/carrito');
+  await expect(page).toHaveURL(/\/cuenta\?volver=carrito$/);
+  await page.getByLabel('Correo electrónico').fill('buyer@camba.test');
+  await page.getByLabel('Contraseña', { exact: true }).fill('Camba-test-only-2026');
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+  await expect(page).toHaveURL(/\/carrito$/, { timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Tu carrito', exact: true })).toBeVisible();
+  const item = page.getByRole('listitem').filter({ has: page.getByRole('link', { name: 'Remera lisa', exact: true }) });
+  // A prior unfinished test order may have left the item in the shared test account.
+  await item.or(page.getByRole('heading', { name: 'Tu carrito está vacío' })).first().waitFor();
+  if (await item.count()) {
+    await item.getByRole('button', { name: 'Quitar Remera lisa' }).click();
+    await expect(item).toHaveCount(0);
+  }
   await page.goto('/producto/remera-lisa');
   await page.getByRole('button', { name: 'Agregar al carrito' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Seguir comprando' }).click();
@@ -102,6 +116,7 @@ test('Checkout Pro opens from checkout and the owned order waits for verified ev
         data: {
           ...data,
           status: state === 'approved' ? 'paid' : 'pending_payment',
+          fulfilment_status: state === 'approved' ? 'preparing' : data.fulfilment_status,
           payment_state: state === 'approved' ? null : state,
           payment_rejection: state === 'rejected' ? 'a'.repeat(64) : undefined,
         },
@@ -150,10 +165,19 @@ test('Checkout Pro opens from checkout and the owned order waits for verified ev
   await expect.poll(() => refreshes).toBe(2);
   state = 'approved';
   await expect(page.getByRole('heading', { name: 'Pedido confirmado' })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Retiro' })).toContainText('En preparación');
   await expect(page.getByText('Pago confirmado', { exact: true })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Seguir comprando' })).toHaveAttribute('href', '/tienda');
   await page.screenshot({ path: info.outputPath('retorno-aprobado.png'), fullPage: true });
   expect(starts).toBe(2);
+
+  // An older API response must not reintroduce the confirmation on the cart.
+  await page.route('**/api/v1/cart', route => route.fulfill({ json: { data: {
+    currency: 'UYU', items: [], checkout: { state: 'paid', reference },
+  } } }));
+  await page.goto('/carrito');
+  await expect(page.getByRole('heading', { name: 'Tu carrito está vacío' })).toBeVisible();
+  await expect(page.getByText(/Pedido confirmado|Tu pago fue aprobado/)).toHaveCount(0);
 });
 
 test('an abandoned Checkout Pro payment can reopen the same order after checking', async ({ page }) => {

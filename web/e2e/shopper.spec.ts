@@ -33,15 +33,26 @@ async function signInBuyer(page: Page) {
   await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
 }
 
-test('a guest reviews the server quote before placing an order', async ({ page }, info) => {
+test('a guest registers from a product, returns to it and can place an order', async ({ page }, info) => {
   // Simulate previously available configuration so the actual 503 tests recovery on the same order.
   await page.route('**/api/v1/store-info', route =>
     route.fulfill({ json: { data: { checkout_pro_available: true } } }),
   );
   await page.setViewportSize({ width: 320, height: 800 });
+  await page.goto('/producto/remera-lisa');
+  await page.getByRole('button', { name: 'Agregar al carrito' }).click();
+  await expect(page).toHaveURL(/\/cuenta\?volver=producto&producto=remera-lisa$/);
+  await expect(page.getByRole('button', { name: 'Iniciar sesión' })).toBeVisible();
+  await page.getByRole('button', { name: 'Crear cuenta' }).click();
+  await page.getByLabel('Nombre completo').fill('Persona de Prueba');
+  await page.getByLabel('Correo electrónico').fill(`checkout-${Date.now()}@camba.test`);
+  await page.getByLabel('Contraseña', { exact: true }).fill('Camba-test-only-2026');
+  await page.getByLabel('Confirmá la contraseña').fill('Camba-test-only-2026');
+  await page.getByRole('button', { name: 'Registrarme' }).click();
+  await expect(page).toHaveURL(/\/producto\/remera-lisa$/, { timeout: 15_000 });
   await addToCart(page, 'remera-lisa');
   await page.goto('/carrito');
-  await expect(page.getByRole('link', { name: 'Remera lisa' })).toBeVisible();
+  await expect(page.getByRole('spinbutton', { name: 'Cantidad de Remera lisa' })).toHaveValue('1');
   await page.getByRole('spinbutton', { name: 'Cantidad de Remera lisa' }).fill('2');
   await page.getByRole('button', { name: 'Actualizar' }).click();
   await expect(page.getByRole('status', { name: 'Carrito actualizado' })).toBeVisible();
@@ -108,10 +119,27 @@ test('a guest reviews the server quote before placing an order', async ({ page }
   await expect(page.getByRole('link', { name: /Ver pedido/ })).toBeVisible();
 });
 
+test('opening the cart without a session offers access and returns a buyer to the cart', async ({ page }) => {
+  await page.goto('/cuenta');
+  await expect(page.getByRole('button', { name: 'Ingresar' })).toBeVisible();
+  await page.locator('header a[href="/carrito"]').click();
+  await expect(page).toHaveURL(/\/cuenta\?volver=carrito$/);
+  await expect(page.getByRole('button', { name: 'Iniciar sesión' })).toBeVisible();
+  await page.goto('/carrito');
+  await expect(page).toHaveURL(/\/cuenta\?volver=carrito$/);
+  await expect(page.getByRole('button', { name: 'Crear cuenta' })).toBeVisible();
+  await page.getByLabel('Correo electrónico').fill('buyer@camba.test');
+  await page.getByLabel('Contraseña', { exact: true }).fill('Camba-test-only-2026');
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+  await expect(page).toHaveURL(/\/carrito$/, { timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: 'Tu carrito', exact: true })).toBeVisible();
+});
+
 test('two tabs each add a unit of the same product without losing an increment', async ({
   context,
   page,
 }) => {
+  await signInBuyer(page);
   await addToCart(page, 'remera-lisa');
   const other = await context.newPage();
   await openProduct(other, 'remera-lisa');
@@ -150,12 +178,15 @@ test('two tabs each add a unit of the same product without losing an increment',
   await expect(page.getByRole('spinbutton', { name: 'Cantidad de Remera lisa' })).toHaveValue('3', {
     timeout: 15_000,
   });
+  await page.getByRole('button', { name: 'Quitar Remera lisa' }).click();
+  await expect(page.getByRole('spinbutton', { name: 'Cantidad de Remera lisa' })).toHaveCount(0);
 });
 
 test('product detail explains all available units are already in the cart', async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 320, height: 800 });
+  await signInBuyer(page);
   await addToCart(page, 'remera-lisa');
   await page.goto('/carrito');
   const quantity = page.getByRole('spinbutton', { name: 'Cantidad de Remera lisa' });
@@ -184,6 +215,8 @@ test('product detail explains all available units are already in the cart', asyn
   await page.screenshot({ path: info.outputPath('cart-stock-limit-320.png') });
   await notice.getByRole('link', { name: 'Ver carrito' }).click();
   await expect(quantity).toHaveValue(String(stock));
+  await page.getByRole('button', { name: 'Quitar Remera lisa' }).click();
+  await expect(quantity).toHaveCount(0);
 });
 
 test('a buyer edits profile and saves reminder preferences after signing in', async ({
@@ -235,7 +268,7 @@ test('a buyer edits profile and saves reminder preferences after signing in', as
   await expect(page.getByRole('button', { name: 'Ingresar' })).toBeVisible();
 });
 
-test('a guest cart merges at login and two tabs persist valid quantities at current server prices', async ({
+test('two buyer tabs persist valid quantities at current server prices', async ({
   baseURL,
   browser,
   context,
@@ -267,39 +300,26 @@ test('a guest cart merges at login and two tabs persist valid quantities at curr
       price_cents: 12345,
       stock: 5,
     });
-    const guestOnly = await fixture.publish({
-      name: 'Prenda E2E invitado',
+    const separate = await fixture.publish({
+      name: 'Prenda E2E secundaria',
       category_id,
       price_cents: 23456,
       stock: 7,
     });
 
-    const accountContext = await browser.newContext({ baseURL });
-    try {
-      const account = await accountContext.newPage();
-      await signInBuyer(account);
-      await addToCart(account, common.slug);
-      await account.goto('/carrito');
-      expect((await update(account, common, 3)).status()).toBe(200);
-    } finally {
-      await accountContext.close();
-    }
-
+    await signInBuyer(page);
     await addToCart(page, common.slug);
-    await addToCart(page, guestOnly.slug);
+    await addToCart(page, separate.slug);
     await page.goto('/carrito');
     await settled(quantity(page, common.name)).toHaveValue('1');
-    expect((await update(page, common, 4)).status()).toBe(200);
-    await signInBuyer(page);
-    await page.goto('/carrito');
-    await settled(quantity(page, common.name)).toHaveValue('5'); // 3 + 4 capped at stock.
-    await expect(quantity(page, guestOnly.name)).toHaveValue('1');
+    expect((await update(page, common, 5)).status()).toBe(200);
+    await expect(quantity(page, separate.name)).toHaveValue('1');
 
     const other = await context.newPage();
     await other.goto('/carrito');
     await settled(quantity(other, common.name)).toHaveValue('5');
-    await expect(quantity(other, guestOnly.name)).toHaveValue('1');
-    const saves = await Promise.all([update(page, common, 4), update(other, guestOnly, 2)]);
+    await expect(quantity(other, separate.name)).toHaveValue('1');
+    const saves = await Promise.all([update(page, common, 4), update(other, separate, 2)]);
     expect(saves.map((response) => response.status())).toEqual([200, 200]);
     expect(saves.map((response) => response.request().postDataJSON())).toEqual([
       { quantity: 4 },
@@ -308,7 +328,7 @@ test('a guest cart merges at login and two tabs persist valid quantities at curr
     await Promise.all([page.reload(), other.reload()]);
     for (const tab of [page, other]) {
       await settled(quantity(tab, common.name)).toHaveValue('4');
-      await expect(quantity(tab, guestOnly.name)).toHaveValue('2');
+      await expect(quantity(tab, separate.name)).toHaveValue('2');
     }
 
     await fixture.adjust(common.id, { stock: 3, price_cents: 13567 });
@@ -326,21 +346,22 @@ test('a guest cart merges at login and two tabs persist valid quantities at curr
     await expect(other.getByRole('link', { name: 'Continuar la compra' })).toBeVisible();
     await page.reload();
     await settled(quantity(page, common.name)).toHaveValue('3');
-    await expect(quantity(page, guestOnly.name)).toHaveValue('2');
+    await expect(quantity(page, separate.name)).toHaveValue('2');
     await expect(page.getByText(/UYU\s+407,01/)).toBeVisible();
     await page.getByRole('button', { name: `Quitar ${common.name}` }).click();
     await expect(quantity(page, common.name)).toHaveCount(0);
-    await page.getByRole('button', { name: `Quitar ${guestOnly.name}` }).click();
+    await page.getByRole('button', { name: `Quitar ${separate.name}` }).click();
     await expect(page.getByRole('heading', { name: 'Tu carrito está vacío' })).toBeVisible();
   } finally {
     await fixture.close();
   }
 });
 
-test('a guest sees the API delivery rate and confirms a persisted delivery order at 320 px', async ({
+test('a buyer sees the API delivery rate and confirms a persisted delivery order at 320 px', async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 320, height: 800 });
+  await signInBuyer(page);
   await addToCart(page, 'remera-lisa');
   await page.goto('/carrito');
   const quoting = page.waitForResponse(

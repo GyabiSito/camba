@@ -6,7 +6,9 @@ import { chromium, expect } from '@playwright/test';
 
 const store = 'http://127.0.0.1:4200';
 const admin = 'http://127.0.0.1:4300';
-const inbox = 'http://127.0.0.1:48025';
+const mailpitBinding = execFileSync('docker', ['port', 'camba-v2-demo-pg-mailpit-1', '8025/tcp'], { encoding: 'utf8' }).trim();
+assert.match(mailpitBinding, /^127\.0\.0\.1:[1-9]\d{0,4}$/, 'Mailpit must publish its UI on IPv4 loopback.');
+const inbox = `http://${mailpitBinding}`;
 const out = 'test-results/order-notices-docker';
 const adminEmail = 'admin.diseno@camba.test';
 const adminPassword = process.env.CAMBA_DEMO_PASSWORD;

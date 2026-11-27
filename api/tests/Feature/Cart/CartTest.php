@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Cart;
 
+use App\Models\Cart;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\User;
@@ -39,29 +40,38 @@ class CartTest extends TestCase
         $this->withCredentials()->withHeader('Origin', 'http://localhost');
     }
 
-    public function test_guest_cart_survives_session_reload_and_another_session_is_empty(): void
+    public function test_every_cart_endpoint_rejects_guests_even_with_valid_csrf_without_creating_records(): void
     {
         $product = $this->product();
-        $this->keepSession($this->getJson(self::CART)->assertOk()->assertJsonPath('data.items', []));
-        $this->putJson($this->item($product), ['quantity' => 2])->assertOk()
-            ->assertJsonPath('data.items.0.quantity', 2)
-            ->assertJsonPath('data.items.0.product.price_cents', 12345);
-        $this->app['session']->driver()->flush();
-        $this->getJson(self::CART)->assertOk()->assertHeader('Cache-Control', 'no-store, private')
-            ->assertJsonPath('data.items.0.product_id', $product->id);
-        $this->assertDatabaseHas('cart_items', ['product_id' => $product->id, 'quantity' => 2]);
+        $csrf = $this->get('/sanctum/csrf-cookie')->assertNoContent();
+        $this->keepSession($csrf);
+        $this->app->instance('env', 'local');
+        $this->withHeader('X-XSRF-TOKEN', $csrf->getCookie('XSRF-TOKEN', decrypt: false)->getValue());
 
-        $this->useSession('start-new-session');
-        $this->getJson(self::CART)->assertOk()->assertJsonPath('data.items', []);
-        $this->deleteJson($this->item($product))->assertNoContent();
-        $this->assertDatabaseHas('cart_items', ['product_id' => $product->id, 'quantity' => 2]);
+        $this->getJson(self::CART)->assertUnauthorized();
+        $this->postJson($this->item($product))->assertUnauthorized();
+        $this->putJson($this->item($product), ['quantity' => 2])->assertUnauthorized();
+        $this->deleteJson($this->item($product))->assertUnauthorized();
+        $this->postJson(self::CART.'/checkout/fdb31e70-d885-4d5f-93b6-6e7d0bf7bcc3/resume')->assertUnauthorized();
+        $this->assertDatabaseCount('carts', 0);
+        $this->assertDatabaseCount('cart_items', 0);
+    }
+
+    public function test_cart_requires_the_buyer_role(): void
+    {
+        $product = $this->product();
+        $this->login(User::factory()->create(['role' => 'admin']));
+        $this->getJson(self::CART)->assertForbidden();
+        $this->postJson($this->item($product))->assertForbidden();
+        $this->assertDatabaseCount('carts', 0);
+        $this->assertDatabaseCount('cart_items', 0);
     }
 
     public function test_write_checks_quantity_publication_stock_and_server_owned_fields(): void
     {
         $product = $this->product(stock: 3);
         $draft = $this->product(status: 'draft');
-        $this->keepSession($this->getJson(self::CART)->assertOk());
+        $this->login(User::factory()->create());
         $this->putJson($this->item($draft), ['quantity' => 1])->assertNotFound();
         foreach ([0, '1', 4] as $quantity) {
             $this->putJson($this->item($product), ['quantity' => $quantity])
@@ -89,14 +99,16 @@ class CartTest extends TestCase
     {
         $product = $this->product(stock: 3);
         $item = $this->item($product);
-        $this->keepSession($this->getJson(self::CART)->assertOk());
+        $this->login(User::factory()->create());
+        $this->assertDatabaseCount('carts', 0);
         $this->postJson($item)->assertOk()
             ->assertJsonPath('data.items.0.quantity', 1)
             ->assertJsonPath('data.items.0.product.price_cents', 12345);
         $this->postJson($item)->assertOk()->assertJsonPath('data.items.0.quantity', 2);
         $this->postJson($item)->assertOk()->assertJsonPath('data.items.0.quantity', 3);
         $this->postJson($item)->assertUnprocessable()->assertJsonValidationErrors('quantity');
-        $this->getJson(self::CART)->assertOk()->assertJsonPath('data.items.0.quantity', 3);
+        $this->getJson(self::CART)->assertOk()->assertHeader('Cache-Control', 'no-store, private')
+            ->assertJsonPath('data.items.0.quantity', 3);
         $this->assertDatabaseHas('cart_items', ['product_id' => $product->id, 'quantity' => 3]);
 
         $this->putJson($item, ['quantity' => 1])->assertOk()->assertJsonPath('data.items.0.quantity', 1);
@@ -107,7 +119,7 @@ class CartTest extends TestCase
     public function test_only_real_item_removals_reset_the_cart_inactivity_window(): void
     {
         $product = $this->product();
-        $this->keepSession($this->getJson(self::CART)->assertOk());
+        $this->login(User::factory()->create());
         $this->putJson($this->item($product), ['quantity' => 1])->assertOk();
         $before = DB::table('carts')->value('updated_at');
         $this->travel(2)->hours();
@@ -128,32 +140,34 @@ class CartTest extends TestCase
         $this->login($buyer);
         $this->putJson($this->item($product), ['quantity' => 3])->assertOk();
         $guestSession = $this->keepSession($this->postJson('/api/v1/auth/logout')->assertNoContent());
-        $this->getJson(self::CART)->assertOk()->assertJsonPath('data.items', []);
-        $this->putJson($this->item($product), ['quantity' => 4])->assertOk();
-        $this->putJson($this->item($archived), ['quantity' => 1])->assertOk();
+        $this->getJson(self::CART)->assertUnauthorized();
+        $legacy = Cart::query()->forceCreate(Cart::ownerKey(null, $guestSession));
+        $legacy->setQuantity($product->id, 4);
+        $legacy->setQuantity($archived->id, 1);
         $archived->status = 'archived';
         $archived->save();
         $this->postJson('/api/v1/auth/login', ['email' => $buyer->email, 'password' => 'wrong'])
             ->assertUnprocessable()->assertJsonValidationErrors('email');
-        $this->getJson(self::CART)->assertOk()->assertJsonPath('data.items.0.quantity', 4);
+        $this->assertDatabaseHas('cart_items', ['cart_id' => $legacy->id, 'product_id' => $product->id, 'quantity' => 4]);
 
         $this->login($buyer);
         $this->getJson(self::CART)->assertOk()->assertJsonPath('data.items.0.quantity', 5);
         $this->assertDatabaseCount('cart_items', 1);
+        $this->assertNotNull($legacy->fresh()->claimed_at);
         $cartId = DB::table('carts')->where('user_id', $buyer->id)->value('id');
         $this->assertDatabaseHas('cart_items', ['cart_id' => $cartId, 'product_id' => $product->id, 'quantity' => 5]);
 
         $this->login($other);
         $this->getJson(self::CART)->assertOk()->assertJsonPath('data.items', []);
         $this->keepSession($this->postJson('/api/v1/auth/logout')->assertNoContent());
-        $this->getJson(self::CART)->assertOk()->assertJsonPath('data.items', []);
+        $this->getJson(self::CART)->assertUnauthorized();
         $this->login($buyer);
         $this->getJson(self::CART)->assertOk()->assertJsonPath('data.items.0.quantity', 5);
 
         $this->useSession($guestSession);
-        $this->getJson(self::CART)->assertOk()->assertJsonPath('data.items', []);
-        $this->putJson($this->item($product), ['quantity' => 1])->assertConflict();
-        $this->postJson($this->item($product))->assertConflict();
+        $this->getJson(self::CART)->assertUnauthorized();
+        $this->putJson($this->item($product), ['quantity' => 1])->assertUnauthorized();
+        $this->postJson($this->item($product))->assertUnauthorized();
         $this->assertDatabaseCount('cart_items', 1);
     }
 
@@ -161,8 +175,8 @@ class CartTest extends TestCase
     {
         $product = $this->product();
         $this->withHeader('Origin', 'https://unrelated.example.test')
-            ->putJson($this->item($product), ['quantity' => 1])->assertBadRequest();
-        $this->postJson($this->item($product))->assertBadRequest();
+            ->putJson($this->item($product), ['quantity' => 1])->assertUnauthorized();
+        $this->postJson($this->item($product))->assertUnauthorized();
         $this->app->instance('env', 'local');
         $this->withHeader('Origin', 'http://localhost')
             ->putJson($this->item($product), ['quantity' => 1])->assertStatus(419);

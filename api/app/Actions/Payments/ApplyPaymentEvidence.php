@@ -29,15 +29,17 @@ class ApplyPaymentEvidence
     public function execute(
         string $reference, array $evidence, ?string $lease = null, ?DateTimeInterface $checkedAt = null, bool $complete = false,
         string $incompleteReason = 'provider_incomplete',
+        array $providerOrders = [],
     ): string {
         if (! Str::isUuid($reference)) {
             return 'unknown_order';
         }
 
-        return DB::transaction(function () use ($reference, $evidence, $lease, $checkedAt, $complete, $incompleteReason): string {
+        return DB::transaction(function () use ($reference, $evidence, $lease, $checkedAt, $complete, $incompleteReason, $providerOrders): string {
             // Keep PlaceOrder's lock order: cart, order, then products.
             $cart = null;
-            if (in_array(PaymentStatus::Approved->value, array_column($evidence, 'status'), true)) {
+            $paymentsForLock = array_merge($evidence, ...array_column($providerOrders, 'payments'));
+            if (in_array(PaymentStatus::Approved->value, array_column($paymentsForLock, 'status'), true)) {
                 $cartId = Order::query()->where('reference', $reference)->value('checkout_cart_id');
                 $cart = $cartId === null ? null : Cart::query()->whereKey($cartId)->lockForUpdate()->first();
             }
@@ -52,6 +54,9 @@ class ApplyPaymentEvidence
             $previous = $order->status;
 
             $matched = true;
+            foreach ($providerOrders as $providerOrder) {
+                $matched = $this->observeOrder($order, $providerOrder) && $matched;
+            }
             foreach ($evidence as $payment) {
                 if (! $this->observe($order, $payment)) {
                     $matched = false;
@@ -62,14 +67,15 @@ class ApplyPaymentEvidence
                 ? PaymentAttempt::query()->where('order_id', $order->id)->latest('id')->first()
                 : null;
             if ($matched && ! $order->hasPaymentEvidenceConflict()
-                && in_array($latest?->status, [PaymentAttemptStatus::Rejected, PaymentAttemptStatus::Cancelled], true)
+                && (in_array($latest?->status, [PaymentAttemptStatus::Rejected, PaymentAttemptStatus::Cancelled], true)
+                    || ($latest?->usesOrders() && $latest->status === PaymentAttemptStatus::Expired))
                 && ! $this->hasBlockingEvidence($order)) {
                 $this->reservation->release($order, 'provider_'.$latest->status->value, $latest);
             }
 
             $result = ! $matched ? 'conflicting_evidence' : ($complete || $lease === null ? 'verified' : $incompleteReason);
             if ($lease !== null) {
-                if ($complete && $matched && $checkedAt !== null && $this->canRelease($order, $checkedAt)) {
+                if ($complete && $matched && $checkedAt !== null && $this->canRelease($order, $latest, $checkedAt)) {
                     if ($latest && ! $latest->status->closed()) {
                         $this->closeAttempt($order, $latest, PaymentAttemptStatus::Expired, 'reservation_expired');
                     }
@@ -86,16 +92,70 @@ class ApplyPaymentEvidence
             }
 
             $order->save();
-            if ($order->checkout_managed && $previous !== OrderStatus::Paid && $order->status === OrderStatus::Paid) {
+            if ($previous !== OrderStatus::Paid && $order->status === OrderStatus::Paid) {
                 if ($cart && $cart->claimed_at === null) {
                     $cart->removePurchasedItems($order->items()->pluck('quantity', 'product_id')->all());
                 }
-                $this->notices->created($order);
+                if ($order->checkout_managed) {
+                    $this->notices->created($order);
+                }
             }
             PaymentLog::transition('order.status_changed', $order, $previous->value, $order->status->value, attemptId: $latest?->id);
 
             return $result;
         }, 3);
+    }
+
+    private function observeOrder(Order $order, array $snapshot): bool
+    {
+        $attempt = PaymentAttempt::query()->where('order_id', $order->id)->whereKey($snapshot['attempt_id'])->first();
+        if ($snapshot['order_reference'] !== $order->reference || $snapshot['amount_cents'] !== $order->total_cents
+            || $order->currency !== 'UYU' || ! $attempt?->usesOrders()
+            || ($attempt->provider_order_id !== null && $attempt->provider_order_id !== $snapshot['id'])) {
+            $this->flag($order, 'provider_evidence_mismatch');
+
+            return false;
+        }
+        if ($attempt->provider_order_updated_at !== null && strcmp($snapshot['updated_at'], $attempt->provider_order_updated_at) < 0) {
+            return true;
+        }
+
+        $unbound = $attempt->provider_order_id === null;
+        $attempt->forceFill([
+            'provider_order_id' => $snapshot['id'], 'provider_order_updated_at' => $snapshot['updated_at'],
+            'expires_at' => $snapshot['expires_at'],
+        ])->save();
+        if (! $attempt->status->closed() && $order->status === OrderStatus::PendingPayment
+            && $order->stock_released_at === null && PaymentAttempt::where('order_id', $order->id)->max('id') === $attempt->id) {
+            $order->reservation_expires_at = $attempt->expires_at;
+            if ($attempt->status !== PaymentAttemptStatus::Ready && $snapshot['state'] === 'created'
+                && $attempt->expires_at->isFuture() && $snapshot['url'] !== null) {
+                $attempt->forceFill(['checkout_url' => $snapshot['url']])->save();
+                $this->closeAttempt($order, $attempt, PaymentAttemptStatus::Ready, 'provider_order_recovered');
+            }
+        }
+        if ($unbound) {
+            PaymentLog::transition('payment.order.recovered', $order, null, $snapshot['state'], attemptId: $attempt->id);
+        }
+        foreach ($snapshot['payments'] as $payment) {
+            if (! $this->observe($order, $payment)) {
+                return false;
+            }
+        }
+        $terminal = match ($snapshot['state']) {
+            'failed' => PaymentAttemptStatus::Rejected,
+            'canceled' => $snapshot['detail'] === 'expired' ? PaymentAttemptStatus::Expired : PaymentAttemptStatus::Cancelled,
+            'expired' => PaymentAttemptStatus::Expired,
+            default => null,
+        };
+        $attempt->refresh();
+        if ($terminal !== null && ! $attempt->status->closed()) {
+            $this->closeAttempt($order, $attempt, $terminal, 'provider_order_'.$terminal->value);
+        } elseif ($snapshot['state'] !== 'created' && $attempt->status === PaymentAttemptStatus::Ready) {
+            $this->closeAttempt($order, $attempt, PaymentAttemptStatus::Uncertain, 'provider_order_awaiting_result');
+        }
+
+        return true;
     }
 
     private function observe(Order $order, array $evidence): bool
@@ -121,7 +181,8 @@ class ApplyPaymentEvidence
             ? ((clone $attempts)->count() === 1 ? $attempts->first() : null)
             : $attempts->whereKey($attemptId)->first();
         if (($order->checkout_managed && ! isset($evidence['attempt_id']))
-            || ($attemptId !== null && ($attempt === null || ($payment?->payment_attempt_id && $payment->payment_attempt_id !== $attempt->id)))) {
+            || ($attemptId !== null && ($attempt === null || ($payment?->payment_attempt_id && $payment->payment_attempt_id !== $attempt->id)))
+            || ($attempt?->usesOrders() && ($evidence['provider_order_id'] ?? null) !== $attempt->provider_order_id)) {
             $this->flag($order, 'provider_evidence_mismatch');
 
             return false;
@@ -214,7 +275,7 @@ class ApplyPaymentEvidence
         }
     }
 
-    private function canRelease(Order $order, DateTimeInterface $checkedAt): bool
+    private function canRelease(Order $order, ?PaymentAttempt $latest, DateTimeInterface $checkedAt): bool
     {
         if ($order->status !== OrderStatus::PendingPayment || $order->paid_provider_payment_id !== null
             || $order->stock_released_at !== null || $order->reservation_expires_at->copy()->addMinute()->gt($checkedAt)
@@ -222,7 +283,8 @@ class ApplyPaymentEvidence
             return false;
         }
 
-        return ! $this->hasBlockingEvidence($order);
+        return ! ($latest?->usesOrders() && $latest->provider_order_id !== null && ! $latest->status->closed())
+            && ! $this->hasBlockingEvidence($order);
     }
 
     private function hasBlockingEvidence(Order $order): bool

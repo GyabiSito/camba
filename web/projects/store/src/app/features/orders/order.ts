@@ -30,6 +30,8 @@ export class OrderPage {
   protected readonly loading = signal(true);
   protected readonly busy = signal(false);
   protected readonly paying = signal(false);
+  protected readonly cancelling = signal(false);
+  protected readonly confirmCancellation = signal(false);
   protected readonly notFound = signal(false);
   protected readonly error = signal('');
   protected readonly paymentError = signal('');
@@ -48,7 +50,7 @@ export class OrderPage {
     && this.order()?.payment_state !== 'pending');
   protected readonly mayOpenPayment = computed(() => {
     const order = this.order();
-    return this.canAttemptPayment() && !!order && order.payment_state !== 'pending'
+    return this.canAttemptPayment() && !!order && !order.guest_access_expires_at && order.payment_state !== 'pending'
       && (order.checkout_retryable || (order.status === 'pending_payment'
         && (!this.returned() || this.rejectionConfirmed() || this.canResumePayment())));
   });
@@ -69,6 +71,7 @@ export class OrderPage {
       'collection_status',
       'external_reference',
       'preference_id',
+      'order_id',
       'merchant_order_id',
       'payment_type',
       'processing_mode',
@@ -127,7 +130,7 @@ export class OrderPage {
   }
 
   protected async refreshPayment() {
-    if (this.busy() || this.paying()) return;
+    if (this.busy() || this.paying() || this.cancelling()) return;
     this.busy.set(true);
     this.returnCheckFinished.set(false);
     this.paymentError.set('');
@@ -171,11 +174,34 @@ export class OrderPage {
       || (order?.status === 'pending_payment' && !this.rejectionConfirmed());
   }
 
+  protected async cancelPayment() {
+    if (!this.order()?.checkout_cancelable || this.busy() || this.paying() || this.cancelling()) return;
+    this.cancelling.set(true);
+    this.paymentError.set('');
+    this.message.set('');
+    try {
+      const { data } = await firstValueFrom(this.client.cancelPayment(this.reference));
+      this.confirmCancellation.set(false);
+      this.paymentKey = undefined;
+      await this.load();
+      if (data.status === 'pending_payment') {
+        this.message.set('Todavía no pudimos confirmar la cancelación. Consultá el estado antes de volver a pagar.');
+      } else if (data.status === 'payment_expired') {
+        this.message.set('La reserva se liberó. Los productos siguen en tu carrito.');
+      }
+    } catch {
+      this.paymentError.set('No pudimos confirmar la cancelación. Consultá el estado del pago.');
+    } finally {
+      this.cancelling.set(false);
+    }
+  }
+
   protected async openPayment() {
     if (
       !this.mayOpenPayment() ||
       this.paying() ||
       this.busy() ||
+      this.cancelling() ||
       !this.browser
     )
       return;
@@ -183,6 +209,7 @@ export class OrderPage {
     this.paymentError.set('');
     this.message.set('');
     try {
+      if (this.order()?.checkout_retryable) this.paymentKey = undefined;
       this.paymentKey ??= this.browser.crypto.randomUUID();
       if (await this.client.redirectToPayment(
         this.reference, this.paymentKey, this.browser, this.order()?.payment_rejection,

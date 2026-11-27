@@ -42,6 +42,7 @@ x-api: &api-runtime
     MAIL_HOST: mailpit
     MAIL_PORT: '1025'
     CAMBA_MP_LIVE: 'false'
+    CAMBA_MP_CHECKOUT_ORDERS: ${CAMBA_DEV_MP_CHECKOUT_ORDERS:-false}
 
 x-web: &web-runtime
   image: node:24.20.0-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e
@@ -62,6 +63,9 @@ x-web: &web-runtime
 services:
   api:
     <<: *api-runtime
+    ports:
+      - '127.0.0.1:${CAMBA_DEV_API_PORT:-8000}:8000'
+    # Preserve Compose variables in the server subprocess when Laravel detects api/.env.
     command:
       - sh
       - -ec
@@ -70,7 +74,7 @@ services:
         && composer install --no-interaction --prefer-dist
         && php artisan storage:link --quiet
         && php artisan migrate --force
-        && exec php artisan serve --host=0.0.0.0 --port=8000
+        && exec php artisan serve --host=0.0.0.0 --port=8000 --no-reload
     depends_on:
       postgres:
         condition: service_healthy
@@ -119,6 +123,7 @@ services:
     environment:
       CAMBA_SSR_API_ORIGIN: http://api:8000
       CAMBA_PUBLIC_STORE_ORIGIN: ${CAMBA_DEV_APP_URL:-http://127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200}}
+      CAMBA_DEV_NGROK_ORIGIN: ${CAMBA_DEV_APP_URL:-}
       NG_ALLOWED_HOSTS: '127.0.0.1,localhost'
     depends_on:
       api:

@@ -15,7 +15,7 @@ La tienda y el Admin usan la misma API Laravel y PostgreSQL en Docker Desktop. L
 | [Tienda](http://127.0.0.1:4200/) · [Mi cuenta](http://127.0.0.1:4200/cuenta) | `cliente.diseno@camba.test` | `CambaDemo2026!` | Cliente (`buyer`) |
 | [Admin → Inicio](http://127.0.0.1:4300/dashboard) | `admin.diseno@camba.test` | `CambaDemo2026!` | Administrador (`admin`) |
 
-El [buzón Mailpit](http://127.0.0.1:48025/) recibe solo correo de prueba. Para el chequeo HTTP usá [`/readyz`](http://127.0.0.1:48025/readyz). Laravel y el worker usan `mailpit:1025` por SMTP sin autenticación ni TLS, solo dentro de Docker. El puerto SMTP `41025` ya no se publica en el host. `user.diseno@camba.test` no es una cuenta de esta demo.
+La [API local](http://localhost:8000/api/v1/store-info) y el [buzón Mailpit](http://localhost:8025/) solo se publican en loopback. Mailpit guarda el correo de prueba en un volumen local; para el chequeo HTTP usá [`/readyz`](http://localhost:8025/readyz). Laravel y el worker siguen usando `mailpit:1025` por SMTP sin autenticación ni TLS, solo dentro de Docker. `user.diseno@camba.test` no es una cuenta de esta demo.
 
 **Para tener las dos sesiones abiertas**, usá dos perfiles de navegador o una ventana normal y otra privada. Las cookies se comparten entre puertos cuando el nombre del host es el mismo. También se verificó el acceso por `localhost:4200` y `localhost:4300`; elegí un nombre de host y mantenelo durante cada sesión.
 
@@ -98,3 +98,6 @@ Abrir este repositorio en el equipo que tiene los plugins de diseño y dar esta 
 - [Arranque en el VPS y ensayo del candidato con PostgreSQL](docs/POSTGRESQL_CUTOVER.md).
 
 El alcance definitivo es el del encargo. Sustituye las propuestas más amplias de la auditoría inicial: no habrá descuentos, cupones, tags, departamentos del catálogo ni subcategorías.
+
+
+ngrok http --url=game-basically-bat.ngrok-free.app http://localhost:8000

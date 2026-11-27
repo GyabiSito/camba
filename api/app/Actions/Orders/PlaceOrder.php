@@ -84,7 +84,7 @@ class PlaceOrder
                 'request_hash' => $fingerprint,
                 'status' => OrderStatus::PendingPayment,
                 'checkout_managed' => $managed,
-                'checkout_cart_id' => $managed ? $cart->id : null,
+                'checkout_cart_id' => $cart->id,
                 'payment_id' => $managed ? OrderPayment::query()->create()->id : null,
                 'currency' => $quote['currency'],
                 'subtotal_cents' => $quote['subtotal_cents'],
@@ -103,7 +103,6 @@ class PlaceOrder
                 $products[$index]->decrement('stock', $line['quantity']);
             }
             if (! $managed) {
-                $cart->removePurchasedItems($lines);
                 $this->notices->created($order);
             }
 

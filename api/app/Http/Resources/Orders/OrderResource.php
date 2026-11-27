@@ -30,6 +30,12 @@ class OrderResource extends JsonResource
             'checkout_retryable' => $this->when($this->checkout_managed && $this->status === OrderStatus::PaymentExpired
                 && $this->paid_at === null && $this->stock_released_at !== null,
                 fn () => $this->canReplaceCheckoutAttempt($this->payment?->attempts()->latest('id')->first())),
+            'checkout_cancelable' => $this->when($this->checkout_managed && $this->status === OrderStatus::PendingPayment,
+                function (): bool {
+                    $attempt = $this->payment?->attempts()->latest('id')->first();
+
+                    return $attempt?->usesOrders() && $attempt->provider_order_id !== null && ! $attempt->status->closed();
+                }),
             'payment_state' => $this->whenHas('payment_state'),
             'payment_rejection' => $this->whenHas('payment_rejection'),
             'contact' => $this->contact,

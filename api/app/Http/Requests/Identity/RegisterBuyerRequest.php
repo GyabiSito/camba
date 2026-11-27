@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Identity;
 
+use App\Rules\PasswordRules;
+
 class RegisterBuyerRequest extends LoginRequest
 {
     public function rules(): array
@@ -12,7 +14,7 @@ class RegisterBuyerRequest extends LoginRequest
             ...$rules,
             'name' => ['required', 'string', 'max:120'],
             'email' => [...$rules['email'], 'unique:users,email'],
-            'password' => [...$rules['password'], 'min:12', 'confirmed'],
+            'password' => [...PasswordRules::replacement(), 'confirmed'],
             'role' => ['missing'],
         ];
     }

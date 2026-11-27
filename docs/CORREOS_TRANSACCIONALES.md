@@ -1,12 +1,13 @@
 # Correos transaccionales de Camba
 
-Diez correos comparten la [plantilla HTML](../api/resources/views/mail/transactional.blade.php) y su [alternativa en texto plano](../api/resources/views/mail/transactional-text.blade.php). La bienvenida tiene sus propias vistas de [HTML](../api/resources/views/mail/buyer-welcome.blade.php) y [texto plano](../api/resources/views/mail/buyer-welcome-text.blade.php). El lazo es una versión PNG de la primera figura del [SVG oficial de la tienda](../web/projects/store/public/brand/camba.svg), adjunta al correo. No hay imágenes remotas; «Camba» queda como texto aunque el cliente bloquee el lazo.
+Los correos usan la [plantilla HTML](../api/resources/views/mail/transactional.blade.php) y su [alternativa en texto plano](../api/resources/views/mail/transactional-text.blade.php), salvo la bienvenida, que tiene sus propias vistas de [HTML](../api/resources/views/mail/buyer-welcome.blade.php) y [texto plano](../api/resources/views/mail/buyer-welcome-text.blade.php). El lazo es una versión PNG de la primera figura del [SVG oficial de la tienda](../web/projects/store/public/brand/camba.svg), adjunta al correo. No hay imágenes remotas; «Camba» queda como texto aunque el cliente bloquee el lazo.
 
 | Correo | Cómo se genera |
 | --- | --- |
 | Verificá tu correo | Creá una cuenta de comprador o, sin verificar, ingresá y pedí otro enlace en Mi cuenta. |
 | Te damos la bienvenida a Camba | Registrá un comprador. Llega una vez aunque el correo siga sin verificar. «Explorá la tienda» lleva a `/tienda`. Verificar o reenviar la verificación no dispara otra bienvenida; tampoco se envía a cuentas preexistentes. |
 | Restablecé tu contraseña | En Mi cuenta, elegí «Olvidé mi contraseña» e ingresá el correo de una cuenta de prueba. |
+| Tu contraseña de Camba se actualizó | En Mi cuenta, cambiá la contraseña. Solo un cambio efectivo genera un aviso al correo registrado; una contraseña actual incorrecta o una confirmación distinta no envían nada. |
 | Consulta desde Camba | Enviá el formulario de [Contactanos](http://127.0.0.1:4200/contacto) con el destinatario interno configurado en Admin. |
 | Recibimos tu pedido | Confirmá una compra con un comprador de prueba verificado o como invitado con correo. |
 | Pago confirmado | El pago verificado queda confirmado en el pedido. |
@@ -19,11 +20,13 @@ Diez correos comparten la [plantilla HTML](../api/resources/views/mail/transacti
 
 Al abrir un enlace válido en el navegador, Mi cuenta muestra «Tu cuenta ha sido verificada». Si abrís el correo en otro navegador, vas a ver el aviso junto al ingreso y, al entrar, vas a quedar en Mi cuenta. Los enlaces inválidos o vencidos muestran un aviso; la firma no pasa a la URL de la cuenta. Los clientes JSON conservan la respuesta 204 para un enlace válido.
 
-Verificación y recuperación usan las notificaciones encoladas de Laravel. El scheduler ejecuta `php artisan camba:notices` para los nueve avisos, incluido el de bienvenida, y el worker entrega solo los elegibles. La consulta de Contactanos se envía sincrónicamente al destinatario interno; el botón y `Reply-To` apuntan al correo del visitante. El CTA «Ver pedido» no otorga acceso: la tienda exige la sesión del titular; los invitados ven «Ir a la tienda». El pie muestra solo los canales de ayuda de Configuración que estén publicados. Los avisos de stock, importación e incidencias operativas siguen siendo del panel.
+Verificación y recuperación usan las notificaciones encoladas de Laravel. El scheduler ejecuta `php artisan camba:notices` y el worker entrega solo los avisos elegibles, incluidos los de bienvenida y cambio de contraseña. La consulta de Contactanos se envía sincrónicamente al destinatario interno; el botón y `Reply-To` apuntan al correo del visitante. El CTA «Ver pedido» no otorga acceso: la tienda exige la sesión del titular; los invitados ven «Ir a la tienda». El pie muestra solo los canales de ayuda de Configuración que estén publicados. Los avisos de stock, importación e incidencias operativas siguen siendo del panel.
 
 Los correos de envío y entrega a domicilio se registran en la misma transacción que el cambio de estado. Pasar a Entregado antes del próximo ciclo no anula el aviso de Enviado. No se generan correos retroactivos. El correo al administrador también se registra al guardar el pedido por primera vez; si no hay un solo administrador verificado o cambia su dirección antes del envío, no se redirige a otra persona. Configurá el origen de Admin (`CAMBA_ADMIN_URL` en Compose de producción, `ADMIN_URL` en Laravel). El Docker local lo toma del puerto de Admin; «Ver pedido» lleva al detalle autenticado.
 
 El registro guarda la cuenta y un único aviso de bienvenida en la misma transacción. El scheduler lo encola después del commit, sin esperar la verificación. El correo de verificación y su enlace se envían por separado. Una falla de SMTP no revierte el registro: se aplican los [reintentos seguros del registro de avisos](../api/docs/notices.md#delivery-and-recovery). Si no se sabe si SMTP aceptó el correo, no se reenvía automáticamente.
+
+El cambio de contraseña guarda el aviso con la cuenta en la misma transacción. El correo no contiene contraseñas ni tokens; el botón abre el formulario habitual de recuperación.
 
 ## Reproducir con Mailpit sin tocar la demo
 
@@ -42,9 +45,9 @@ Abrí el [buzón de prueba](http://127.0.0.1:43987/). El recorrido crea una cuen
 
 Para comprobar la bienvenida, registrá un comprador y esperá ambos correos sin abrir el enlace: «Verificá tu correo» y «Te damos la bienvenida a Camba». El botón «Explorá la tienda» y la URL del texto plano apuntan a `/tienda` en el `APP_URL` de esa ejecución. Abrí el enlace de verificación y volvé a abrirlo: después de otro ciclo de `camba:notices` debe seguir habiendo una sola bienvenida. El recorrido automatizado comprueba esta secuencia y guarda `bienvenida-600.png`, `bienvenida-390.png` y `bienvenida-390-sin-imagenes.png` en la carpeta de la ejecución (`CAMBA_E2E_MAIL_RUN`).
 
-Al terminar, detené solo el buzón descartable con `docker stop camba-transactional-mail-qa`. Para reproducir manualmente en la demo Docker existente, su bandeja sigue en [48025](http://127.0.0.1:48025/); si el worker ya estaba iniciado al cambiar el código, recargá ese proceso antes de enviar.
+Al terminar, detené solo el buzón descartable con `docker stop camba-transactional-mail-qa`. Para reproducir manualmente en la demo Docker existente, abrí el [buzón en 8025](http://localhost:8025/); si el worker ya estaba iniciado al cambiar el código, recargá ese proceso antes de enviar.
 
-Para probar los tres correos nuevos o corregidos en la demo habitual (4200/4300/48025), desde `web` ejecutá `node e2e/order-notices-docker.mjs` con `CAMBA_DEMO_PASSWORD` (credencial local del README) y `CAMBA_QA_PRODUCT_ID` (producto publicado con slug `qa-…`). El recorrido crea un comprador y un pedido QA, repite la confirmación, simula el pago **solo en ese pedido** sin contactar al proveedor y marca Enviado y Entregado desde Admin. Guarda las capturas de Pedidos y Avisos en `web/test-results/order-notices-docker/`.
+Para probar los tres correos nuevos o corregidos en la demo habitual (4200/4300/8025), desde `web` ejecutá `node e2e/order-notices-docker.mjs` con `CAMBA_DEMO_PASSWORD` (credencial local del README) y `CAMBA_QA_PRODUCT_ID` (producto publicado con slug `qa-…`). El recorrido crea un comprador y un pedido QA, repite la confirmación, simula el pago **solo en ese pedido** sin contactar al proveedor y marca Enviado y Entregado desde Admin. Guarda las capturas de Pedidos y Avisos en `web/test-results/order-notices-docker/`.
 
 Si solo querés volver a capturar evidencia de un pedido QA ya entregado, usá `CAMBA_QA_ORDER_REFERENCE` en lugar del ID de producto. Este modo no crea ni modifica pedidos.
 

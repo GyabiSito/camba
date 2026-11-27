@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\OrderStatus;
 use App\Enums\PaymentAttemptStatus;
+use App\Enums\PaymentStatus;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -66,6 +67,13 @@ class Order extends Model
         return array_intersect($this->payment_issues ?? [], ['provider_evidence_mismatch', 'conflicting_provider_timestamp']) !== [];
     }
 
+    public function hasBlockingCheckoutPayment(): bool
+    {
+        return $this->paid_provider_payment_id !== null
+            || Payment::query()->where('order_id', $this->id)
+                ->whereNotIn('status', [PaymentStatus::Rejected->value, PaymentStatus::Cancelled->value])->exists();
+    }
+
     public function canReplaceCheckoutAttempt(?PaymentAttempt $attempt): bool
     {
         if ($this->hasPaymentEvidenceConflict()) {
@@ -73,6 +81,10 @@ class Order extends Model
         }
         if ($attempt === null || $attempt->status === PaymentAttemptStatus::Failed) {
             return true;
+        }
+        if ($attempt->usesOrders() && $attempt->provider_order_id !== null
+            && in_array($attempt->status, [PaymentAttemptStatus::Rejected, PaymentAttemptStatus::Cancelled, PaymentAttemptStatus::Expired], true)) {
+            return true; // Unlike Preferences, Orders reports the hosted checkout's terminal state.
         }
         // A closed local attempt does not revoke the hosted preference still open in another tab.
         $safeAfter = $attempt->expires_at->copy()->addMinute();

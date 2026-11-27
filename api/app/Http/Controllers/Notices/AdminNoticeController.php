@@ -42,7 +42,7 @@ class AdminNoticeController
             'page' => ['sometimes', 'integer', 'min:1', 'max:2147483647'],
         ]);
         $query = CommerceNotice::query()
-            ->where('kind', '!=', CommerceNotice::BUYER_WELCOME)
+            ->whereNotIn('kind', CommerceNotice::BUYER_ACCOUNT_MAIL_KINDS)
             ->where(fn ($query) => $query->where('channel', 'panel')
                 ->orWhere(fn ($query) => $query->where('channel', 'mail')->whereIn('state', ['failed', 'uncertain'])))
             ->when($filters['state'] ?? null, fn ($query, $state) => $query->where('state', $state))

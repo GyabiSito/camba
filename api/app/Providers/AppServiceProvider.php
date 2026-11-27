@@ -30,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Sanctum::getAccessTokenFromRequestUsing(static fn () => null);
         Gate::define('camba-admin', fn (User $user): bool => $user->role === 'admin' && $user->hasVerifiedEmail());
+        Gate::define('camba-buyer', fn (User $user): bool => $user->role === 'buyer');
         ResetPassword::createUrlUsing(function (User $user, string $token): string {
             $context = Crypt::encryptString(json_encode([
                 'password_reset_user' => $user->getKey(),
@@ -42,6 +43,7 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('register', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
         RateLimiter::for('store-contact', fn (Request $request) => Limit::perMinute(5)->by($request->ip()));
         RateLimiter::for('password-reset', fn (Request $request) => Limit::perMinute(10)->by($request->ip()));
+        RateLimiter::for('account-password', fn (Request $request) => Limit::perMinute(10)->by($request->user('web')->getAuthIdentifier()));
         RateLimiter::for('verification-notification', fn (Request $request) => Limit::perMinute(3)->by($request->user()->getAuthIdentifier()));
         RateLimiter::for('login', function (Request $request): array {
             $email = $request->input('email');

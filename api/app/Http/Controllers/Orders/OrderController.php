@@ -6,12 +6,14 @@ use App\Actions\Geography\ResolveAddressGeography;
 use App\Actions\Orders\PlaceOrder;
 use App\Actions\Orders\QuoteCheckout;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentAttemptStatus;
 use App\Http\Requests\Orders\CheckoutRequest;
 use App\Http\Requests\Orders\OrderSessionRequest;
 use App\Http\Resources\Orders\OrderResource;
 use App\Logging\PaymentLog;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\PaymentAttempt;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Monolog\Level;
@@ -78,8 +80,13 @@ class OrderController
             ->with('items')->where('reference', $reference)->firstOrFail();
         $order->payment_state = null;
         if ($order->status === OrderStatus::PendingPayment || ($order->checkout_managed && $order->status === OrderStatus::PaymentExpired)) {
+            $attempt = $order->checkout_managed && $order->status === OrderStatus::PendingPayment
+                ? PaymentAttempt::query()->where('order_id', $order->id)->latest('id')->first(['checkout_protocol', 'provider_order_id', 'status'])
+                : null;
             $payments = Payment::query()->where('order_id', $order->id)->orderBy('id')->get(['id', 'status']);
             $order->payment_state = match (true) {
+                $attempt?->usesOrders() && $attempt->provider_order_id !== null
+                    && $attempt->status === PaymentAttemptStatus::Uncertain => 'pending',
                 $payments->contains(fn (Payment $payment): bool => $payment->status->blocksExpiry()) => 'pending',
                 $payments->isNotEmpty() => 'rejected',
                 default => null,

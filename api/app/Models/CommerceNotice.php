@@ -8,6 +8,10 @@ class CommerceNotice extends Model
 {
     public const BUYER_WELCOME = 'buyer_welcome';
 
+    public const BUYER_PASSWORD_CHANGED = 'buyer_password_changed';
+
+    public const BUYER_ACCOUNT_MAIL_KINDS = [self::BUYER_WELCOME, self::BUYER_PASSWORD_CHANGED];
+
     public const ADMIN_ORDER_CREATED = 'admin_order_created';
 
     public const ORDER_DELIVERED = 'order_delivered';

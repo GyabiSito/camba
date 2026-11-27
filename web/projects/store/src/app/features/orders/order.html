@@ -91,7 +91,7 @@
                 <button
                   type="button"
                   class="button"
-                  [disabled]="paying() || busy()"
+                  [disabled]="paying() || busy() || cancelling()"
                   (click)="openPayment()"
                 >
                   {{
@@ -107,12 +107,28 @@
               <button
                 type="button"
                 class="button button--quiet"
-                [disabled]="busy() || paying()"
+                [disabled]="busy() || paying() || cancelling()"
                 (click)="refreshPayment()"
               >
                 {{ busy() ? 'Consultando…' : 'Consultar estado del pago' }}
               </button>
+              @if (current.checkout_cancelable) {
+                <button type="button" class="button button--quiet"
+                  [disabled]="busy() || paying() || cancelling()"
+                  [attr.aria-expanded]="confirmCancellation()"
+                  [attr.aria-controls]="confirmCancellation() ? 'payment-cancel-options' : null"
+                  (click)="confirmCancellation.set(!confirmCancellation())">
+                  {{ confirmCancellation() ? 'Mantener el intento' : 'Cancelar este intento' }}
+                </button>
+              }
             </div>
+            @if (current.checkout_cancelable && confirmCancellation()) {
+              <p class="muted">La reserva se libera si Mercado Pago confirma la cancelación. Los productos quedan en tu carrito.</p>
+              <div id="payment-cancel-options" class="actions" [attr.aria-busy]="cancelling()">
+                <button type="button" class="button button--quiet" [disabled]="cancelling() || busy() || paying()"
+                  (click)="cancelPayment()">{{ cancelling() ? 'Consultando…' : 'Confirmar cancelación' }}</button>
+              </div>
+            }
           }
         </section>
         <section class="shop-panel" aria-labelledby="delivery-title">

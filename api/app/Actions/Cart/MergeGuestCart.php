@@ -11,8 +11,8 @@ class MergeGuestCart
     public function execute(string $guestSessionId, int $userId): void
     {
         DB::transaction(function () use ($guestSessionId, $userId): void {
-            $guest = Cart::lockOwner(Cart::ownerKey(null, $guestSessionId));
-            if ($guest->claimed_at !== null) {
+            $guest = Cart::query()->where(Cart::ownerKey(null, $guestSessionId))->lockForUpdate()->first();
+            if ($guest === null || $guest->claimed_at !== null) {
                 return;
             }
 
@@ -34,7 +34,7 @@ class MergeGuestCart
                 $guest->items()->delete();
             }
 
-            // ponytail: Retain claimed hashes to reject stale writes; prune after the session lifetime if these grow.
+            // ponytail: Mark legacy carts as imported so the same session cannot merge them twice.
             $guest->claimed_at = now();
             $guest->save();
         }, 3);

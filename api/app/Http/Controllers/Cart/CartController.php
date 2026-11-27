@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\Cart;
 
+use App\Actions\Cart\CartCheckout;
 use App\Actions\Cart\SetCartItem;
 use App\Http\Requests\Cart\CartRequest;
 use App\Http\Resources\Cart\CartResource;
 use App\Models\Cart;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 
 class CartController
@@ -16,6 +18,13 @@ class CartController
             ->with('items.product')->first();
 
         return new CartResource($cart);
+    }
+
+    public function resume(CartRequest $request, string $reference, CartCheckout $checkout): JsonResponse
+    {
+        $state = $checkout->resume($request->user('web')?->id, $request->session()->getId(), $reference);
+
+        return response()->json(['data' => $state])->header('Cache-Control', 'private, no-store');
     }
 
     public function setItem(CartRequest $request, string $product, SetCartItem $item): CartResource

@@ -1,11 +1,14 @@
 import { isPlatformBrowser } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, inject, PLATFORM_ID, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { apiMessage, CART_CHANGED } from '@camba/shared';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, map } from 'rxjs';
 import { AddressFields } from '../../shared/ui/address-fields';
 import { ShopperAuth } from './auth';
+import { accountReturn } from './account-return';
 import { httpStatus } from '../../shared/data-access/api-contracts';
 import { Address, addressGeography, makeAddressForm, resetAddressForm } from '../../shared/data-access/address';
 import { Buyer } from '@camba/shared';
@@ -22,8 +25,7 @@ export class AccountPage {
   private readonly api = inject(AccountApi);
   private readonly fb = inject(FormBuilder);
   private readonly router = inject(Router);
-  protected readonly returnToCheckout =
-    inject(ActivatedRoute).snapshot.queryParamMap.get('volver') === 'checkout';
+  protected readonly returnTo = toSignal(inject(ActivatedRoute).queryParamMap.pipe(map(accountReturn)), { requireSync: true });
   protected readonly verificationResult = inject(ActivatedRoute).snapshot.queryParamMap.get(
     'verificacion',
   );
@@ -32,6 +34,13 @@ export class AccountPage {
   protected readonly error = signal('');
   protected readonly profileMessage = signal('');
   protected readonly profileBusy = signal(false);
+  protected readonly passwordBusy = signal(false);
+  protected readonly passwordFeedback = signal<{ error: boolean; text: string } | null>(null);
+  protected readonly passwordFields = [
+    { name: 'current_password', label: 'Contraseña actual', autocomplete: 'current-password' },
+    { name: 'password', label: 'Nueva contraseña', autocomplete: 'new-password' },
+    { name: 'password_confirmation', label: 'Confirmar nueva contraseña', autocomplete: 'new-password' },
+  ] as const;
 
   protected readonly addresses = signal<Address[] | null>(null);
   protected readonly addressesLoading = signal(false);
@@ -54,6 +63,11 @@ export class AccountPage {
   protected readonly profile = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(120)]],
   });
+  protected readonly password = this.fb.nonNullable.group({
+    current_password: ['', Validators.required],
+    password: ['', [Validators.required, Validators.minLength(12)]],
+    password_confirmation: ['', Validators.required],
+  });
   protected readonly address = makeAddressForm(this.fb);
   protected readonly phone = this.fb.nonNullable.control('', Validators.maxLength(30));
   protected readonly preferences = this.fb.nonNullable.group({
@@ -72,10 +86,13 @@ export class AccountPage {
       const { data } = await firstValueFrom(this.api.me());
       this.profile.reset({ name: data.name });
       this.buyer.set(data);
+      const destination = this.returnTo();
+      if (afterLogin && destination && data.role === 'buyer') {
+        if (await this.router.navigate(destination.commands)) return;
+      }
       if (this.browser) void this.loadAddresses();
       if (this.browser && data.email_verified && data.role === 'buyer')
         void this.updatePreferences(false);
-      if (afterLogin && this.returnToCheckout) await this.router.navigateByUrl('/checkout');
     } catch (error) {
       if (httpStatus(error) !== 401)
         this.error.set(apiMessage(error, 'No pudimos abrir tu cuenta.'));
@@ -88,6 +105,7 @@ export class AccountPage {
   protected async logout() {
     if (
       this.profileBusy() ||
+      this.passwordBusy() ||
       this.addressBusy() ||
       this.preferencesBusy() ||
       this.verificationBusy()
@@ -99,6 +117,8 @@ export class AccountPage {
       await firstValueFrom(this.api.logout());
       this.buyer.set(null);
       this.profile.reset();
+      this.password.reset();
+      this.passwordFeedback.set(null);
       this.address.reset();
       this.phone.reset();
       this.addresses.set(null);
@@ -142,6 +162,52 @@ export class AccountPage {
       this.error.set(apiMessage(error, 'No pudimos guardar tus datos.'));
     } finally {
       this.profileBusy.set(false);
+    }
+  }
+
+  protected passwordError(name: (typeof this.passwordFields)[number]['name']): string {
+    const control = this.password.controls[name];
+    if (control.hasError('server')) return control.getError('server');
+    if (!control.touched) return '';
+    if (control.hasError('required')) return 'Completá este campo.';
+    if (control.hasError('minlength')) return 'Usá al menos 12 caracteres.';
+    if (name === 'password_confirmation' && control.value !== this.password.controls.password.value) {
+      return 'Las contraseñas no coinciden.';
+    }
+    return '';
+  }
+
+  protected async savePassword() {
+    if (this.passwordBusy()) return;
+    this.passwordFeedback.set(null);
+    this.password.markAllAsTouched();
+    const body = this.password.getRawValue();
+    if (this.password.invalid || body.password !== body.password_confirmation) return;
+
+    this.passwordBusy.set(true);
+    try {
+      await firstValueFrom(this.api.changePassword(body));
+      this.password.reset();
+      this.passwordFeedback.set({ error: false, text: 'Contraseña actualizada' });
+    } catch (error) {
+      if (error instanceof HttpErrorResponse && error.status === 422) {
+        let hasFieldErrors = false;
+        for (const { name } of this.passwordFields) {
+          const message = error.error?.errors?.[name]?.[0];
+          if (typeof message !== 'string') continue;
+          this.password.controls[name].setErrors({ server: message });
+          hasFieldErrors = true;
+        }
+        if (hasFieldErrors) return;
+      }
+      this.passwordFeedback.set({
+        error: true,
+        text: httpStatus(error) === 401
+          ? 'Tu sesión venció. Volvé a iniciar sesión.'
+          : 'No pudimos actualizar la contraseña. Probá de nuevo en un momento.',
+      });
+    } finally {
+      this.passwordBusy.set(false);
     }
   }
 

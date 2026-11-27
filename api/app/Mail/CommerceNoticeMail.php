@@ -24,7 +24,7 @@ class CommerceNoticeMail extends Mailable
 
     public function envelope(): Envelope
     {
-        return new Envelope(subject: in_array($this->kind, [CommerceNotice::BUYER_WELCOME, CommerceNotice::ADMIN_ORDER_CREATED, CommerceNotice::ORDER_DELIVERED], true)
+        return new Envelope(subject: in_array($this->kind, [...CommerceNotice::BUYER_ACCOUNT_MAIL_KINDS, CommerceNotice::ADMIN_ORDER_CREATED, CommerceNotice::ORDER_DELIVERED], true)
             ? $this->title()
             : 'Camba: '.mb_lcfirst($this->title()));
     }
@@ -53,6 +53,7 @@ class CommerceNoticeMail extends Mailable
         $adminNotice = $this->kind === CommerceNotice::ADMIN_ORDER_CREATED;
         [$actionLabel, $actionUrl] = match (true) {
             $adminNotice => ['Ver pedido', TransactionalEmail::adminOrderUrl($this->reference ?? '') ?? throw new LogicException('Missing Admin origin.')],
+            $this->kind === CommerceNotice::BUYER_PASSWORD_CHANGED => ['Restablecer contraseña', $store.'/cuenta/recuperar'],
             $this->kind === 'cart_reminder' => ['Ver carrito', $store.'/carrito'],
             $this->order?->user_id !== null => ['Ver pedido', $store.'/pedidos/'.rawurlencode($this->reference)],
             default => ['Ir a la tienda', $store],
@@ -67,6 +68,7 @@ class CommerceNoticeMail extends Mailable
                 'cart_reminder' => 'Si querés retomarlo, revisá los precios y la disponibilidad antes de comprar.',
                 'order_ready_for_pickup' => 'Consultá en la tienda los datos para retirar tu pedido.',
                 'order_shipped' => 'Consultá en la tienda el estado de la entrega.',
+                CommerceNotice::BUYER_PASSWORD_CHANGED => 'Actualizaste la contraseña de tu cuenta de Camba. Si no hiciste este cambio, restablecé tu contraseña desde la tienda y contactanos',
                 CommerceNotice::ORDER_DELIVERED => 'Tu pedido ya fue entregado. Podés consultar los detalles en la tienda.',
                 CommerceNotice::ADMIN_ORDER_CREATED => 'Entró un pedido en la tienda. Revisá el estado del pago y los datos en Admin.',
             },
@@ -97,6 +99,7 @@ class CommerceNoticeMail extends Mailable
     {
         return match ($this->kind) {
             CommerceNotice::BUYER_WELCOME => 'Te damos la bienvenida a Camba',
+            CommerceNotice::BUYER_PASSWORD_CHANGED => 'Tu contraseña de Camba se actualizó',
             'order_created' => 'Recibimos tu pedido',
             'order_paid' => 'Pago confirmado',
             'payment_reminder' => 'Tu pago sigue pendiente',

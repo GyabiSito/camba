@@ -30,7 +30,7 @@ export class StoreHeader {
           .pipe(catchError(() => of(null)))),
         takeUntilDestroyed(this.scope),
       ).subscribe((result) => {
-        if (result) this.count.set(result.data.items.reduce((total, line) => total + line.quantity, 0));
+        this.count.set(result?.data.items.reduce((total, line) => total + line.quantity, 0) ?? 0);
       });
     });
   }

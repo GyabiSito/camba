@@ -1,12 +1,13 @@
 import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, output, PLATFORM_ID, signal } from '@angular/core';
+import { Component, computed, inject, input, output, PLATFORM_ID, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { apiMessage, CART_CHANGED } from '@camba/shared';
 import { firstValueFrom } from 'rxjs';
 import { AccountApi } from './index';
+import type { AccountReturn } from './account-return';
 
 type AuthMode = 'login' | 'register' | 'forgot';
 
@@ -18,7 +19,7 @@ type AuthMode = 'login' | 'register' | 'forgot';
     <section class="shop-workspace narrow members" aria-labelledby="access-title">
       <header class="page-header">
         <h1 id="access-title">{{ titles[mode()] }}</h1>
-        <p class="muted">{{ introductions[mode()] }}</p>
+        <p class="muted">{{ introductions()[mode()] }}</p>
       </header>
       <div class="shop-panel">
         @if (message()) {
@@ -89,7 +90,7 @@ type AuthMode = 'login' | 'register' | 'forgot';
             }
             <div class="actions">
               <button class="button" type="submit">
-                {{ busy() ? 'Un momento…' : labels[mode()] }}
+                {{ busy() ? 'Un momento…' : labels()[mode()] }}
               </button>
               @if (mode() === 'login') {
                 <button class="button button--quiet" type="button" (click)="switchTo('forgot')">
@@ -125,7 +126,7 @@ type AuthMode = 'login' | 'register' | 'forgot';
             Los pedidos hechos como invitado se consultan en la sesión en que se crearon. No se
             transfieren al ingresar.
           </p>
-          <a routerLink="/pedidos">Ver compras como invitado</a>
+          <a routerLink="/pedidos">Consultar compras anteriores como invitado</a>
         </div>
       }
     </section>
@@ -135,7 +136,9 @@ export class ShopperAuth {
   private readonly client = inject(AccountApi);
   private readonly fb = inject(FormBuilder);
   readonly signedIn = output<void>();
-  protected readonly recoveryPage = inject(ActivatedRoute).snapshot.data['requestPasswordReset'] === true;
+  readonly returnTo = input<AccountReturn | null>(null);
+  private readonly route = inject(ActivatedRoute);
+  protected readonly recoveryPage = this.route.snapshot.data['requestPasswordReset'] === true;
   protected readonly mode = signal<AuthMode>(this.recoveryPage ? 'forgot' : 'login');
   protected readonly busy = signal(false);
   protected readonly submitted = signal(false);
@@ -146,16 +149,18 @@ export class ShopperAuth {
     register: 'Creá tu cuenta',
     forgot: 'Recuperá tu contraseña',
   };
-  protected readonly introductions = {
-    login: 'Ingresá para gestionar tus datos, direcciones y compras. Si tu sesión venció, podés volver a iniciar sesión.',
-    register: 'Podés comprar con una cuenta o seguir como invitado.',
+  protected readonly introductions = computed(() => ({
+    login: this.returnTo()
+      ? 'Iniciá sesión o creá una cuenta para usar tu carrito.'
+      : 'Ingresá para gestionar tus datos, direcciones y compras. Si tu sesión venció, podés volver a iniciar sesión.',
+    register: 'Creá una cuenta para comprar y consultar tus pedidos.',
     forgot: 'Indicá el correo que usaste para registrarte.',
-  };
-  protected readonly labels = {
-    login: 'Ingresar',
+  }));
+  protected readonly labels = computed(() => ({
+    login: this.returnTo() && this.returnTo()?.commands[0] !== '/checkout' ? 'Iniciar sesión' : 'Ingresar',
     register: 'Registrarme',
     forgot: 'Solicitar enlace',
-  };
+  }));
   protected readonly form = this.fb.nonNullable.group({
     name: ['', [Validators.maxLength(120)]],
     email: ['', [Validators.required, Validators.email, Validators.maxLength(254)]],
@@ -205,12 +210,7 @@ export class ShopperAuth {
     }
     this.busy.set(true);
     try {
-      if (mode === 'login') {
-        await firstValueFrom(this.client.login(email, password));
-        this.form.reset();
-        window.dispatchEvent(new Event(CART_CHANGED));
-        this.signedIn.emit();
-      } else if (mode === 'register') {
+      if (mode === 'register') {
         const result = await firstValueFrom(
           this.client.register({
             name,
@@ -221,11 +221,19 @@ export class ShopperAuth {
         );
         this.switchTo('login');
         this.message.set(
-          result.meta.verification_queued
+          this.returnTo()
+            ? 'Cuenta creada. Iniciá sesión para usar tu carrito.'
+            : result.meta.verification_queued
             ? 'Cuenta creada. Revisá tu correo para verificarla e ingresá con tu nueva contraseña.'
             : 'Cuenta creada, pero el correo no se pudo solicitar. Ingresá para pedir un enlace nuevo.',
         );
-      } else {
+      }
+      if (mode === 'login' || (mode === 'register' && this.returnTo())) {
+        await firstValueFrom(this.client.login(email, password));
+        this.form.reset();
+        window.dispatchEvent(new Event(CART_CHANGED));
+        this.signedIn.emit();
+      } else if (mode === 'forgot') {
         await firstValueFrom(this.client.forgotPassword(email));
         this.message.set(
           'Si existe una cuenta con ese correo, vas a recibir un enlace para restablecer la contraseña.',

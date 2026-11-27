@@ -16,14 +16,15 @@ export interface Order {
   payment_state?: 'pending' | 'rejected' | null;
   payment_rejection?: string;
   checkout_retryable?: boolean;
+  checkout_cancelable?: boolean;
   items?: Line[]; pickup_address?: string | null;
   address?: (Omit<Address, 'id' | 'phone' | keyof AddressGeography> & Partial<Pick<Address, keyof AddressGeography>>) | null;
   tracking?: string | null;
 }
 export const orderStatus: Record<string, string> = {
   pending_payment: 'Pendiente de pago', paid: 'Pago confirmado', payment_expired: 'Reserva vencida',
-  payment_review: 'Pago en revisiÃ³n', refunded: 'Pago reembolsado', charged_back: 'Pago contracargado',
+  payment_review: 'Pago en revisión', refunded: 'Pago reembolsado', charged_back: 'Pago contracargado',
 };
 export const fulfilmentStatus: Record<string, string> = {
-  preparing: 'En preparaciÃ³n', ready_for_pickup: 'Listo para retirar', shipped: 'En camino', completed: 'Completado',
+  preparing: 'En preparación', ready_for_pickup: 'Listo para retirar', shipped: 'En camino', completed: 'Completado',
 };

@@ -43,7 +43,11 @@
                       <h2>Producto no disponible</h2>
                     }
                   </div>
-                  @if (!item.available || item.quantity > maxQuantity(item)) {
+                  @if (item.reserved) {
+                    <p class="muted">
+                      {{ checkout()?.state === 'ready' ? 'Reservado para tu pago.' : 'Reservado temporalmente. Volvé a consultar la disponibilidad en un momento.' }}
+                    </p>
+                  } @else if (!item.available || item.quantity > maxQuantity(item)) {
                     <p class="muted">
                       {{
                         maxQuantity(item)
@@ -73,14 +77,14 @@
                           [name]="'quantity-' + item.product_id"
                           [ngModel]="quantities()[item.product_id]"
                           (ngModelChange)="setQuantity(item.product_id, $event)"
-                          [disabled]="action() !== null"
+                          [disabled]="action() !== null || paymentBusy()"
                         />
                       </label>
                       <button
                         type="submit"
                         class="button button--quiet"
                         [disabled]="
-                          action() !== null || quantities()[item.product_id] === item.quantity
+                          action() !== null || paymentBusy() || quantities()[item.product_id] === item.quantity
                         "
                       >
                         Actualizar
@@ -89,7 +93,7 @@
                     <button
                       type="button"
                       class="button button--quiet"
-                      [disabled]="action() !== null"
+                      [disabled]="action() !== null || paymentBusy()"
                       [attr.aria-label]="
                         'Quitar ' + (item.product?.name ?? 'producto no disponible')
                       "
@@ -126,8 +130,24 @@
               <dd>{{ money(total()) }}</dd>
             </div>
           </dl>
-          <p class="muted small">Vas a ver el costo de entrega antes de confirmar.</p>
-          @if (!hasUnavailable() && !unsaved() && action() === null) {
+          @if (checkout(); as payment) {
+            @if (payment.state === 'ready') {
+              <p class="muted small">Tu reserva está vigente. Podés volver al mismo pago.</p>
+              <div class="actions">
+                <button class="button" type="button" [disabled]="paymentBusy() || action() !== null || unsaved()" (click)="resumePayment(payment)">
+                  Continuar pago
+                </button>
+              </div>
+            } @else {
+              <p class="muted small">Estamos verificando el pago. Esperá la confirmación antes de volver a pagar.</p>
+              <div class="actions">
+                <button class="button" type="button" [disabled]="paymentBusy() || action() !== null" (click)="checkPayment(payment)">
+                  Consultar estado
+                </button>
+              </div>
+            }
+          } @else if (!hasUnavailable() && !unsaved() && action() === null) {
+            <p class="muted small">Vas a ver el costo de entrega antes de confirmar.</p>
             <div class="actions">
               <a class="button" routerLink="/checkout">Continuar la compra</a>
             </div>
@@ -142,6 +162,8 @@
               }}
             </p>
           }
+          @if (paymentBusy()) { <p class="muted small" role="status">Consultando el pago…</p> }
+          @if (paymentNote()) { <p class="muted small" role="status">{{ paymentNote() }}</p> }
         } @else {
           <h2 id="cart-summary-title">¿Ya hiciste un pedido?</h2>
         }

@@ -136,7 +136,10 @@ export class StoreProduct {
                       data.items.find((item) => item.product_id === product.id)?.quantity ?? 0,
                   ),
                 ),
-            ).catch(() => undefined);
+            ).catch((error) => {
+              if (error instanceof HttpErrorResponse && error.status === 401) throw error;
+              return undefined;
+            });
       if (!dialog.isConnected || this.product()?.id !== product.id) return;
       const { data } = await firstValueFrom(
         quantity === null
@@ -170,6 +173,13 @@ export class StoreProduct {
       dialog.showModal();
     } catch (error) {
       if (this.product()?.id !== product.id) return;
+      if (error instanceof HttpErrorResponse && error.status === 401) {
+        this.cart.set({ kind: 'idle' });
+        await this.router.navigate(['/cuenta'], {
+          queryParams: { volver: 'producto', producto: product.slug },
+        });
+        return;
+      }
       let message =
         'No pudimos comprobar si se agregó. Revisá tu carrito antes de intentarlo de nuevo.';
       if (error instanceof HttpErrorResponse && error.status >= 400 && error.status < 500) {

@@ -12,15 +12,6 @@
     @if (currentQuote.shipping_options.length) {
       <form (submit)="$event.preventDefault(); placeOrder()" class="shop-columns purchase-layout">
         <div class="stack purchase-details">
-          @if (buyer() === null) {
-            <p class="notice">
-              Podés comprar como invitado. Si preferís usar tu cuenta, iniciá sesión antes de
-              confirmar.
-              <a routerLink="/cuenta" [queryParams]="{ volver: 'checkout' }"
-                >Ingresar a mi cuenta</a
-              >
-            </p>
-          }
           <section class="shop-panel purchase-panel">
             <fieldset [formGroup]="contact" [disabled]="busy() || uncertain()" class="pair">
               <legend>Datos de contacto</legend>

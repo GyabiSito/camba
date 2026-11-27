@@ -1,6 +1,6 @@
 # Quote and reserve an order
 
-Checkout uses the [first-party Sanctum session](../README.md), including for guests. Send its cookie on all requests and its CSRF token on both POST requests. Neither buyer IDs nor guest credentials belong in the request body or URL.
+Guests can browse, but only a signed-in buyer can use the cart and create an order. Send the [first-party session](../README.md) cookie and CSRF token with mutations. Historical guest orders remain accessible from their original unexpired session. Do not send buyer IDs or guest credentials in the body or URL.
 
 ## Checkout
 

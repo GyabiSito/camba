@@ -109,7 +109,7 @@ class AdminOrderController
             ...((array) $event), 'note' => $event->note === null ? null : Crypt::decryptString($event->note),
         ]);
 
-        $attempt = PaymentAttempt::query()->where('order_id', $order->id)->first(['status', 'expires_at']);
+        $attempt = PaymentAttempt::query()->where('order_id', $order->id)->latest('id')->first(['status', 'expires_at']);
         $payments = Payment::query()->where('order_id', $order->id)->orderByDesc('provider_updated_at')->orderByDesc('id')
             ->get(['id', 'status', 'amount_cents', 'provider_updated_at'])->map(fn (Payment $payment) => [
                 'id' => $payment->id,

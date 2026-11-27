@@ -16,6 +16,7 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Monolog\Level;
 use RuntimeException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 class ReconcilePayments
@@ -71,7 +72,8 @@ class ReconcilePayments
         $event = PaymentWebhookEvent::query()->findOrFail($id);
         $lease = PaymentWebhookEvent::query()->whereKey($id)->where('lease_token', $token);
         try {
-            $payment = $this->client->payment($event->provider_payment_id);
+            $snapshot = $event->provider_order_id === null ? null : $this->client->order($event->provider_order_id);
+            $payment = $snapshot === null ? $this->client->payment($event->provider_payment_id) : null;
         } catch (RuntimeException|InvalidArgumentException $error) {
             PaymentLog::failure('payment.webhook.lookup', $correlation, $error, reason: 'provider_unavailable');
             $lease->update([
@@ -83,8 +85,50 @@ class ReconcilePayments
             return;
         }
 
-        $result = $this->sync->execute($payment['reference'], [$payment]);
+        $result = match (true) {
+            $snapshot !== null => $this->applyOrder($snapshot),
+            isset($payment['attempt_id']) && PaymentAttempt::query()->whereKey($payment['attempt_id'])
+                ->where('checkout_protocol', 'orders')->exists() => 'orders_payment_requires_order',
+            default => $this->sync->execute($payment['reference'], [$payment]),
+        };
         $lease->update(['lease_token' => null, 'result' => $result, 'processed_at' => now()]);
+    }
+
+    private function applyOrder(array $snapshot): string
+    {
+        return $this->sync->execute($snapshot['order_reference'], [], providerOrders: [$snapshot]);
+    }
+
+    public function cancel(Order $order): void
+    {
+        $attempt = PaymentAttempt::where('order_id', $order->id)->latest('id')->first();
+        abort_unless($attempt?->usesOrders() && $attempt->provider_order_id !== null, 409, 'Este pago no se puede cancelar desde Camba.');
+        if ($order->status !== OrderStatus::PendingPayment || $attempt->status->closed()) {
+            return;
+        }
+        $correlation = PaymentLog::order($order);
+        try {
+            $snapshot = $this->client->order($attempt->provider_order_id);
+            abort_unless($snapshot['order_reference'] === $order->reference && $snapshot['attempt_id'] === $attempt->id
+                && $snapshot['amount_cents'] === $order->total_cents && $order->currency === 'UYU', 409, 'La orden de Mercado Pago no coincide.');
+            if (in_array($snapshot['state'], ['created', 'action_required'], true)) {
+                try {
+                    $this->client->cancelOrder($attempt->provider_order_id, $attempt->provider_create_key);
+                } catch (RuntimeException|InvalidArgumentException $error) {
+                    PaymentLog::failure('payment.order.cancel', $correlation, $error, $order->id,
+                        'cancel_result_unknown', $order->reference, $attempt->id);
+                }
+                // Even if the cancellation reply was lost, only the authoritative GET can release stock.
+                $snapshot = $this->client->order($attempt->provider_order_id);
+            }
+            $this->applyOrder($snapshot);
+        } catch (RuntimeException|InvalidArgumentException $error) {
+            if ($error instanceof HttpExceptionInterface) {
+                throw $error;
+            }
+            PaymentLog::failure('payment.order.cancel_lookup', $correlation, $error, $order->id,
+                'provider_unavailable', $order->reference, $attempt->id);
+        }
     }
 
     private function reconcileOrder(int $id, string &$correlation): void
@@ -124,12 +168,33 @@ class ReconcilePayments
         }
 
         $checkedAt = now();
-        $ids = Payment::query()->where('order_id', $id)->pluck('provider_payment_id')->all();
+        $ids = Payment::query()->where('order_id', $id)->pluck('provider_payment_id')
+            ->filter(CheckoutProClient::isNumericId(...))->values()->all();
+        [$ordersAttempts, $preferences] = PaymentAttempt::query()->where('order_id', $id)->get()
+            ->partition(fn (PaymentAttempt $attempt) => $attempt->usesOrders());
         $complete = true;
+        $snapshots = [];
+        foreach ($ordersAttempts as $attempt) {
+            if ($attempt->status === PaymentAttemptStatus::Failed && $attempt->provider_order_id === null) {
+                continue;
+            }
+            try {
+                $providerId = $attempt->provider_order_id ?? $this->client->searchOrderId(
+                    CheckoutProClient::attemptReference($order->reference, $attempt->id), $attempt->created_at,
+                );
+                if ($providerId !== null) {
+                    $snapshots[] = $this->client->order($providerId);
+                } elseif ($attempt->status === PaymentAttemptStatus::Initiating || $attempt->expires_at->copy()->addMinute()->gt($checkedAt)) {
+                    $complete = false;
+                }
+            } catch (RuntimeException|InvalidArgumentException $error) {
+                PaymentLog::failure('payment.order.lookup', $correlation, $error, $id, 'provider_unavailable', $order->reference, $attempt->id);
+                $complete = false;
+            }
+        }
         try {
             $references = $order->checkout_managed
-                ? PaymentAttempt::query()->where('order_id', $id)
-                    ->pluck('id')->map(fn (int $attempt) => CheckoutProClient::attemptReference($order->reference, $attempt))->all()
+                ? $preferences->map(fn (PaymentAttempt $attempt) => CheckoutProClient::attemptReference($order->reference, $attempt->id))->all()
                 : [$order->reference];
             foreach ($references as $reference) {
                 $ids = array_values(array_unique([...$ids, ...$this->client->searchIds($reference)]));
@@ -144,7 +209,8 @@ class ReconcilePayments
         // ponytail: A payment with more than 12 candidate IDs needs operator review; never release on incomplete evidence.
         if (count($ids) > 12) {
             PaymentLog::write(Level::Warning, 'payment.reconcile.rejected', $correlation, $id, 'provider_candidate_limit');
-            $this->sync->execute($order->reference, [], $order->payment_reconcile_token, $checkedAt, incompleteReason: 'provider_candidate_limit');
+            $this->sync->execute($order->reference, [], $order->payment_reconcile_token, $checkedAt,
+                incompleteReason: 'provider_candidate_limit', providerOrders: $snapshots);
 
             return;
         }
@@ -160,7 +226,8 @@ class ReconcilePayments
                 $complete = false;
             }
         }
-        $this->sync->execute($order->reference, $evidence, $order->payment_reconcile_token, $checkedAt, $complete);
+        $this->sync->execute($order->reference, $evidence, $order->payment_reconcile_token, $checkedAt, $complete,
+            providerOrders: $snapshots);
     }
 
     /** @return Builder<Order> */

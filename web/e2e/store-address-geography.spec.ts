@@ -154,10 +154,10 @@ test('address creation, edit, reload and correction use only a selected geograph
   await page.screenshot({ path: info.outputPath('account-legacy-address.png'), fullPage: true });
 });
 
-test('guest delivery ignores obsolete location lists and quotes at 320px; pickup remains available', async ({
+test('buyer delivery ignores obsolete location lists and quotes at 320px; pickup remains available', async ({
   page,
 }, info) => {
-  await mockShopper(page, false);
+  await mockShopper(page, true, []);
   await page.setViewportSize({ width: 320, height: 800 });
   const slowLocalities = gate();
   const slowQuote = gate();
