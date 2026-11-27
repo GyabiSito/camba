@@ -77,6 +77,7 @@ test('registration shows an unverified account and a legacy reset link offers re
   await expect(page.getByRole('status')).toContainText('Si existe una cuenta');
   await page.goto('/cuenta/restablecer#token=invalid-test-token');
   await expect(page).toHaveURL(/\/cuenta\/restablecer$/);
+  await expect(page.getByLabel('Correo electrónico')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Guardar contraseña' })).toHaveCount(0);
   await expect(page.getByRole('alert')).toBeVisible();
   await page.getByRole('link', { name: 'Solicitar un nuevo enlace' }).click();
@@ -311,11 +312,12 @@ test.describe('Camba transactional mail', () => {
     await page.goto('/carrito');
     await page.getByRole('link', { name: 'Continuar la compra' }).click();
     await page.getByRole('radio', { name: /Retiro/ }).check();
-    const orderResponse = page.waitForResponse(r => r.url().endsWith('/api/v1/orders') && r.request().method() === 'POST');
+    const orderResponse = page.waitForResponse(r => r.url().endsWith('/api/v1/orders') && r.request().method() === 'POST')
+      .then(async response => ({ status: response.status(), reference: (await response.json()).data.reference }));
     await page.getByRole('button', { name: 'Confirmar pedido' }).click();
     const placed = await orderResponse;
-    expect(placed.status()).toBe(201);
-    const { reference } = (await placed.json()).data;
+    expect(placed.status).toBe(201);
+    const { reference } = placed;
     const order = await received(email, 'Camba: recibimos tu pedido', 'Ver pedido');
     expect(order.plain.includes(reference) && order.plain.includes('Pendiente de pago') && order.plain.includes('UYU')).toBe(true);
     expect(new URL(order.link).pathname).toBe(`/pedidos/${reference}`);

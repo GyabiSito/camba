@@ -80,7 +80,7 @@ test('admin login opens Dashboard by default and restores a protected deep link'
 
 test('a verified buyer cannot enter administration', async ({ page }) => {
   await page.goto('/ingresar');
-  await page.getByLabel('Correo electrónico').fill('buyer@camba.test');
+  await page.getByLabel('Correo electrónico').fill('buyer-admin-denied@camba.test');
   await page.getByLabel('Contraseña').fill('Camba-test-only-2026');
   const denied = page.waitForResponse((response) =>
     response.url().endsWith('/api/v1/admin/session'),

@@ -8,7 +8,7 @@ async function signIn(page: Page) {
   if (sessionCookies) await page.context().addCookies(sessionCookies);
   await page.goto('/productos');
   if (!sessionCookies) {
-    await page.getByLabel('Correo electrónico').fill('admin@camba.test');
+    await page.getByLabel('Correo electrónico').fill('catalog-admin@camba.test');
     await page.getByLabel('Contraseña', { exact: true }).fill('Camba-test-only-2026');
     await page.getByRole('button', { name: 'Ingresar' }).click();
   }

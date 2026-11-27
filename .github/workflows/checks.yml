@@ -128,7 +128,7 @@ jobs:
           CAMBA_APP_URL: https://store.example.test
           CAMBA_SANCTUM_DOMAINS: 'store.example.test,admin.example.test'
           CAMBA_DB_PASSWORD: ci-only
-          CAMBA_DB_ROOT_PASSWORD: ci-root-only
+          CAMBA_DB_ADMIN_PASSWORD: ci-admin-only
           CAMBA_API_IMAGE: camba-api:ci
           CAMBA_STORE_IMAGE: camba-store:ci
           CAMBA_ADMIN_IMAGE: camba-admin:ci

@@ -8,7 +8,7 @@ const photo = (name: string) => resolve(__dirname, `../projects/admin/public/dem
 
 async function signIn(page: Page) {
   await page.goto('/productos');
-  await page.getByLabel('Correo electrónico').fill('admin@camba.test');
+  await page.getByLabel('Correo electrónico').fill('upload-admin@camba.test');
   await page.getByLabel('Contraseña', { exact: true }).fill('Camba-test-only-2026');
   await page.getByRole('button', { name: 'Ingresar' }).click();
   await expect(page.getByRole('heading', { name: 'Productos', exact: true })).toBeVisible({ timeout: 25_000 });

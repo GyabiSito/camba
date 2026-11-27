@@ -25,9 +25,9 @@ async function addToCart(page: Page, slug: string) {
   await dialog.getByRole('button', { name: 'Seguir comprando' }).click();
 }
 
-async function signInBuyer(page: Page) {
+async function signInBuyer(page: Page, scenario: string) {
   await page.goto('/cuenta');
-  await page.getByLabel('Correo electrónico').fill('buyer@camba.test');
+  await page.getByLabel('Correo electrónico').fill(`buyer-${scenario}@camba.test`);
   await page.getByLabel('Contraseña', { exact: true }).fill('Camba-test-only-2026');
   await page.getByRole('button', { name: 'Ingresar' }).click();
   await expect(page.getByRole('button', { name: 'Cerrar sesión' })).toBeVisible();
@@ -78,14 +78,18 @@ test('a guest registers from a product, returns to it and can place an order', a
   const placed = page.waitForResponse(
     (response) =>
       response.url().endsWith('/api/v1/orders') && response.request().method() === 'POST',
-  );
+  ).then(async response => ({
+    ok: response.ok(),
+    request: response.request(),
+    data: (await response.json()).data,
+  }));
   await page.getByRole('button', { name: 'Reintentar el mismo pedido' }).click();
   const response = await placed;
-  expect(response.ok()).toBeTruthy();
-  expect(response.request().headers()['idempotency-key']).toMatch(/^[0-9a-f-]{36}$/);
-  expect(response.request().headers()['idempotency-key']).toBe(firstKey);
-  expect((await response.json()).data.reference).toBe(firstReference);
-  expect(response.request().postDataJSON()).toMatchObject({
+  expect(response.ok).toBeTruthy();
+  expect(response.request.headers()['idempotency-key']).toMatch(/^[0-9a-f-]{36}$/);
+  expect(response.request.headers()['idempotency-key']).toBe(firstKey);
+  expect(response.data.reference).toBe(firstReference);
+  expect(response.request.postDataJSON()).toMatchObject({
     items: [{ quantity: 2 }],
     shipping_method: 'pickup',
   });
@@ -128,7 +132,7 @@ test('opening the cart without a session offers access and returns a buyer to th
   await page.goto('/carrito');
   await expect(page).toHaveURL(/\/cuenta\?volver=carrito$/);
   await expect(page.getByRole('button', { name: 'Crear cuenta' })).toBeVisible();
-  await page.getByLabel('Correo electrónico').fill('buyer@camba.test');
+  await page.getByLabel('Correo electrónico').fill('buyer-cart@camba.test');
   await page.getByLabel('Contraseña', { exact: true }).fill('Camba-test-only-2026');
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
   await expect(page).toHaveURL(/\/carrito$/, { timeout: 15_000 });
@@ -139,7 +143,7 @@ test('two tabs each add a unit of the same product without losing an increment',
   context,
   page,
 }) => {
-  await signInBuyer(page);
+  await signInBuyer(page, 'tabs');
   await addToCart(page, 'remera-lisa');
   const other = await context.newPage();
   await openProduct(other, 'remera-lisa');
@@ -186,7 +190,7 @@ test('product detail explains all available units are already in the cart', asyn
   page,
 }, info) => {
   await page.setViewportSize({ width: 320, height: 800 });
-  await signInBuyer(page);
+  await signInBuyer(page, 'stock');
   await addToCart(page, 'remera-lisa');
   await page.goto('/carrito');
   const quantity = page.getByRole('spinbutton', { name: 'Cantidad de Remera lisa' });
@@ -222,7 +226,7 @@ test('product detail explains all available units are already in the cart', asyn
 test('a buyer edits profile and saves reminder preferences after signing in', async ({
   page,
 }, info) => {
-  await signInBuyer(page);
+  await signInBuyer(page, 'profile');
   const name = page.getByLabel('Nombre completo');
   await expect(name).toBeVisible();
   const originalName = await name.inputValue();
@@ -307,7 +311,7 @@ test('two buyer tabs persist valid quantities at current server prices', async (
       stock: 7,
     });
 
-    await signInBuyer(page);
+    await signInBuyer(page, 'sync');
     await addToCart(page, common.slug);
     await addToCart(page, separate.slug);
     await page.goto('/carrito');
@@ -361,7 +365,7 @@ test('a buyer sees the API delivery rate and confirms a persisted delivery order
   page,
 }, info) => {
   await page.setViewportSize({ width: 320, height: 800 });
-  await signInBuyer(page);
+  await signInBuyer(page, 'delivery');
   await addToCart(page, 'remera-lisa');
   await page.goto('/carrito');
   const quoting = page.waitForResponse(
@@ -413,11 +417,15 @@ test('a buyer sees the API delivery rate and confirms a persisted delivery order
   const ordering = page.waitForResponse(
     (response) =>
       response.url().endsWith('/api/v1/orders') && response.request().method() === 'POST',
-  );
+  ).then(async response => ({
+    status: response.status(),
+    submitted: response.request().postDataJSON(),
+    data: (await response.json()).data,
+  }));
   await page.getByRole('button', { name: 'Confirmar pedido' }).click();
   const order = await ordering;
-  expect(order.status()).toBe(201);
-  expect(order.request().postDataJSON()).toMatchObject({
+  expect(order.status).toBe(201);
+  expect(order.submitted).toMatchObject({
     shipping_method: 'delivery',
     address: {
       recipient: address.recipient, street: address.street, number: address.number, details: address.details,
@@ -425,9 +433,9 @@ test('a buyer sees the API delivery rate and confirms a persisted delivery order
     },
     quote_token: delivery.quote_token,
   });
-  expect(order.request().postDataJSON().address).not.toHaveProperty('department');
-  expect(order.request().postDataJSON().address).not.toHaveProperty('locality');
-  const { data: placed } = await order.json();
+  expect(order.submitted.address).not.toHaveProperty('department');
+  expect(order.submitted.address).not.toHaveProperty('locality');
+  const { data: placed } = order;
   expect(placed).toMatchObject({
     shipping_method: 'delivery',
     address,

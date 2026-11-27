@@ -318,7 +318,7 @@ test('a verified administrator can record settings and pickup progress through L
   await page.getByLabel('Contraseña').fill('Camba-test-only-2026');
   const session = page.waitForResponse(
     (response) => response.url().endsWith('/api/v1/admin/session') && response.ok(),
-  );
+  ).then(response => response.json());
   await page.getByRole('button', { name: 'Ingresar' }).click();
   await expect(page.getByRole('heading', { name: 'Configuración', exact: true })).toBeVisible();
   await expect(page.getByLabel('Nombre comercial')).toHaveValue('Camba');
@@ -333,7 +333,7 @@ test('a verified administrator can record settings and pickup progress through L
   expect(info.ok()).toBeTruthy();
   expect(await info.json()).toMatchObject({ data: { support_email: null, support_phone: null } });
 
-  const { data: operator } = await (await session).json();
+  const { data: operator } = await session;
   await page.getByRole('link', { name: 'Historial de cambios' }).click();
   await page.getByText(`Usuario ${operator.id}`).click();
   await expect(page.getByText('Teléfono de contacto')).toBeVisible();

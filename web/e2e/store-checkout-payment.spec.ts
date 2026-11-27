@@ -2,13 +2,13 @@ import { expect, test, type Page } from '@playwright/test';
 
 const sandbox = 'https://sandbox.mercadopago.com.uy/checkout/v1/redirect?pref_id=fixture';
 
-async function checkout(page: Page, storeInfoStatus = 200) {
+async function checkout(page: Page, scenario: string, storeInfoStatus = 200) {
   await page.route('**/api/v1/store-info', route =>
     route.fulfill({ status: storeInfoStatus, json: { data: { checkout_pro_available: true } } }),
   );
   await page.goto('/carrito');
   await expect(page).toHaveURL(/\/cuenta\?volver=carrito$/);
-  await page.getByLabel('Correo electrónico').fill('buyer@camba.test');
+  await page.getByLabel('Correo electrónico').fill(`buyer-payment-${scenario}@camba.test`);
   await page.getByLabel('Contraseña', { exact: true }).fill('Camba-test-only-2026');
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
   await expect(page).toHaveURL(/\/carrito$/, { timeout: 15_000 });
@@ -30,7 +30,7 @@ async function checkout(page: Page, storeInfoStatus = 200) {
 }
 
 test('a failed store-info request does not skip payment or hide retry on the same order', async ({ page }) => {
-  await checkout(page, 503);
+  await checkout(page, 'retry', 503);
   let orders = 0;
   const attempts: string[] = [];
   page.on('request', request => {
@@ -55,7 +55,7 @@ test('a failed store-info request does not skip payment or hide retry on the sam
 });
 
 test('a released Checkout Pro reservation can retry from the same checkout detail', async ({ page }) => {
-  await checkout(page);
+  await checkout(page, 'expired');
   const attempts: string[] = [];
   let orders = 0;
   page.on('request', request => {
@@ -84,7 +84,7 @@ test('a released Checkout Pro reservation can retry from the same checkout detai
 test('Checkout Pro opens from checkout and the owned order waits for verified evidence', async ({
   page,
 }, info) => {
-  await checkout(page);
+  await checkout(page, 'approved');
   const origin = new URL(page.url()).origin;
   let reference = '';
   let orders = 0;
@@ -182,7 +182,7 @@ test('Checkout Pro opens from checkout and the owned order waits for verified ev
 
 test('an abandoned Checkout Pro payment can reopen the same order after checking', async ({ page }) => {
   test.setTimeout(90_000);
-  await checkout(page);
+  await checkout(page, 'abandoned');
   const origin = new URL(page.url()).origin;
   const started: string[] = [];
   await page.route('**/api/v1/orders/*/payments', async (route) => {

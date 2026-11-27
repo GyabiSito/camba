@@ -39,7 +39,9 @@ const env = {
   SANCTUM_STATEFUL_DOMAINS: [apiPort, adminPort, storePort].map((port) => `127.0.0.1:${port}`).join(','),
   SESSION_DRIVER: 'database', SESSION_COOKIE: 'camba_browser_e2e', SESSION_DOMAIN: '',
   SESSION_SECURE_COOKIE: 'false', CACHE_STORE: 'file', QUEUE_CONNECTION: 'database',
-  BCRYPT_ROUNDS: '4', MAIL_MAILER: 'array', CAMBA_MP_ACCESS_TOKEN: '', CAMBA_MP_WEBHOOK_SECRET: '',
+  BCRYPT_ROUNDS: '4', MAIL_MAILER: 'array', CAMBA_MP_ACCESS_TOKEN: '', MERCADOPAGO_ACCESS_TOKEN: 'X',
+  CAMBA_MP_WEBHOOK_SECRET: '', CAMBA_MP_COLLECTOR_ID: '', CAMBA_MP_LIVE: 'false', RESEND_API_KEY: '',
+  CAMBA_PUBLIC_CONTACT_EMAIL: '', CAMBA_PUBLIC_CONTACT_PHONE: '',
   CAMBA_E2E_SYNTHETIC: 'yes', LOG_CHANNEL: 'single',
   ...(process.env.CAMBA_E2E_SHORT_SESSION === '1' && { SESSION_LIFETIME: '1', SESSION_EXPIRE_ON_CLOSE: 'false' }),
   ...(mailEnabled && {

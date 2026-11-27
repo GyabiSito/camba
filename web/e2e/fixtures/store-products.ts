@@ -30,7 +30,7 @@ export async function fixtureCatalog(browser: Browser, baseURL: string) {
     await expect(await request.get('/sanctum/csrf-cookie')).toBeOK();
     await expect(
       await request.post('/api/v1/auth/login', {
-        data: { email: 'ops-admin@camba.test', password: 'Camba-test-only-2026' },
+        data: { email: 'fixture-admin@camba.test', password: 'Camba-test-only-2026' },
         headers: await headers(),
       }),
     ).toBeOK();
