@@ -69,16 +69,11 @@ http {
     uwsgi_temp_path /tmp/camba-uwsgi;
     scgi_temp_path /tmp/camba-scgi;
     resolver 127.0.0.11 valid=10s ipv6=off;
-    map $http_x_forwarded_proto $camba_https {
-        default off;
-        https on;
-    }
     server {
         listen 8080;
         root /var/www/html/public;
         index index.php;
         include fastcgi_params;
-        fastcgi_param HTTPS $camba_https;
         fastcgi_param SCRIPT_FILENAME /var/www/html/public/index.php;
         fastcgi_param HTTP_PROXY "";
         set $fpm api-fpm:9000;

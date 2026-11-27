@@ -55,6 +55,20 @@ class OrderCheckoutTest extends TestCase
         $this->login(User::factory()->create());
     }
 
+    public function test_required_online_payment_rejects_an_unavailable_gateway_before_reserving_stock(): void
+    {
+        config(['checkout.require_online_payment' => true, 'mercadopago.access_token' => null]);
+        $product = $this->product();
+        $items = $this->items($product);
+        $payload = $this->payload($items, 'pickup', $this->quote($items, 'pickup'));
+
+        $this->place($payload)->assertServiceUnavailable();
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertDatabaseCount('payment_attempts', 0);
+        $this->assertDatabaseCount('commerce_notices', 0);
+        $this->assertSame(10, $product->fresh()->stock);
+    }
+
     public function test_guest_cannot_create_orders_or_start_or_resume_payments(): void
     {
         $this->useSession('anonymous-checkout');
