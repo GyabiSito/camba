@@ -14,12 +14,16 @@ class StoreSettingsController
 {
     public function publicInfo(CheckoutProClient $checkout): JsonResponse
     {
+        $fiscalName = config('store.fiscal_name');
+        $validFiscalName = is_string($fiscalName) && trim($fiscalName) !== ''
+            && mb_strlen($fiscalName) <= 200 && preg_match('/[\p{C}]/u', $fiscalName) === 0;
         $email = trim((string) config('store.public_contact.email'));
         $phone = trim((string) config('store.public_contact.phone'));
         $dial = str_replace([' ', '.', '(', ')', '-'], '', $phone);
 
         return response()->json(['data' => [
             ...Arr::only(StoreSettings::loadValues(), ['business_name', 'pickup_address', 'delivery_cents']),
+            'fiscalName' => $validFiscalName ? trim($fiscalName) : null,
             'support_email' => filter_var($email, FILTER_VALIDATE_EMAIL) ?: null,
             'support_phone' => strlen($phone) <= 40 && preg_match('/\A\+?[0-9]{3,15}\z/', $dial) ? $phone : null,
             'checkout_pro_available' => $checkout->checkoutAvailable(),

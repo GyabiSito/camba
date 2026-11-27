@@ -40,7 +40,7 @@ export class ApiClient {
   }
 
   publicGet<T>(path: string, query?: Query): Observable<T> {
-    if (!/^\/api\/v1\/(?:products(?:\/[^/?#\\]+)?|categories|brands|store-info|homepage|purchase-terms(?:\/\d{4}-\d{2}-\d{2})?)$/.test(path)) {
+    if (!/^\/api\/v1\/(?:products(?:\/[^/?#\\]+)?|categories|brands|store-info|homepage|purchase-terms(?:\/\d{4}-\d{2}-\d{2}(?:-v[1-9][0-9]*)?)?)$/.test(path)) {
       return throwError(() => new Error('Only the public catalog can be transferred.'));
     }
     const params = this.params(query);

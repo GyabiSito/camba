@@ -5,6 +5,7 @@ import { catchError, map, of } from 'rxjs';
 
 export interface PublicStoreInfo {
   business_name: string;
+  fiscalName?: string | null;
   support_email: string | null;
   support_phone: string | null;
   pickup_address: string | null;

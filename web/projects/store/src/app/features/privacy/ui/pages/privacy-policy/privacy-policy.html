@@ -1,8 +1,11 @@
 <store-help-article [title]="title" [description]="description">
+  @if (!fiscalName()) {
+    <p help-draft role="status">Borrador: falta completar la denominación fiscal de Camba antes de publicar este documento.</p>
+  }
   <div class="help-content">
     <section>
       <h2>Responsable de tus datos</h2>
-      <p>{{ business.privacyContact }}, por {{ business.name }}@if (business.fiscalName; as name) { ({{ name }}) }, RUT {{ business.rut }}, {{ business.address }}. Escribinos a <a [href]="'mailto:' + business.email">{{ business.email }}</a>.</p>
+      <p>{{ business.privacyContact }}, por {{ business.name }}@if (fiscalName(); as name) { ({{ name }}) }, RUT {{ business.rut }}, {{ business.address }}. Escribinos a <a [href]="'mailto:' + business.email">{{ business.email }}</a>.</p>
     </section>
     <section>
       <h2>Qué datos usamos y por qué</h2>

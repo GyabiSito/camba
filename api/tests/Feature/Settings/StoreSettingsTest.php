@@ -57,6 +57,7 @@ class StoreSettingsTest extends TestCase
 
         config([
             'mercadopago.access_token' => null,
+            'store.fiscal_name' => null,
             'checkout.pickup_address' => null,
             'checkout.delivery_cents' => null,
             'store.public_contact.email' => ' hello@example.test ',
@@ -64,6 +65,7 @@ class StoreSettingsTest extends TestCase
         ]);
         $this->getJson('/api/v1/store-info')->assertOk()->assertExactJson(['data' => [
             'business_name' => 'Camba',
+            'fiscalName' => null,
             'pickup_address' => null,
             'delivery_cents' => null,
             'support_email' => 'hello@example.test',
@@ -90,6 +92,22 @@ class StoreSettingsTest extends TestCase
         $this->getJson('/api/v1/store-info')->assertOk()
             ->assertJsonPath('data.support_email', 'hello+ventas@example.test')
             ->assertJsonPath('data.support_phone', null);
+    }
+
+    public function test_fiscal_identity_is_validated_and_exposed_only_as_one_public_value(): void
+    {
+        foreach ([null, '', '  ', "Invalid\nName", ['not-a-name'], str_repeat('x', 201)] as $invalid) {
+            config(['store.fiscal_name' => $invalid]);
+            $this->getJson('/api/v1/store-info')->assertOk()->assertJsonPath('data.fiscalName', null);
+        }
+        config(['store.fiscal_name' => '  Empresa de prueba S.A.  ']);
+        $this->getJson('/api/v1/store-info')->assertOk()
+            ->assertJsonPath('data.fiscalName', 'Empresa de prueba S.A.')
+            ->assertJsonMissingPath('data.fiscal_name')->assertJsonMissingPath('data.store');
+        $this->actingAs(User::factory()->create(['role' => 'admin']))
+            ->patchJson('/api/v1/admin/settings', ['fiscalName' => 'Override'])
+            ->assertUnprocessable();
+        $this->getJson('/api/v1/admin/settings')->assertJsonMissingPath('data.fiscalName');
     }
 
     public function test_public_checkout_availability_contains_no_provider_configuration(): void
