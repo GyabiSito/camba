@@ -57,6 +57,8 @@ try {
         CAMBA_APP_URL = "http://127.0.0.1:$StorePort"
         CAMBA_ADMIN_URL = "http://127.0.0.1:$AdminPort"
         CAMBA_SANCTUM_DOMAINS = "127.0.0.1:$StorePort,127.0.0.1:$AdminPort"
+        # The loopback-only HTTP rehearsal does not trust forwarded headers.
+        CAMBA_TRUSTED_PROXY_IPS = '192.0.2.5'
         CAMBA_STORE_ALLOWED_HOSTS = '127.0.0.1'
         CAMBA_DB_PASSWORD = [guid]::NewGuid().ToString('N')
         CAMBA_DB_ADMIN_PASSWORD = [guid]::NewGuid().ToString('N')

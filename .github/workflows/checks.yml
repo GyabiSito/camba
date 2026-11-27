@@ -127,6 +127,7 @@ jobs:
           CAMBA_APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
           CAMBA_APP_URL: https://store.example.test
           CAMBA_SANCTUM_DOMAINS: 'store.example.test,admin.example.test'
+          CAMBA_TRUSTED_PROXY_IPS: '192.0.2.5'
           CAMBA_DB_PASSWORD: ci-only
           CAMBA_DB_ADMIN_PASSWORD: ci-admin-only
           CAMBA_API_IMAGE: camba-api:ci
@@ -136,6 +137,10 @@ jobs:
         run: |
           docker compose -f infra/compose.dev.yml -f infra/compose.dev.apps.yml config --quiet
           docker compose -f infra/compose.prod.yml -f infra/compose.edge.yml config --quiet
+          if CAMBA_TRUSTED_PROXY_IPS='' docker compose -f infra/compose.prod.yml -f infra/compose.edge.yml config --quiet; then
+            echo 'Production Compose must reject a missing ingress allowlist' >&2
+            exit 1
+          fi
       - run: bash infra/ci/checks.test.sh
       - run: bash infra/release/apply.test.sh
 

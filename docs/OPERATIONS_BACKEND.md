@@ -22,6 +22,7 @@ Keep release environment files outside Git with access restricted to the release
 | `CAMBA_APP_KEY` | Stable, generated Laravel encryption key shared by PHP-FPM, worker, scheduler and migrate. Preserve between releases. |
 | `CAMBA_APP_URL` | Public HTTPS origin for signed email links and public media URLs. |
 | `CAMBA_SANCTUM_DOMAINS` | Comma-separated first-party storefront/admin domains, including ports only when appropriate. |
+| `CAMBA_TRUSTED_PROXY_IPS` | Required comma-separated exact IPs of the stable ingress peers, not addresses of shoppers, wildcards or subnets. The edge must overwrite `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Port`. Compose rejects an unset or empty value; Laravel rejects invalid entries in production. Use a TEST-NET address only in an isolated direct HTTP rehearsal that should not trust forwarded headers. |
 | `CAMBA_DB_PASSWORD`, `CAMBA_DB_ADMIN_PASSWORD` | Separate PostgreSQL application/admin passwords. The app database and non-superuser owner are `camba_v2`; the administrator password is only given to PostgreSQL. Reusing a volume does not rotate database passwords. |
 | `CAMBA_API_ENV_FILE` | Optional absolute path to the protected runtime env file for SMTP and other provider settings (default: `/etc/camba/api.env`). Compose controls the DB, Redis, session, queue, and debug settings. Never put provider settings in a build argument or image layer. |
 
