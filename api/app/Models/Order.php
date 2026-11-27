@@ -33,6 +33,7 @@ class Order extends Model
         'payment_reconcile_at' => 'datetime',
         'payment_reconciled_at' => 'datetime',
         'payment_issues' => 'array',
+        'terms_snapshot' => 'array',
     ];
 
     public static function ownerKey(?int $userId, string $sessionId): string

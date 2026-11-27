@@ -42,7 +42,11 @@ class DeliverCommerceNotice
                 $buyerName = $notice->kind === CommerceNotice::BUYER_WELCOME
                     ? User::query()->whereKey($notice->subject_id)->value('name')
                     : null;
-                $message = new CommerceNoticeMail($notice->id, $notice->kind, $recipient[1], $order, TransactionalEmail::support(), $buyerName);
+                $receipt = isset($recipient[2]) ? [
+                    'Constancia' => $recipient[2],
+                    'Fecha de recepción' => $notice->source_at->timezone('America/Montevideo')->format('d/m/Y H:i').' (Uruguay)',
+                ] : [];
+                $message = new CommerceNoticeMail($notice->id, $notice->kind, $recipient[1], $order, TransactionalEmail::support(), $buyerName, $receipt);
             } catch (Throwable) {
                 $notice->forceFill($this->preparationFailure($notice->attempts))->save();
 

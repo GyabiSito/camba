@@ -27,6 +27,7 @@ class OrderResource extends JsonResource
 
         return $this->relationLoaded('items') ? [
             ...$summary,
+            'terms_version' => $this->terms_version,
             'checkout_retryable' => $this->when($this->checkout_managed && $this->status === OrderStatus::PaymentExpired
                 && $this->paid_at === null && $this->stock_released_at !== null,
                 fn () => $this->canReplaceCheckoutAttempt($this->payment?->attempts()->latest('id')->first())),

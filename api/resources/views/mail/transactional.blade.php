@@ -55,6 +55,9 @@
                 @foreach ($notes ?? [] as $note)
                     <p style="margin:0 0 8px;">{{ $note }}</p>
                 @endforeach
+                @isset($contractUrl)
+                    <p><a href="{{ $contractUrl }}" style="color:#720F12;">Guardá las condiciones de tu compra</a></p>
+                @endisset
             </td></tr>
             <tr><td class="mail-gutter" style="padding:17px 28px 0;border-top:1px solid #E8DEDA;color:#635956;font:14px/1.55 Arial,Helvetica,sans-serif;">
                 <p style="margin:0 0 4px;">{{ isset($contactMessage) ? 'Si el botón no funciona, escribile a este correo:' : 'Si el botón no funciona, copiá y pegá este enlace en tu navegador:' }}</p>

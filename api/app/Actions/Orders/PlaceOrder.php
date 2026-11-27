@@ -4,12 +4,14 @@ namespace App\Actions\Orders;
 
 use App\Actions\Geography\ResolveAddressGeography;
 use App\Actions\Notices\RecordOrderMail;
+use App\Commerce\PurchaseTerms;
 use App\Enums\OrderStatus;
 use App\Models\Cart;
 use App\Models\Order;
 use App\Models\OrderPayment;
 use App\Payments\CheckoutProClient;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -52,9 +54,12 @@ class PlaceOrder
             if ($existing !== null) {
                 abort_if($userId === null && ! $existing->guest_access_expires_at?->isFuture(), 409, 'This idempotency key cannot be reused. Refresh checkout.');
                 abort_unless(hash_equals($existing->request_hash, $fingerprint), 409, 'This idempotency key was already used for a different checkout.');
+                abort_if(isset($input['terms_version']) && $existing->terms_version !== null
+                    && $input['terms_version'] !== $existing->terms_version, 409, 'Esta compra ya tiene otra versión de las condiciones.');
 
                 return $existing;
             }
+            abort_if(isset($input['terms_version']) && $input['terms_version'] !== PurchaseTerms::VERSION, 409, 'Las condiciones cambiaron. Volvé a revisarlas antes de confirmar.');
             $managed = $this->payments->checkoutAvailable();
             abort_if(! $managed && config('checkout.require_online_payment'), 503, 'El pago en línea no está disponible. Tu carrito no cambió.');
             if ($managed && ($pending = Order::query()->owned($userId, $sessionId)->where('checkout_managed', true)
@@ -77,6 +82,9 @@ class PlaceOrder
             }
             abort_unless(hash_equals($shipping['quote_token'], $input['quote_token']), 409, 'Checkout details changed. Request a new quote before confirming.');
 
+            // Existing loopback demo volumes are not migrated as part of host-code verification.
+            $retainsTerms = ! app()->isLocal() || Schema::hasColumn('orders', 'terms_version');
+            abort_if(! $retainsTerms && isset($input['terms_version']), 503, 'No podemos guardar las condiciones de esta compra. Probá más tarde.');
             $order = Order::query()->forceCreate([
                 'reference' => (string) Str::uuid(),
                 'user_id' => $userId,
@@ -91,6 +99,7 @@ class PlaceOrder
                 'subtotal_cents' => $quote['subtotal_cents'],
                 'shipping_cents' => $shipping['shipping_cents'],
                 'total_cents' => $shipping['total_cents'],
+                ...($retainsTerms ? ['terms_version' => PurchaseTerms::VERSION, 'terms_snapshot' => PurchaseTerms::read()] : []),
                 'shipping_method' => $shipping['method'],
                 'pickup_address' => $shipping['pickup_address'],
                 'contact' => $contact,

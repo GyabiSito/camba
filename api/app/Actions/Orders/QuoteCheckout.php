@@ -2,6 +2,7 @@
 
 namespace App\Actions\Orders;
 
+use App\Commerce\PurchaseTerms;
 use App\Models\Product;
 use App\Models\StoreSettings;
 use Illuminate\Database\Eloquent\Collection;
@@ -55,6 +56,8 @@ class QuoteCheckout
 
         return [[
             'currency' => 'UYU',
+            'terms_version' => PurchaseTerms::VERSION,
+            'withdrawal_period' => PurchaseTerms::read()['withdrawal_period'],
             'items' => $lines,
             'subtotal_cents' => $subtotal,
             'shipping_options' => $shipping,

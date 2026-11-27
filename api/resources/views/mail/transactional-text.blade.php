@@ -25,6 +25,10 @@ Mensaje:
 
 {{ $note }}
 @endforeach
+@isset($contractUrl)
+
+Condiciones de tu compra: {!! $contractUrl !!}
+@endisset
 @if (($supportEmail ?? null) || ($supportPhone ?? null))
 
 Ayuda: {{ implode(' · ', array_filter([$supportEmail ?? null, $supportPhone ?? null])) }}

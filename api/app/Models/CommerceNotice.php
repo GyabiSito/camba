@@ -16,6 +16,8 @@ class CommerceNotice extends Model
 
     public const ORDER_DELIVERED = 'order_delivered';
 
+    public const WITHDRAWAL_RECEIPT = 'withdrawal_receipt';
+
     protected $guarded = ['id'];
 
     protected $hidden = ['dedup_key', 'source_hash'];

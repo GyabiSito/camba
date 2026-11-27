@@ -3,6 +3,8 @@
 namespace Tests\Feature\Orders;
 
 use App\Actions\Payments\ApplyPaymentEvidence;
+use App\Commerce\PurchaseTerms;
+use App\Mail\CommerceNoticeMail;
 use App\Jobs\SendCommerceNotice;
 use App\Models\Category;
 use App\Models\CommerceNotice;
@@ -295,6 +297,11 @@ class OrderCheckoutTest extends TestCase
         $created->assertJsonPath('data.guest_access_expires_at', null);
         $this->assertDatabaseHas('orders', ['reference' => $reference, 'total_cents' => 28388, 'stock_released_at' => null]);
         $stored = DB::table('orders')->where('reference', $reference)->first();
+        $created->assertJsonPath('data.terms_version', PurchaseTerms::VERSION);
+        $this->assertSame(PurchaseTerms::VERSION, $stored->terms_version);
+        $mail = new CommerceNoticeMail(1, 'order_created', $reference, Order::query()->where('reference', $reference)->firstOrFail());
+        $this->assertStringContainsString(PurchaseTerms::withdrawal(), $mail->render());
+        $this->assertStringContainsString('terminos-y-condiciones?version='.PurchaseTerms::VERSION, $mail->render());
         $this->assertStringNotContainsString('buyer@example.test', $stored->contact);
         $this->assertStringNotContainsString('0123B', $stored->address);
         $this->assertDatabaseCount('order_items', 2);
@@ -314,6 +321,34 @@ class OrderCheckoutTest extends TestCase
         $this->assertDatabaseCount('order_items', 2);
         $this->assertSame(8, $first->fresh()->stock);
         $this->assertSame(0, $second->fresh()->stock);
+    }
+
+    public function test_admin_can_record_only_the_refunded_payment_linked_to_the_purchase(): void
+    {
+        $product = $this->product();
+        $items = $this->items($product);
+        $payload = $this->payload($items, 'pickup', $this->quote($items, 'pickup'));
+        $reference = $this->place($payload, (string) Str::uuid())->assertCreated()->json('data.reference');
+        $order = Order::query()->where('reference', $reference)->firstOrFail();
+        $receipt = $this->postJson('/api/v1/withdrawals', [
+            'order_reference' => $reference, 'email' => $payload['contact']['email'],
+        ])->assertCreated()->json('data.reference');
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $this->getJson('/api/v1/admin/withdrawals')->assertOk()->assertJsonPath('data.0.order_matched', true);
+        $path = '/api/v1/admin/withdrawals/'.$receipt;
+        $this->patchJson($path, ['action' => 'confirm_refund'])->assertConflict();
+
+        $order->forceFill(['status' => 'refunded', 'paid_provider_payment_id' => '1209876', 'paid_at' => now()])->save();
+        $payment = Payment::query()->forceCreate([
+            'order_id' => $order->id, 'provider_payment_id' => '1209876', 'status' => 'refunded',
+            'amount_cents' => $order->total_cents - 1, 'provider_updated_at' => '2026-11-27T14:00:00.000Z',
+        ]);
+        $this->patchJson($path, ['action' => 'confirm_refund'])->assertConflict();
+        $payment->forceFill(['amount_cents' => $order->total_cents])->save();
+        $done = $this->patchJson($path, ['action' => 'confirm_refund'])->assertOk()
+            ->assertJsonPath('data.refund_reference', '1209876')->assertJsonPath('data.status', 'refunded');
+        $this->patchJson($path, ['action' => 'confirm_refund'])->assertExactJson($done->json());
+        $this->assertSame('refunded', $payment->fresh()->status->value);
     }
 
     public function test_checkout_rejects_stale_quotes_invalid_lines_and_unavailable_stock_atomically(): void

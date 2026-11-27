@@ -9,6 +9,7 @@ use App\Models\CommerceNotice;
 use App\Models\Order;
 use App\Models\StoreSettings;
 use App\Models\User;
+use App\Models\Withdrawal;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -25,6 +26,12 @@ class NoticeEligibility
 
     public function recipient(CommerceNotice $notice): ?array
     {
+        if ($notice->kind === CommerceNotice::WITHDRAWAL_RECEIPT) {
+            $case = Withdrawal::query()->find($notice->subject_id);
+
+            return $case && filter_var($case->email, FILTER_VALIDATE_EMAIL)
+                ? [$case->email, null, $case->reference] : null;
+        }
         if (in_array($notice->kind, CommerceNotice::BUYER_ACCOUNT_MAIL_KINDS, true)) {
             $buyer = User::query()->where('role', 'buyer')->find($notice->subject_id);
 
@@ -49,7 +56,9 @@ class NoticeEligibility
         }
         $status = $order->getRawOriginal('status');
         $buyer = $this->buyer($order->user_id);
-        $address = $buyer?->email;
+        $address = $notice->kind === 'order_created' && $order->terms_version !== null
+            ? ($order->contact['email'] ?? null)
+            : $buyer?->email;
         if (! $address && $order->user_id === null && str_starts_with($order->owner_key, 'guest:')) {
             $address = $order->contact['email'] ?? null;
         }

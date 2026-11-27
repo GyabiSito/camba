@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Commerce\PurchaseTerms;
 use App\Enums\OrderStatus;
 use App\Models\CommerceNotice;
 use App\Models\Order;
@@ -20,6 +21,7 @@ class CommerceNoticeMail extends Mailable
         private ?Order $order = null,
         private array $support = [],
         private ?string $buyerName = null,
+        private array $receipt = [],
     ) {}
 
     public function envelope(): Envelope
@@ -51,10 +53,14 @@ class CommerceNoticeMail extends Mailable
         }
 
         $adminNotice = $this->kind === CommerceNotice::ADMIN_ORDER_CREATED;
+        $terms = $this->kind === 'order_created' && $this->order?->terms_version !== null
+            ? ($this->order->terms_snapshot ?? PurchaseTerms::read($this->order->terms_version))
+            : null;
         [$actionLabel, $actionUrl] = match (true) {
             $adminNotice => ['Ver pedido', TransactionalEmail::adminOrderUrl($this->reference ?? '') ?? throw new LogicException('Missing Admin origin.')],
             $this->kind === CommerceNotice::BUYER_PASSWORD_CHANGED => ['Restablecer contraseña', $store.'/cuenta/recuperar'],
             $this->kind === 'cart_reminder' => ['Ver carrito', $store.'/carrito'],
+            $this->kind === CommerceNotice::WITHDRAWAL_RECEIPT => ['Contactanos', $store.'/contacto'],
             $this->order?->user_id !== null => ['Ver pedido', $store.'/pedidos/'.rawurlencode($this->reference)],
             default => ['Ir a la tienda', $store],
         };
@@ -71,6 +77,7 @@ class CommerceNoticeMail extends Mailable
                 CommerceNotice::BUYER_PASSWORD_CHANGED => 'Actualizaste la contraseña de tu cuenta de Camba. Si no hiciste este cambio, restablecé tu contraseña desde la tienda y contactanos',
                 CommerceNotice::ORDER_DELIVERED => 'Tu pedido ya fue entregado. Podés consultar los detalles en la tienda.',
                 CommerceNotice::ADMIN_ORDER_CREATED => 'Entró un pedido en la tienda. Revisá el estado del pago y los datos en Admin.',
+                CommerceNotice::WITHDRAWAL_RECEIPT => 'Registramos tu solicitud de arrepentimiento. Guardá esta constancia. No confirma que el pedido esté identificado ni que se haya hecho un reintegro.',
             },
             'details' => $this->order ? [
                 'Referencia' => $this->reference,
@@ -89,7 +96,9 @@ class CommerceNoticeMail extends Mailable
                     },
                 },
                 'Total' => 'UYU '.number_format($this->order->total_cents / 100, 2, ',', '.'),
-            ] : [],
+            ] : $this->receipt,
+            'notes' => $terms ? ['Derecho de retracto: '.$terms['withdrawal']] : [],
+            'contractUrl' => $terms ? $store.'/terminos-y-condiciones?version='.rawurlencode($terms['version']) : null,
             'actionLabel' => $actionLabel,
             'actionUrl' => $actionUrl,
         ] + $this->support);
@@ -108,6 +117,7 @@ class CommerceNoticeMail extends Mailable
             'order_shipped' => 'Enviamos tu pedido',
             CommerceNotice::ORDER_DELIVERED => 'Tu pedido fue entregado',
             CommerceNotice::ADMIN_ORDER_CREATED => 'Nuevo pedido en Camba',
+            CommerceNotice::WITHDRAWAL_RECEIPT => 'Constancia de solicitud de arrepentimiento',
         };
     }
 }
