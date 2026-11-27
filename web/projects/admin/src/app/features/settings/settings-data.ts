@@ -2,9 +2,10 @@ import { formatMoney } from '@camba/shared';
 
 import type { Settings } from './data-access/settings-api';
 export type { Settings } from './data-access/settings-api';
+export type EditableSettings = Omit<Settings, 'remind_payment' | 'payment_lead_minutes'>;
 
 type SettingField = {
-  name: keyof Settings;
+  name: keyof EditableSettings;
   label: string;
   kind: 'text' | 'email' | 'tel' | 'money' | 'number' | 'checkbox';
   required?: boolean;
@@ -48,15 +49,6 @@ export const settingGroups: {
     title: 'Recordatorios',
     description: 'Se envían por correo solo a compradores que eligieron recibirlos.',
     fields: [
-      { name: 'remind_payment', label: 'Recordar un pago pendiente', kind: 'checkbox' },
-      {
-        name: 'payment_lead_minutes',
-        label: 'Minutos antes del vencimiento',
-        kind: 'number',
-        min: 1,
-        max: 25,
-        hint: 'Entre 1 y 25 minutos.',
-      },
       { name: 'remind_cart', label: 'Recordar un carrito sin finalizar', kind: 'checkbox' },
       {
         name: 'cart_delay_hours',
@@ -95,6 +87,11 @@ export const settingGroups: {
 ];
 
 export const settingFields = settingGroups.flatMap((group) => group.fields);
+export const historyFields: { name: keyof Settings; label: string }[] = [
+  ...settingFields,
+  { name: 'remind_payment', label: 'Recordar un pago pendiente' },
+  { name: 'payment_lead_minutes', label: 'Minutos antes del vencimiento' },
+];
 
 export function parseDelivery(input: string): number | null {
   const parts = /^(\d{1,8})(?:[,.](\d{1,2}))?$/.exec(input.trim());

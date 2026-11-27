@@ -193,11 +193,11 @@ test.describe('Camba transactional mail', () => {
     const output = `test-results/transactional-mail/${run}`;
     await mkdir(output, { recursive: true });
 
-    async function welcomeCount() {
+    async function countMail(to: string, subject: string) {
       const result = await request.get(inbox + '/api/v1/messages', { maxRedirects: 0 });
       expect(result.ok()).toBe(true);
       const { messages } = await result.json() as { messages: { Subject: string; To: { Address: string }[] }[] };
-      return messages.filter(m => m.Subject === welcomeSubject && m.To.some(t => t.Address === email)).length;
+      return messages.filter(m => m.Subject === subject && m.To.some(t => t.Address === to)).length;
     }
 
     async function received(to: string, subject: string, action: string) {
@@ -263,7 +263,7 @@ test.describe('Camba transactional mail', () => {
       received(email, 'Verificá tu correo', 'Verificar mi correo'),
       received(email, welcomeSubject, 'Explorá la tienda'),
     ]);
-    expect(await welcomeCount()).toBe(1);
+    expect(await countMail(email, welcomeSubject)).toBe(1);
     expect(new URL(verification.link).pathname.startsWith('/email/verify/')).toBe(true);
     await captures('verificacion', verification.html, 'Verificar mi correo');
     expect(welcome.plain).toContain('Hola, Lucía Fernández. Gracias por sumarte a Camba.');
@@ -323,14 +323,15 @@ test.describe('Camba transactional mail', () => {
     expect(new URL(order.link).pathname).toBe(`/pedidos/${reference}`);
     await captures('pedido', order.html, 'Ver pedido');
 
-    for (const subject of ['pago confirmado', 'tu pago sigue pendiente', 'tu pedido está listo para retirar', 'enviamos tu pedido']) {
+    for (const subject of ['pago confirmado', 'tu pedido está listo para retirar', 'enviamos tu pedido']) {
       const mail = await received(`orders-${run}@camba.test`, 'Camba: ' + subject, 'Ver pedido');
       expect(mail.plain.includes('Referencia:') && mail.plain.includes('Estado:') && mail.plain.includes('UYU 890,00')).toBe(true);
     }
     const cart = await received(`cart-${run}@camba.test`, 'Camba: tenés productos en el carrito', 'Ver carrito');
     expect(new URL(cart.link).pathname).toBe('/carrito');
     // Checkout mail proves the scheduler and worker ran again after replaying the verification link.
-    expect(await welcomeCount()).toBe(1);
+    expect(await countMail(email, welcomeSubject)).toBe(1);
+    expect(await countMail(`orders-${run}@camba.test`, 'Camba: tu pago sigue pendiente')).toBe(0);
   });
 });
 

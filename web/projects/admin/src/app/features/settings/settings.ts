@@ -6,7 +6,7 @@ import { RouterLink } from '@angular/router';
 import { BehaviorSubject, switchMap, tap } from 'rxjs';
 import { operationError, readState } from '../../shared/operations-data';
 import { OperationLoading } from '../../shared/operation-ui';
-import { parseDelivery, settingFields, settingGroups, Settings } from './settings-data';
+import { parseDelivery, settingFields, settingGroups, type EditableSettings } from './settings-data';
 import { SettingsApi } from './data-access/settings-api';
 
 @Component({
@@ -20,7 +20,7 @@ export class SettingsPage {
   private readonly fb = inject(FormBuilder).nonNullable;
   private readonly destroy = inject(DestroyRef);
   private readonly reload = new BehaviorSubject(0);
-  private baseline?: Settings;
+  private baseline?: EditableSettings;
   readonly groups = settingGroups;
   readonly saving = signal(false);
   readonly attempted = signal(false);
@@ -42,11 +42,6 @@ export class SettingsPage {
       '',
       (control: { value: string }) =>
         !control.value.trim() || parseDelivery(control.value) !== null ? null : { amount: true },
-    ],
-    remind_payment: [false],
-    payment_lead_minutes: [
-      10,
-      [Validators.required, Validators.min(1), Validators.max(25), Validators.pattern(/^\d+$/)],
     ],
     remind_cart: [false],
     cart_delay_hours: [
@@ -80,7 +75,7 @@ export class SettingsPage {
     this.reload.next(0);
   }
 
-  clearError(name: keyof Settings) {
+  clearError(name: keyof EditableSettings) {
     if (this.rejectedFields().has(name)) {
       this.rejectedFields.update(
         (previous) => new Set([...previous].filter((key) => key !== name)),
@@ -88,7 +83,7 @@ export class SettingsPage {
     }
   }
 
-  fieldError(name: keyof Settings): string | null {
+  fieldError(name: keyof EditableSettings): string | null {
     const control = this.form.controls[name];
     if (this.rejectedFields().has(name)) return 'Revisá el valor. No se pudo guardar este campo.';
     if (!control.invalid || (!control.touched && !this.attempted())) return null;
@@ -115,7 +110,7 @@ export class SettingsPage {
     }
 
     const input = this.form.getRawValue();
-    const values: Settings = {
+    const values: EditableSettings = {
       ...input,
       business_name: input.business_name.trim(),
       support_email: input.support_email.trim() || null,
@@ -157,7 +152,7 @@ export class SettingsPage {
       });
   }
 
-  private restore(values: Settings) {
+  private restore(values: EditableSettings) {
     this.baseline = values;
     this.attempted.set(false);
     this.form.reset({

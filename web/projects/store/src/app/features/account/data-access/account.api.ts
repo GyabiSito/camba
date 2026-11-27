@@ -33,5 +33,7 @@ export class AccountApi {
   }
   deleteAddress(id: number) { return this.client.delete<void>(this.base + '/account/addresses/' + id); }
   preferences() { return this.client.get<Data<Preferences>>(this.base + '/account/reminder-preferences'); }
-  updatePreferences(body: Preferences) { return this.client.patch<Data<Preferences>>(this.base + '/account/reminder-preferences', body); }
+  updatePreferences(body: Pick<Preferences, 'cart_reminders'>) {
+    return this.client.patch<Data<Preferences>>(this.base + '/account/reminder-preferences', body);
+  }
 }

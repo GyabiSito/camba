@@ -140,7 +140,7 @@ class CommerceNoticeTest extends TestCase
         $this->assertSame(1, CommerceNotice::where('kind', 'low_stock')->count());
     }
 
-    public function test_reminders_recheck_pending_state_expiry_cart_revision_and_opt_out_before_send(): void
+    public function test_retired_payment_reminders_are_not_projected_or_delivered(): void
     {
         Queue::fake();
         Mail::fake();
@@ -148,33 +148,32 @@ class CommerceNoticeTest extends TestCase
         $buyer = User::factory()->create();
         $this->signIn($buyer);
         $this->patchJson(self::PREFERENCES, ['payment_reminders' => true, 'cart_reminders' => true])->assertOk();
-        $approved = $this->order($buyer);
-        $expired = $this->order($buyer);
-        $valid = $this->order($buyer, ['reservation_expires_at' => now()->addMinutes(9)]);
+        $legacyOrder = $this->order($buyer, ['reservation_expires_at' => now()->addMinutes(9)]);
+        $this->order($buyer, ['checkout_managed' => true, 'reservation_expires_at' => now()->addMinutes(9)]);
         $cart = $this->cart($buyer);
         $this->cart(null);
 
         $this->project();
-        $this->assertSame(3, CommerceNotice::where('kind', 'payment_reminder')->count());
+        $this->assertDatabaseMissing('commerce_notices', ['kind' => 'payment_reminder']);
         $this->assertSame(1, CommerceNotice::where('kind', 'cart_reminder')->count());
-        $approved->forceFill(['status' => 'paid', 'paid_at' => now()])->save();
-        $expired->forceFill(['reservation_expires_at' => now()->subSecond()])->save();
-        $cart->items()->update(['quantity' => 2]);
-        $this->deliver(CommerceNotice::where('kind', 'cart_reminder')->value('id'));
-        foreach (CommerceNotice::where('kind', 'payment_reminder')->pluck('id') as $id) {
-            $this->deliver($id);
-        }
-        Mail::assertSentCount(1);
-        Mail::assertSent(CommerceNoticeMail::class, fn ($message) => $message->kind === 'payment_reminder');
-        $this->assertDatabaseHas('commerce_notices', ['kind' => 'payment_reminder', 'subject_id' => $valid->id, 'state' => 'sent']);
-        $this->assertSame(3, CommerceNotice::where('state', 'cancelled')->count());
 
-        $next = $this->order($buyer);
-        $this->project();
-        $this->patchJson(self::PREFERENCES, ['payment_reminders' => false])->assertOk();
-        $this->deliver(CommerceNotice::where('kind', 'payment_reminder')->where('subject_id', $next->id)->value('id'));
-        Mail::assertSentCount(1);
-        $this->assertDatabaseHas('commerce_notices', ['kind' => 'payment_reminder', 'subject_id' => $next->id, 'state' => 'cancelled']);
+        $queuedReminder = CommerceNotice::query()->create([
+            'dedup_key' => 'mail:payment_reminder:order:'.$legacyOrder->id,
+            'channel' => 'mail', 'kind' => 'payment_reminder', 'subject_type' => 'order',
+            'subject_id' => $legacyOrder->id, 'state' => 'pending',
+            'source_at' => now(), 'available_at' => now(),
+        ]);
+        $this->deliver($queuedReminder->id);
+        $this->assertDatabaseHas('commerce_notices', [
+            'id' => $queuedReminder->id, 'state' => 'cancelled', 'error_code' => 'no_longer_eligible',
+        ]);
+        $this->assertDatabaseHas('orders', ['id' => $legacyOrder->id, 'status' => 'pending_payment']);
+
+        $cartReminder = CommerceNotice::where('kind', 'cart_reminder')->sole();
+        $cart->items()->update(['quantity' => 2]);
+        $this->deliver($cartReminder->id);
+        $this->assertDatabaseHas('commerce_notices', ['id' => $cartReminder->id, 'state' => 'cancelled']);
+        Mail::assertNothingSent();
     }
 
     public function test_preparation_failure_retries_but_unknown_transport_acceptance_does_not(): void

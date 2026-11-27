@@ -247,7 +247,8 @@ test('a buyer edits profile and saves reminder preferences after signing in', as
   await page.getByLabel('Número de puerta').fill('12');
   await page.getByRole('button', { name: 'Guardar dirección' }).click();
   await expect(page.getByText('Calle de prueba 12', { exact: true })).toBeVisible();
-  const reminders = page.getByRole('checkbox', { name: 'Pagos pendientes' });
+  await expect(page.getByRole('checkbox', { name: 'Pagos pendientes' })).toHaveCount(0);
+  const reminders = page.getByRole('checkbox', { name: 'Productos que quedaron en el carrito' });
   const wasChecked = await reminders.isChecked();
   const save = page.getByRole('button', { name: 'Guardar preferencias' });
   await reminders.setChecked(!wasChecked);

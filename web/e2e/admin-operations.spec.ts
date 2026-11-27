@@ -323,6 +323,8 @@ test('a verified administrator can record settings and pickup progress through L
   ).then(response => response.json());
   await page.getByRole('button', { name: 'Ingresar' }).click();
   await expect(page.getByRole('heading', { name: 'Configuración', exact: true })).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'Recordar un pago pendiente' })).toHaveCount(0);
+  await expect(page.getByRole('checkbox', { name: 'Recordar un carrito sin finalizar' })).toBeVisible();
   await expect(page.getByLabel('Nombre comercial')).toHaveValue('Camba');
   await page.getByLabel('Correo interno para consultas').fill('consultas-internas@camba.test');
   await page.getByLabel('Teléfono de contacto').fill('099 121 242');

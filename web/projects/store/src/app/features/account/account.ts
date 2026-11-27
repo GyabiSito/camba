@@ -12,7 +12,7 @@ import { accountReturn } from './account-return';
 import { httpStatus } from '../../shared/data-access/api-contracts';
 import { Address, addressGeography, makeAddressForm, resetAddressForm } from '../../shared/data-access/address';
 import { Buyer } from '@camba/shared';
-import { AccountApi, type Preferences } from './index';
+import { AccountApi } from './index';
 
 
 @Component({
@@ -71,7 +71,6 @@ export class AccountPage {
   protected readonly address = makeAddressForm(this.fb);
   protected readonly phone = this.fb.nonNullable.control('', Validators.maxLength(30));
   protected readonly preferences = this.fb.nonNullable.group({
-    payment_reminders: false,
     cart_reminders: false,
   });
 
@@ -326,7 +325,7 @@ export class AccountPage {
       const { data } = await firstValueFrom(
         save ? this.api.updatePreferences(this.preferences.getRawValue()) : this.api.preferences(),
       );
-      this.preferences.reset(data);
+      this.preferences.reset({ cart_reminders: data.cart_reminders });
       this.preferencesLoaded.set(true);
       if (save) this.preferencesMessage.set('Preferencias guardadas.');
     } catch (error) {

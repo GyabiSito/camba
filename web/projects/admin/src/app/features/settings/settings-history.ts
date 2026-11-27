@@ -5,7 +5,7 @@ import { formatDate } from '@camba/shared';
 import { BehaviorSubject, combineLatest, switchMap } from 'rxjs';
 import { pageNumber, readState } from '../../shared/operations-data';
 import { OperationLoading, OperationPager } from '../../shared/operation-ui';
-import { displaySetting, settingFields, Settings } from './settings-data';
+import { displaySetting, historyFields } from './settings-data';
 import { AuditEntry, SettingsApi } from './data-access/settings-api';
 
 @Component({
@@ -95,6 +95,6 @@ export class SettingsHistoryPage {
   }
 
   changedFields(entry: AuditEntry) {
-    return settingFields.filter(({ name }) => entry.before[name] !== entry.after[name]);
+    return historyFields.filter(({ name }) => entry.before[name] !== entry.after[name]);
   }
 }

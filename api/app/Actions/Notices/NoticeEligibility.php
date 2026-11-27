@@ -106,7 +106,6 @@ class NoticeEligibility
                 ? $status === 'paid' && $paidAt !== null && $paidAt >= $earliest->toDateTimeString()
                 : $order->created_at->gte($earliest) && in_array($status, ['pending_payment', 'paid', 'payment_review'], true),
             'order_paid' => $status === 'paid' && $paidAt !== null && $paidAt >= $earliest->toDateTimeString(),
-            'payment_reminder' => $this->canRemindPayment($order, $buyer),
             'order_ready_for_pickup', 'order_shipped', CommerceNotice::ORDER_DELIVERED => $this->canNotifyFulfilment($notice, $order, $status),
             default => false,
         };
@@ -151,21 +150,6 @@ class NoticeEligibility
         }
 
         return hash('sha256', json_encode($items->map(fn ($item) => [(int) $item->product_id, (int) $item->quantity])->all(), JSON_THROW_ON_ERROR));
-    }
-
-    private function canRemindPayment(Order $order, ?User $buyer): bool
-    {
-        $settings = StoreSettings::loadValues();
-
-        return $buyer !== null
-            && $settings['remind_payment']
-            && BuyerReminderPreference::query()->find($buyer->id)?->payment_reminders
-            && $order->getRawOriginal('status') === 'pending_payment'
-            && $order->paid_at === null
-            && $order->paid_provider_payment_id === null
-            && ! array_intersect($order->payment_issues ?? [], ['provider_evidence_mismatch', 'conflicting_provider_timestamp'])
-            && $order->reservation_expires_at->isFuture()
-            && $order->reservation_expires_at->lte(now()->addMinutes($settings['payment_lead_minutes']));
     }
 
     private function canNotifyFulfilment(CommerceNotice $notice, Order $order, string $status): bool

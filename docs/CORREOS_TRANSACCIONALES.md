@@ -21,7 +21,6 @@ Los correos usan la [plantilla HTML](../api/resources/views/mail/transactional.b
 | Camba: confirmamos tu reintegro | La conciliación confirma por primera vez que Mercado Pago reintegró el importe completo del pago original. Llega a la cuenta del comprador. |
 | Camba: reintegro total verificado | La misma verificación genera un aviso independiente al único administrador verificado, con el pedido y la solicitud vinculada si existe. |
 | Camba: resolvimos tu solicitud de arrepentimiento | Desde una solicitud abierta con reintegro verificado, elegí «Registrar reintegro confirmado». Llega a la cuenta del comprador, con la constancia y la fecha del cierre. No sale al cerrar sin reintegro. |
-| Tu pago sigue pendiente | El pedido sigue pendiente y entra en la ventana previa al vencimiento; la tienda y el comprador verificado tienen el recordatorio activado. |
 | Tenés productos en el carrito | El carrito de un comprador verificado conserva stock, supera el plazo de inactividad y no tiene una compra posterior; ambos permisos de recordatorio están activos. |
 
 Al abrir un enlace válido en el navegador, Mi cuenta muestra «Tu cuenta ha sido verificada». Si abrís el correo en otro navegador, vas a ver el aviso junto al ingreso y, al entrar, vas a quedar en Mi cuenta. Los enlaces inválidos o vencidos muestran un aviso; la firma no pasa a la URL de la cuenta. Los clientes JSON conservan la respuesta 204 para un enlace válido.

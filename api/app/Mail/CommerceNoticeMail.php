@@ -104,7 +104,6 @@ class CommerceNoticeMail extends Mailable
             'intro' => match ($this->kind) {
                 'order_created' => 'Consultá el estado del pago y de la entrega en la tienda.',
                 'order_paid' => 'Confirmamos tu pago. Consultá los próximos pasos en la tienda.',
-                'payment_reminder' => 'Revisá el estado de tu pedido antes de intentar pagar.',
                 'cart_reminder' => 'Si querés retomarlo, revisá los precios y la disponibilidad antes de comprar.',
                 'order_ready_for_pickup' => 'Consultá en la tienda los datos para retirar tu pedido.',
                 'order_shipped' => 'Consultá en la tienda el estado de la entrega.',
@@ -147,7 +146,6 @@ class CommerceNoticeMail extends Mailable
             CommerceNotice::BUYER_PASSWORD_CHANGED => 'Tu contraseña de Camba se actualizó',
             'order_created' => 'Recibimos tu pedido',
             'order_paid' => 'Pago confirmado',
-            'payment_reminder' => 'Tu pago sigue pendiente',
             'cart_reminder' => 'Tenés productos en el carrito',
             'order_ready_for_pickup' => 'Tu pedido está listo para retirar',
             'order_shipped' => 'Enviamos tu pedido',

@@ -55,12 +55,6 @@ class ProjectCommerceNotices
             }
         }
         $this->condition($overdue, 'paid_overdue', 'order');
-        if ($settings['remind_payment']) {
-            $this->events(Order::query()->where('checkout_managed', false)->where('status', 'pending_payment')->whereNull('paid_at')
-                ->where('reservation_expires_at', '>', now())->where('reservation_expires_at', '<=', now()->addMinutes($settings['payment_lead_minutes']))
-                ->whereExists(fn ($query) => $query->from('buyer_reminder_preferences')->whereColumn('user_id', 'orders.user_id')
-                    ->where('payment_reminders', true)), 'mail', 'payment_reminder', 'order');
-        }
         if ($settings['remind_cart']) {
             $this->carts($settings['cart_delay_hours']);
         }
