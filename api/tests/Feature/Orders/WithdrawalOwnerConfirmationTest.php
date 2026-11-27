@@ -3,6 +3,7 @@
 namespace Tests\Feature\Orders;
 
 use App\Actions\Notices\DeliverCommerceNotice;
+use App\Actions\Notices\NoticeEligibility;
 use App\Actions\Payments\ApplyPaymentEvidence;
 use App\Mail\CommerceNoticeMail;
 use App\Models\CommerceNotice;
@@ -15,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Mockery;
 use Tests\TestCase;
 
 class WithdrawalOwnerConfirmationTest extends TestCase
@@ -121,6 +123,40 @@ class WithdrawalOwnerConfirmationTest extends TestCase
             app(DeliverCommerceNotice::class)->execute($id);
         }
         Mail::assertNothingSent();
+    }
+
+    public function test_an_in_flight_notice_never_sends_a_replacement_link_to_the_previous_address(): void
+    {
+        [$order, $owner, $other, $admin] = $this->fixture();
+        $receipt = $this->submit($order, $other->email);
+        $path = $this->adminPath($receipt);
+        $previousEmail = $owner->email;
+        $this->actingAs($admin)->patchJson($path, ['action' => 'review'])->assertOk();
+        $this->patchJson($path, ['action' => 'request_confirmation'])->assertOk();
+        $notice = CommerceNotice::where('kind', CommerceNotice::WITHDRAWAL_OWNER_CONFIRMATION)->sole();
+        $previousToken = $this->loadCase($receipt)->confirmation_token;
+        $snapshot = app(NoticeEligibility::class)->recipient($notice);
+
+        $owner->forceFill(['email' => 'replacement-owner@camba.test'])->save();
+        $this->patchJson($path, ['action' => 'request_confirmation'])->assertOk();
+        $replacementToken = $this->loadCase($receipt)->confirmation_token;
+        $this->assertNotSame($previousToken, $replacementToken);
+
+        // A stale eligibility read must never be able to pair the former address with a newer token.
+        $staleEligibility = Mockery::mock(NoticeEligibility::class);
+        $staleEligibility->shouldReceive('recipient')->twice()->andReturn($snapshot);
+        (new DeliverCommerceNotice($staleEligibility))->execute($notice->id);
+        Mail::assertSent(CommerceNoticeMail::class, fn ($mail) => $mail->hasTo($previousEmail)
+            && parse_url($mail->content()->with['actionUrl'], PHP_URL_FRAGMENT) === $previousToken);
+        $confirm = '/api/v1/withdrawals/'.$receipt['reference'].'/confirmation';
+        $this->postJson($confirm, ['token' => $previousToken])->assertGone();
+        $this->assertNull($this->loadCase($receipt)->order_id);
+
+        $replacement = CommerceNotice::where('kind', CommerceNotice::WITHDRAWAL_OWNER_CONFIRMATION)->whereKeyNot($notice->id)->sole();
+        app(DeliverCommerceNotice::class)->execute($replacement->id);
+        Mail::assertSent(CommerceNoticeMail::class, fn ($mail) => $mail->hasTo($owner->email)
+            && parse_url($mail->content()->with['actionUrl'], PHP_URL_FRAGMENT) === $replacementToken);
+        $this->postJson($confirm, ['token' => $replacementToken])->assertOk()->assertExactJson(['data' => $receipt]);
     }
 
     private function fixture(): array

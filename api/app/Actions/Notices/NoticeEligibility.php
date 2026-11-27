@@ -39,7 +39,7 @@ class NoticeEligibility
             $buyer = $case ? WithdrawalOwnerConfirmation::activeRecipient($case, $case->requestedOrder) : null;
 
             return $buyer && hash_equals($notice->dedup_key, WithdrawalOwnerConfirmation::noticeKey($case))
-                ? [$buyer->email, null, $case->reference] : null;
+                ? [$buyer->email, null, $case->reference, 'confirmation_url' => TransactionalEmail::withdrawalConfirmationUrl($case)] : null;
         }
         if ($notice->kind === CommerceNotice::ADMIN_WITHDRAWAL_RECEIVED) {
             $admin = $this->boundAdministrator($notice);
