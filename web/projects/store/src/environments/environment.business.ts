@@ -1,6 +1,6 @@
 export const business = {
   name: 'Camba',
-  fiscalName: null as string | null,
+  fiscalName: 'Camba',
   rut: '170245740012',
   address: 'Colón 650, San José de Mayo, Uruguay',
   email: 'contacto@camba.com.uy',
