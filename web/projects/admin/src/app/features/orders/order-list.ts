@@ -33,7 +33,10 @@ const invertedDates = ({ date_from, date_to }: OrderFilters) =>
         <h1>Pedidos</h1>
         <p>Consultá los pagos y organizá la preparación, el envío y el retiro.</p>
       </div>
-      <a class="button button--quiet" routerLink="/pedidos/avisos">Avisos operativos</a>
+      <div class="actions">
+        <a class="button button--quiet" routerLink="/pedidos/arrepentimientos">Arrepentimientos</a>
+        <a class="button button--quiet" routerLink="/pedidos/avisos">Avisos operativos</a>
+      </div>
     </header>
 
     @let result = orders();

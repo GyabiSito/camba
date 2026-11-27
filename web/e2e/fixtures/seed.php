@@ -39,7 +39,7 @@ $account('Accesibilidad Camba', 'a11y-admin@camba.test', 'admin');
 foreach (['cart', 'tabs', 'stock', 'profile', 'sync', 'delivery', 'payment-retry', 'payment-expired', 'payment-approved', 'payment-abandoned', 'admin-denied'] as $scenario) {
     $account('Comprador de prueba', "buyer-$scenario@camba.test", 'buyer');
 }
-foreach (['catalog', 'upload', 'fixture'] as $scenario) {
+foreach (['catalog', 'upload', 'fixture', 'legal'] as $scenario) {
     $account('Camba Mesa', "$scenario-admin@camba.test", 'admin');
 }
 $brand = Brand::create(['name' => 'Taller', 'slug' => 'taller', 'active' => true]);
