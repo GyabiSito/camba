@@ -58,7 +58,7 @@ class PaymentLifecycleTest extends TestCase
             'mercadopago.webhook_secret' => 'local-signature-test',
             'mercadopago.live' => false,
             'mercadopago.checkout_orders' => false,
-            'logging.channels.refounds.handler_with.directory' => $refunds,
+            'logging.channels.refunds.handler_with.directory' => $refunds,
         ]);
         $this->withCredentials()->withHeader('Origin', 'http://localhost');
         Http::preventStrayRequests();
@@ -260,7 +260,7 @@ class PaymentLifecycleTest extends TestCase
             'id' => 'REF01M8CNM554AA2N9KGGJBWNM6H4', 'transaction_id' => self::TRANSACTION_ID,
             'amount' => '23.00', 'status' => 'processed',
         ]];
-        $path = config('logging.channels.refounds.handler_with.directory').'/'.now()->tz('America/Montevideo')->format('dmY').'.log';
+        $path = config('logging.channels.refunds.handler_with.directory').'/'.now()->tz('America/Montevideo')->format('dmY').'.log';
         $effects = fn () => CommerceNotice::query()->whereIn('kind', ['buyer_total_refund', 'admin_total_refund', 'total_refund_log'])->count();
         foreach ([
             ['amount' => '23.00', 'status' => 'processed'],

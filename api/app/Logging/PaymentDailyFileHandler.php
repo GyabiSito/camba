@@ -35,7 +35,7 @@ final class PaymentDailyFileHandler extends StreamHandler
         parent::write($record);
     }
 
-    public function appendRefundOnce(DateTimeImmutable $verifiedAt, array $entry): void
+    public function appendRefundOnce(DateTimeImmutable $verifiedAt, array $entry, bool $rejectConflicts = false): void
     {
         $path = $this->pathFor($verifiedAt->setTimezone($this->timezone));
         if (! is_dir($this->directory) && ! @mkdir($this->directory, 0770, true) && ! is_dir($this->directory)) {
@@ -64,6 +64,15 @@ final class PaymentDailyFileHandler extends StreamHandler
                 }
                 $record = json_decode($line, true, flags: JSON_THROW_ON_ERROR);
                 if (($record['provider_payment_id'] ?? null) === $entry['provider_payment_id']) {
+                    if ($rejectConflicts) {
+                        $existing = $record;
+                        $expected = $entry;
+                        ksort($existing);
+                        ksort($expected);
+                        if ($existing !== $expected) {
+                            throw new RuntimeException('Conflicting refund log entry.');
+                        }
+                    }
                     if (! fsync($stream)) {
                         throw new RuntimeException('Could not sync the existing refund log entry.');
                     }

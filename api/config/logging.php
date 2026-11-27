@@ -84,12 +84,12 @@ return [
             'formatter' => JsonFormatter::class,
         ],
 
-        'refounds' => [
+        'refunds' => [
             'driver' => 'monolog',
-            'name' => 'refounds',
+            'name' => 'refunds',
             'level' => 'info',
             'handler' => PaymentDailyFileHandler::class,
-            'handler_with' => ['directory' => storage_path('logs/refounds')],
+            'handler_with' => ['directory' => storage_path('logs/refunds')],
             'formatter' => JsonFormatter::class,
         ],
 

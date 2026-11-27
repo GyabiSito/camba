@@ -29,7 +29,7 @@ class DeliverRefundLog
                 $attempt = PaymentAttempt::query()->find($payment->payment_attempt_id);
                 $receipt = Withdrawal::verifiedReferenceFor($order);
                 $at = $entry->source_at->toImmutable()->tz(config('store.timezone'));
-                $handler = Log::channel('refounds')->getLogger()->getHandlers()[0];
+                $handler = Log::channel('refunds')->getLogger()->getHandlers()[0];
                 if (! $handler instanceof PaymentDailyFileHandler) {
                     throw new RuntimeException('The refund channel is not backed by the payment daily file handler.');
                 }
