@@ -2,16 +2,20 @@
 
 namespace App\Providers;
 
+use App\Mail\RedactedResendTransport;
 use App\Models\User;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
+use Resend;
+use Symfony\Component\Mailer\Exception\TransportException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,6 +32,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Mail::extend('resend', static function (array $config): RedactedResendTransport {
+            $key = $config['key'] ?? config('services.resend.key');
+            if (! is_string($key) || trim($key) === '') {
+                throw new TransportException('Resend API key is not configured.');
+            }
+
+            return new RedactedResendTransport(Resend::client($key));
+        });
+
         Sanctum::getAccessTokenFromRequestUsing(static fn () => null);
         Gate::define('camba-admin', fn (User $user): bool => $user->role === 'admin' && $user->hasVerifiedEmail());
         Gate::define('camba-buyer', fn (User $user): bool => $user->role === 'buyer');
