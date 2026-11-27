@@ -20,13 +20,13 @@ The isolated PostgreSQL integration run reported 171 cases, 2,488 assertions, ze
 
 ## Single VPS: initialize an empty installation
 
-These commands are for a **fresh PostgreSQL destination**, not a migration of existing MySQL data. Install the tested <code>infra/compose.prod.yml</code> and <code>infra/compose.edge.yml</code> as <code>/etc/camba/compose.prod.yml</code> and <code>/etc/camba/compose.edge.yml</code>. Install the reverse proxy and existing external edge network before exposing Camba. The proxy routes Store/Admin to the Compose edge aliases and <code>/api/*</code>, <code>/sanctum/*</code>, <code>/email/*</code> and <code>/storage/*</code> to <code>camba-api:8080</code>, forwarding the public host and HTTPS scheme.
+These commands are for a **fresh PostgreSQL destination**, not a migration of existing MySQL data. Install the tested <code>infra/compose.prod.yml</code> and <code>infra/compose.edge.yml</code> as <code>/etc/camba/compose.prod.yml</code> and <code>/etc/camba/compose.edge.yml</code>. Install the reverse proxy and existing external edge network before exposing Camba. Use the configured alias prefix for all three upstreams; the API paths <code>/api/*</code>, <code>/sanctum/*</code>, <code>/email/*</code> and <code>/storage/*</code> go to the <code>-api</code> alias on port 8080 with the public host and HTTPS scheme.
 
 Do not use these first-install commands against an existing Compose project. If `camba` is already in use or data must be carried forward, use the [namespace cutover](TECHNICAL_NAMESPACE_CUTOVER.md#vps-cutover--not-executed-from-development). Keep the new stack off the live proxy network until validation is complete; two stacks must not claim the same edge aliases.
 
 Configure <code>/etc/camba/compose.env</code> with permissions restricted to the operator:
 
-- <code>CAMBA_COMPOSE_PROJECT=camba</code> and <code>CAMBA_EDGE_ALIAS_PREFIX=camba</code> for the example below **only after confirming both are free**. The production Compose and edge overlay have no implicit defaults for these settings.
+- <code>CAMBA_EDGE_ALIAS_PREFIX=camba</code> for the example below **only after confirming the three aliases are free**. This prefix is independent of the project name, which the launcher below exports once. Neither setting has an implicit default.
 - <code>CAMBA_API_IMAGE</code>, <code>CAMBA_STORE_IMAGE</code>, <code>CAMBA_ADMIN_IMAGE</code>: immutable registry digests built and labeled for the chosen source SHA. Do not build or pull source on the host.
 - <code>CAMBA_APP_KEY</code>: existing protected Laravel key for a migration that preserves encrypted data; a new generated key for an empty installation only.
 - <code>CAMBA_APP_URL</code>, <code>CAMBA_ADMIN_URL</code>: actual HTTPS origins. Set <code>CAMBA_SANCTUM_DOMAINS</code> to the corresponding hostnames (and ports if non-default), <code>CAMBA_STORE_ALLOWED_HOSTS</code> to the exact Store host(s), and <code>CAMBA_EDGE_NETWORK</code> to the pre-existing proxy network.
@@ -37,8 +37,9 @@ Configure <code>/etc/camba/compose.env</code> with permissions restricted to the
 On the VPS, in Bash, after separately authorizing release and preparing those files and digests, use a shell without conflicting exported <code>CAMBA_*</code> values:
 
 ~~~bash
+export CAMBA_COMPOSE_PROJECT=camba # Only after confirming the project is free.
 dc() {
-  docker compose --project-name camba --env-file /etc/camba/compose.env \
+  docker compose --project-name "${CAMBA_COMPOSE_PROJECT:?Set the approved project}" --env-file /etc/camba/compose.env \
     -f /etc/camba/compose.prod.yml -f /etc/camba/compose.edge.yml "$@"
 }
 dc config --quiet &&

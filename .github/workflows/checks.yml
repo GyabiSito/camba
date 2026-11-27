@@ -135,19 +135,27 @@ jobs:
           CAMBA_ADMIN_IMAGE: camba-admin:ci
           CAMBA_COMPOSE_PROJECT: camba-ci
           CAMBA_EDGE_NETWORK: camba-ci-edge
-          CAMBA_EDGE_ALIAS_PREFIX: camba-ci
+          CAMBA_EDGE_ALIAS_PREFIX: camba-ci-upstream
         run: |
           docker compose -f infra/compose.dev.yml -f infra/compose.dev.apps.yml config --quiet
-          docker compose -f infra/compose.prod.yml -f infra/compose.edge.yml config --quiet
+          prod=(-f infra/compose.prod.yml -f infra/compose.edge.yml)
+          docker compose -p "$CAMBA_COMPOSE_PROJECT" "${prod[@]}" config --quiet
+          docker compose -p "$CAMBA_COMPOSE_PROJECT" "${prod[@]}" config --format json |
+            jq -e --arg project "$CAMBA_COMPOSE_PROJECT" --arg prefix "$CAMBA_EDGE_ALIAS_PREFIX" '
+              .name == $project and .volumes.postgres.name == ($project + "_postgres") and
+              (.services | .api.networks.edge.aliases == [($prefix + "-api")] and
+               .store.networks.edge.aliases == [($prefix + "-store")] and
+               .admin.networks.edge.aliases == [($prefix + "-admin")])
+            '
           if CAMBA_COMPOSE_PROJECT='' docker compose -f infra/compose.prod.yml config --quiet; then
             echo 'Production Compose must reject a missing project name' >&2
             exit 1
           fi
-          if CAMBA_EDGE_ALIAS_PREFIX='' docker compose -f infra/compose.prod.yml -f infra/compose.edge.yml config --quiet; then
+          if CAMBA_EDGE_ALIAS_PREFIX='' docker compose -p "$CAMBA_COMPOSE_PROJECT" "${prod[@]}" config --quiet; then
             echo 'Edge Compose must reject a missing alias prefix' >&2
             exit 1
           fi
-          if CAMBA_TRUSTED_PROXY_IPS='' docker compose -f infra/compose.prod.yml -f infra/compose.edge.yml config --quiet; then
+          if CAMBA_TRUSTED_PROXY_IPS='' docker compose -p "$CAMBA_COMPOSE_PROJECT" "${prod[@]}" config --quiet; then
             echo 'Production Compose must reject a missing ingress allowlist' >&2
             exit 1
           fi

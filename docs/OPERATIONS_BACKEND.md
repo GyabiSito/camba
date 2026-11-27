@@ -4,13 +4,13 @@ One CI-built API image runs Nginx, PHP-FPM, the queue worker, the scheduler, and
 
 ## Release order
 
-The automated release must serialize these steps and stop on any failure. For a direct invocation, first confirm the approved project does not belong to the legacy installation, then export `CAMBA_COMPOSE_PROJECT` to the same value set in the protected Compose configuration.
+The automated release must serialize these steps and stop on any failure. For a direct invocation, confirm the selected project does not belong to the legacy installation, then export the approved name as `CAMBA_COMPOSE_PROJECT`. Pass that same variable to `-p`: Docker Compose still interpolates `name` even when `-p` is present. If using the edge overlay, also set the independently approved `CAMBA_EDGE_ALIAS_PREFIX` in the protected Compose environment file.
 
 1. Resolve `CAMBA_API_IMAGE` to the tested immutable image reference, and pull it. On first setup, also start the pinned PostgreSQL and Redis services and wait for their checks. Provision `camba` as a non-superuser login with `CAMBA_DB_PASSWORD`, then make it the owner of the `camba` database before migration. Keep the separate `postgres` administrator password in `CAMBA_DB_ADMIN_PASSWORD`; do not place either password in a command argument.
 2. Run `docker compose -p "$CAMBA_COMPOSE_PROJECT" --env-file <protected-release-env> -f infra/compose.prod.yml --profile release run --rm migrate` **once per release**. The one-shot job uses the same image and configuration as the app. It runs `migrate --force --isolated=75`; a held migration lock fails the job rather than pretending it ran. No container runs migrations or seeds on startup.
 3. Recreate only `api`, `api-fpm`, `worker`, and `scheduler` from the verified reference. Check `GET /ready` through Nginx and confirm the worker and scheduler are running without restart loops before marking the reference deployed. A healthy response checks connectivity, not migration completion, so it does not replace step 2.
 
-For a rollback, restore the previous known-good API image reference without restarting PostgreSQL or Redis. Use forward-compatible migrations; restoring the image does not revert the schema, queued work, media, or orders. Back up the data volumes before the initial cutover and rehearse restoring them in a separate project. Do not destroy volumes or reset the database during an update.
+For an image rollback, keep the release's project and edge prefix and switch only the image manifest. Run `config --quiet` with the same project, Compose files and previous manifest before restoring the images. Do not restart PostgreSQL or Redis. Use forward-compatible migrations; restoring the image does not revert the schema, queued work, media, or orders. Back up the data volumes before the initial cutover and rehearse restoring them in a separate project. Do not destroy volumes or reset the database during an update.
 
 ## Runtime configuration
 
@@ -31,7 +31,7 @@ Nginx and PHP roles run as `www-data` (UID/GID 33 in the Debian image). Nginx ge
 
 ## Checks and edge handoff
 
-- For a local rehearsal, set `CAMBA_COMPOSE_PROJECT=camba-prodcheck` in the synthetic configuration and use `-p camba-prodcheck` on **every** Compose command. No port mapping is needed: after startup, run `docker compose -p camba-prodcheck --env-file <synthetic-env> -f infra/compose.prod.yml exec api curl -fsS http://127.0.0.1:8080/ready`.
+- For a direct local rehearsal in Bash, `export CAMBA_COMPOSE_PROJECT=camba-prodcheck` and use `-p "$CAMBA_COMPOSE_PROJECT"` on **every** Compose command. No port mapping is needed: after startup, run `docker compose -p "$CAMBA_COMPOSE_PROJECT" --env-file <synthetic-env> -f infra/compose.prod.yml exec api curl -fsS http://127.0.0.1:8080/ready`.
 - `GET /up` is process liveness. `GET /ready` returns 200 only if the application can query PostgreSQL and ping Redis; an outage returns generic JSON and 503 without disclosing credentials or dependency identities. Docker checks `/ready` through Nginx, which also returns a generic 503 if PHP cannot answer the readiness probe within three seconds.
 - Only `api:8080` should join the Camba edge network. The edge terminates TLS, restricts accepted hosts, and **overwrites** Host and `X-Forwarded-Proto` before proxying `/api/`, `/sanctum/`, `/email/verify/`, and `/storage/`; forward health paths only where monitoring needs them. Never publish PHP-FPM, PostgreSQL, or Redis. Nginx trusts edge-supplied HTTPS only on this internal HTTP path; client-IP forwarding requires its own trusted proxy policy before deployment.
 - `/storage/` serves public image files; PHP is always executed through a single fixed front controller, never from an upload path. The edge must allow the backend's body limit (125 MiB) for authenticated image batches. Do not mount private files or database volumes in the edge.

@@ -10,20 +10,29 @@ export CAMBA_RELEASE_DIR="$work/state" CAMBA_RUNTIME_ENV_FILE="$work/runtime.env
 export CAMBA_COMPOSE_PROJECT=camba-prod
 export DOCKER_LOG="$work/docker.log" PATH="$work/bin:$PATH"
 unset FAIL_NEXT_UP HOLD_STORE_UP
+unset CAMBA_EDGE_COMPOSE_FILE CAMBA_EDGE_ALIAS_PREFIX
 
 cat >"$work/bin/docker" <<'FAKE'
 #!/usr/bin/env bash
 set -euo pipefail
 test "$1" = compose
 shift
+files=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --env-file) version_file=$2; shift 2;;
-    --project-name) test "$2" = "${EXPECTED_DOCKER_PROJECT:-$CAMBA_COMPOSE_PROJECT}"; shift 2;;
-    -f) shift 2;;
+    --project-name) project_arg=$2; shift 2;;
+    -f) files+=("$2"); shift 2;;
     *) break;;
   esac
 done
+test "$project_arg" = "${EXPECTED_DOCKER_PROJECT:-camba-prod}"
+test "$CAMBA_COMPOSE_PROJECT" = "$project_arg"
+test "${files[0]}" = "$CAMBA_COMPOSE_FILE"
+if [[ -n ${CAMBA_EDGE_COMPOSE_FILE:-} ]]; then
+  test "${files[1]}" = "$CAMBA_EDGE_COMPOSE_FILE"
+  test "$CAMBA_EDGE_ALIAS_PREFIX" = camba-prod-edge
+fi
 printf '%s | %s\n' "$*" "$(grep '^CAMBA_.*_IMAGE=' "$version_file" | tr '\n' ' ')" >> "$DOCKER_LOG"
 if [[ $1 = up && -n ${FAIL_NEXT_UP:-} && ! -e $FAIL_NEXT_UP ]]; then
   touch "$FAIL_NEXT_UP"
@@ -65,6 +74,8 @@ printf 'name: camba-v2\n' >"$work/legacy-compose.yml"
 )
 grep -q '^up ' "$work/legacy-docker.log"
 
+touch "$work/edge.yml"
+export CAMBA_EDGE_COMPOSE_FILE="$work/edge.yml" CAMBA_EDGE_ALIAS_PREFIX=camba-prod-edge
 apply 11 "api=$api" "store=$store" "admin=$admin"
 grep -q '^pull api api-fpm worker scheduler store admin |' "$DOCKER_LOG"
 grep -q '^--profile release run --rm --no-deps migrate |' "$DOCKER_LOG"

@@ -76,8 +76,8 @@ try {
         [Environment]::SetEnvironmentVariable($key, $config[$key])
     }
 
-    $files = @('--project-name', $project, '--env-file', $envFile,
-        '-f', 'infra/compose.prod.yml', '-f', 'infra/compose.rehearsal.yml')
+    $composeDefinitions = @('-f', 'infra/compose.prod.yml', '-f', 'infra/compose.rehearsal.yml')
+    $files = @('--project-name', $config.CAMBA_COMPOSE_PROJECT, '--env-file', $envFile) + $composeDefinitions
     function Compose {
         docker compose @files @args
         if ($LASTEXITCODE -ne 0) { throw "Compose failed ($($args[0])) in $project." }
@@ -89,6 +89,7 @@ try {
     }
 
     Write-Output "Revision: $source; isolated project: $project; environment: $envFile"
+    Compose config --quiet
     $label = "org.opencontainers.image.revision=$source"
     foreach ($image in @(
         @{ tag = $config.CAMBA_API_IMAGE; path = 'api'; target = 'runtime' },
@@ -104,6 +105,7 @@ try {
     }
 
     $render = Compose --profile release config --format json | ConvertFrom-Json
+    if ($render.name -ne $project) { throw 'Compose selected a different project.' }
     foreach ($role in @('api-fpm', 'worker', 'scheduler', 'migrate')) {
         $db = $render.services.$role.environment
         if ($db.DB_CONNECTION -ne 'pgsql' -or $db.DB_HOST -ne 'postgres' -or
@@ -140,7 +142,9 @@ ALTER DATABASE camba OWNER TO camba;
     Fixture verify
     Compose ps
     Write-Output "Passed. The isolated candidate is running at $($config.CAMBA_APP_URL) and $($config.CAMBA_ADMIN_URL)."
-    Write-Output "To stop only this candidate, run: docker compose -p $project --env-file '$envFile' -f infra/compose.prod.yml -f infra/compose.rehearsal.yml stop"
+    Write-Output 'To stop only this candidate, run in a separate PowerShell session from the checkout:'
+    Write-Output "`$env:CAMBA_COMPOSE_PROJECT = '$project'"
+    Write-Output "docker compose -p `$env:CAMBA_COMPOSE_PROJECT --env-file '$($envFile.Replace("'", "''"))' $($composeDefinitions -join ' ') stop"
 } finally {
     foreach ($key in $saved.Keys) { [Environment]::SetEnvironmentVariable($key, $saved[$key]) }
     Pop-Location
