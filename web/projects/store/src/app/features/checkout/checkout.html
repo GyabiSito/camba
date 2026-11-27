@@ -155,9 +155,13 @@
             <p class="muted small" role="status">Al confirmar vamos a comprobar si podemos abrir Mercado Pago.</p>
           } @else {
             <p class="notice" role="status">
-              Mercado Pago no está disponible. Podés confirmar el pedido sin pagar y consultar su estado.
+              Mercado Pago no está disponible en este momento.
             </p>
           }
+          <p class="muted small">
+            Antes de confirmar, revisá tus datos y las
+            <a routerLink="/terminos-y-condiciones" target="_blank" rel="noopener">condiciones de compra (otra pestaña)</a>.
+          </p>
           <div class="actions">
             <button
               class="button"

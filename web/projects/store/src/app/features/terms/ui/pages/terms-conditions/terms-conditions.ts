@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DOCUMENT, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { useStoreMeta } from '../../../../../core/seo/store-meta';
 import { HelpArticle } from '../../../../../shared/ui/help-article/help-article';
@@ -12,11 +12,16 @@ import { scrollHelpOnNavigation } from '../../../../../shared/ui/help-article/sc
   styleUrls: ['../../../../../shared/ui/help-article/help-content.css', './terms-conditions.css'],
 })
 export class TermsConditions {
+  private readonly document = inject(DOCUMENT);
   protected readonly title = 'Términos y condiciones';
   protected readonly description = 'Condiciones de compra, entrega y atención de Camba.';
 
   constructor() {
     useStoreMeta(() => ({ title: this.title, description: this.description, canonical: '/terminos-y-condiciones', noindex: true }));
     scrollHelpOnNavigation();
+  }
+
+  protected print(): void {
+    this.document.defaultView?.print();
   }
 }
