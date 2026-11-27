@@ -457,9 +457,9 @@ test('a buyer sees the API delivery rate and confirms a persisted delivery order
     (response) =>
       response.url().endsWith(`/api/v1/orders/${placed.reference}`) &&
       response.request().method() === 'GET',
-  );
+  ).then(async response => ({ status: response.status(), termsVersion: (await response.json()).data.terms_version }));
   await page.reload();
-  expect((await persisted).status()).toBe(200);
+  expect(await persisted).toEqual({ status: 200, termsVersion: '2026-11-27-v2' });
   const shipment = page.getByRole('region', { name: 'Entrega a domicilio' });
   await expect(shipment).toContainText(address.recipient);
   await expect(shipment).toContainText('Calle de prueba 78 · Apartamento 2');
@@ -468,4 +468,13 @@ test('a buyer sees the API delivery rate and confirms a persisted delivery order
     amount(page.getByRole('complementary', { name: 'Resumen del pedido' }), 'Total'),
   ).toHaveText('UYU 1.075');
   await expect(status).toBeVisible();
+
+  await page.route(`**/api/v1/orders/${placed.reference}`, async route => {
+    const response = await route.fetch();
+    const body = await response.json();
+    return route.fulfill({ response, json: { ...body, data: { ...body.data, status: 'payment_review' } } });
+  });
+  await page.reload();
+  await expect(page.getByText('Pago en revisión', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Consultar estado del pago' })).toBeVisible();
 });

@@ -326,28 +326,42 @@ test('a verified administrator can record settings and pickup progress through L
   await expect(page.getByRole('checkbox', { name: 'Recordar un pago pendiente' })).toHaveCount(0);
   await expect(page.getByRole('checkbox', { name: 'Recordar un carrito sin finalizar' })).toBeVisible();
   await expect(page.getByLabel('Nombre comercial')).toHaveValue('Camba');
-  await page.getByLabel('Correo interno para consultas').fill('consultas-internas@camba.test');
-  await page.getByLabel('Teléfono de contacto').fill('099 121 242');
-  const save = page.waitForResponse(r => r.url().endsWith('/api/v1/admin/settings') && r.request().method() === 'PATCH');
-  await page.getByRole('button', { name: 'Guardar cambios' }).click();
-  await expect(page.getByRole('status')).toContainText('Guardamos la configuración');
-  expect(await (await save).json()).toMatchObject({ data: { support_email: 'consultas-internas@camba.test', support_phone: '099 121 242' } });
+  const supportEmail = page.getByLabel('Correo interno para consultas');
+  const supportPhone = page.getByLabel('Teléfono de contacto');
+  const original = { email: await supportEmail.inputValue(), phone: await supportPhone.inputValue() };
+  try {
+    await supportEmail.fill('consultas-internas@camba.test');
+    await supportPhone.fill('099 121 242');
+    const save = page.waitForResponse(r => r.url().endsWith('/api/v1/admin/settings') && r.request().method() === 'PATCH')
+      .then(response => response.json());
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByRole('status')).toContainText('Guardamos la configuración');
+    expect(await save).toMatchObject({ data: { support_email: 'consultas-internas@camba.test', support_phone: '099 121 242' } });
 
-  const info = await page.request.get('/api/v1/store-info');
-  expect(info.ok()).toBeTruthy();
-  expect(await info.json()).toMatchObject({ data: { support_email: null, support_phone: null } });
+    const info = await page.request.get('/api/v1/store-info');
+    expect(info.ok()).toBeTruthy();
+    expect(await info.json()).toMatchObject({ data: { support_email: null, support_phone: null } });
 
-  const { data: operator } = await session;
-  await page.getByRole('link', { name: 'Historial de cambios' }).click();
-  await page.getByText(`Usuario ${operator.id}`).click();
-  await expect(page.getByText('Teléfono de contacto')).toBeVisible();
-  await expect(page.getByText('099 121 242', { exact: true })).toBeVisible();
+    const { data: operator } = await session;
+    await page.getByRole('link', { name: 'Historial de cambios' }).click();
+    await page.getByText(`Usuario ${operator.id}`).click();
+    await expect(page.getByText('Teléfono de contacto')).toBeVisible();
+    await expect(page.getByText('099 121 242', { exact: true })).toBeVisible();
+  } finally {
+    // Transactional-mail specs use the same isolated API and its original support address.
+    await page.goto('/configuracion');
+    await supportEmail.fill(original.email);
+    await supportPhone.fill(original.phone);
+    await page.getByRole('button', { name: 'Guardar cambios' }).click();
+    await expect(page.getByRole('status')).toContainText('Guardamos la configuración');
+  }
 
   await page.getByRole('link', { name: 'Pedidos', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Pedidos' })).toBeVisible();
   await page.getByRole('link', { name: 'Avisos operativos' }).click();
   await page.getByLabel('Estado del aviso').selectOption('active');
-  await page.getByRole('link', { name: 'Ver pedido 11111111' }).click();
+  await page.getByRole('row').filter({ has: page.getByRole('rowheader', { name: /^Pago aprobado/ }) })
+    .getByRole('link', { name: 'Ver pedido 11111111', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Pedido 11111111' })).toBeVisible();
   await page.getByLabel('Nota interna (opcional)').fill('Pedido controlado en Chromium.');
   await page.getByRole('button', { name: 'Empezar preparación' }).click();
