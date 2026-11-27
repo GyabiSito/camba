@@ -124,7 +124,7 @@
                 <dd>{{ option.shipping_cents ? money(option.shipping_cents) : 'Sin costo' }}</dd>
               </div>
               <div class="total">
-                <dt>Total</dt>
+                <dt>Total en UYU</dt>
                 <dd>{{ money(option.total_cents) }}</dd>
               </div>
             }
@@ -159,9 +159,12 @@
             </p>
           }
           <p class="muted small">
-            Antes de confirmar, revisá tus datos y las
-            <a routerLink="/terminos-y-condiciones" target="_blank" rel="noopener">condiciones de compra (otra pestaña)</a>.
+            Vendido por {{ business.name }} · RUT {{ business.rut }}. Antes de confirmar, revisá tus datos y las
+            <a routerLink="/terminos-y-condiciones" [queryParams]="{ version: currentQuote.terms_version }" target="_blank" rel="noopener">condiciones de compra (otra pestaña)</a>.
           </p>
+          @if (currentQuote.withdrawal_period; as period) {
+            <p class="muted small"><strong>Retracto:</strong> {{ period }}</p>
+          }
           <div class="actions">
             <button
               class="button"

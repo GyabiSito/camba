@@ -15,6 +15,7 @@ import { OrderInput } from './data-access/checkout.models';
 import { Line, Order, Quote, Shipping } from '../orders';
 import { OrdersApi } from '../orders/data-access/orders.api';
 import { httpStatus } from '../../shared/data-access/api-contracts';
+import { environment } from '../../../environments/environment';
 
 @Component({
   imports: [AddressFields, ReactiveFormsModule, RouterLink],
@@ -22,6 +23,7 @@ import { httpStatus } from '../../shared/data-access/api-contracts';
   styleUrls: ['../../shared/shopper.css', '../../shared/purchase-design.css'],
 })
 export class CheckoutPage {
+  protected readonly business = environment.business;
   protected readonly checkoutAvailable = checkoutProAvailability();
   private readonly accounts = inject(AccountApi);
   private readonly cartApi = inject(CartApi);
@@ -274,6 +276,7 @@ export class CheckoutPage {
           items: quote.items.map(({ product_id, quantity }) => ({ product_id, quantity })),
           shipping_method: option.method,
           quote_token: option.quote_token,
+          ...(quote.terms_version ? { terms_version: quote.terms_version } : {}),
           contact: this.contact.getRawValue(),
           ...(option.method === 'delivery' && geography
             ? { address: { ...fields, ...geography } }

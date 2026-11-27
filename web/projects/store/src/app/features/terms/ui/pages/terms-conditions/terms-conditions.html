@@ -1,12 +1,26 @@
 <store-help-article [title]="title" [description]="description">
-  <p class="draft" help-draft><strong>Borrador pendiente de aprobación.</strong> Última actualización del borrador: <time datetime="2026-11-27">27 de noviembre de 2026</time>.</p>
   <div class="help-content">
-    <section><h2>Compra y confirmación</h2><p>Los productos muestran su precio en pesos uruguayos y su disponibilidad. Podés recorrer la tienda sin sesión. Para usar el carrito y confirmar la compra, iniciá sesión con una cuenta compradora. Antes de confirmar, revisá los artículos, la modalidad de entrega y el total.</p></section>
-    <section><h2>Entrega y retiro</h2><p>La tienda ofrece las modalidades que aparecen en el checkout. Consultá en <a routerLink="/envios">Envíos</a> cómo se muestra el costo y cómo se informa el estado del pedido.</p></section>
-    <section><h2>Derecho de retracto en compras a distancia</h2><p>En 2026 el plazo legal es de cinco días hábiles desde la contratación o la entrega, a tu elección. Desde el 1.º de enero de 2027 el plazo es de diez días corridos. La solicitud puede comunicarse por un medio fehaciente. Las excepciones legales solo corresponden cuando el producto cumple sus condiciones específicas.</p><p>Fuentes: <a href="https://www.impo.com.uy/bases/leyes/17250-2000/16">art. 16 de la Ley 17.250</a>, <a href="https://www.impo.com.uy/bases/leyes/17250-2000/16_BIS">art. 16-BIS</a> y <a href="https://www.impo.com.uy/bases/leyes/20531-2026/108">Ley 20.531, art. 108</a>.</p></section>
-    <section><h2>Cambios comerciales y productos defectuosos</h2><p>La política comercial de cambios es independiente del retracto y de tus derechos ante un producto defectuoso. Si precisás ayuda, tené a mano la referencia del pedido. Las condiciones comerciales y el trámite de devolución y reintegro están pendientes de aprobación.</p></section>
-    <section><h2>Pendiente de aprobación</h2><p>Falta confirmar la razón social, el RUT y el domicilio físico de Camba, el contacto de atención al consumidor y las condiciones definitivas de pago, entrega, cancelación y atención.</p></section>
-    <p><button class="button button--quiet" type="button" (click)="print()">Imprimir o guardar como PDF</button></p>
-    <p class="support-close">Para consultar por un pedido, <a routerLink="/contacto">contactanos</a>.</p>
+    <section>
+      <h2>Quién vende</h2>
+      <p>{{ business.name }}@if (business.fiscalName; as name) { ({{ name }}) } · RUT {{ business.rut }} · {{ business.address }}.</p>
+      <p><a [href]="'mailto:' + business.email">{{ business.email }}</a>
+        @for (phone of business.phones; track phone.href) { · <a [href]="phone.href">{{ phone.label }}</a> }
+      </p>
+    </section>
+    @if (terms(); as document) {
+      <p>Versión: <time [attr.datetime]="document.version">{{ document.version }}</time>.</p>
+      @for (section of document.sections; track section.title) {
+        <section><h2>{{ section.title }}</h2><p>{{ section.text }}</p></section>
+      }
+      <section>
+        <h2>Derecho de retracto en compras a distancia</h2>
+        <p>{{ document.withdrawal }}</p>
+        <p><a routerLink="/arrepentimiento">Botón de arrepentimiento</a> · <a href="https://www.impo.com.uy/bases/leyes/17250-2000/16">Ley 17.250, art. 16</a> · <a href="https://www.impo.com.uy/bases/leyes/20531-2026/108">Ley 20.531, art. 108</a>.</p>
+      </section>
+      <p><button class="button button--quiet" type="button" (click)="print()">Imprimir o guardar como PDF</button></p>
+    } @else {
+      <p role="status">No pudimos cargar esta versión. Volvé a intentar o pedinos una copia desde Contactanos.</p>
+    }
+    <p class="support-close"><a routerLink="/envios">Ver envíos</a> · <a routerLink="/contacto">Contactanos</a></p>
   </div>
 </store-help-article>

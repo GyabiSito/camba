@@ -8,7 +8,7 @@ export interface Shipping {
   method: 'pickup' | 'delivery'; shipping_cents: number; total_cents: number;
   pickup_address: string | null; quote_token: string;
 }
-export interface Quote { items: Line[]; subtotal_cents: number; shipping_options: Shipping[]; }
+export interface Quote { items: Line[]; subtotal_cents: number; shipping_options: Shipping[]; terms_version?: string; withdrawal_period?: string; }
 export interface Order {
   reference: string; status: string; fulfilment_status: string; subtotal_cents: number;
   shipping_cents: number; total_cents: number; shipping_method: Shipping['method'];

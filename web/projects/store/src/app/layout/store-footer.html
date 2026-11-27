@@ -1,7 +1,7 @@
 <footer class="home-footer">
   <div class="home-footer-main">
     <section class="closing-footer-intro" aria-labelledby="footer-brand">
-      <h2 id="footer-brand"><span class="closing-footer-bow" aria-hidden="true"></span>Camba</h2>
+      <h2 id="footer-brand"><span class="closing-footer-bow" aria-hidden="true"></span>{{ business.name }}</h2>
       <p>Ropa y accesorios para combinar a tu manera.</p>
     </section>
     <nav class="home-footer-group" aria-labelledby="footer-shop">
@@ -19,15 +19,17 @@
         <li><a routerLink="/envios">Envíos</a></li>
         <li><a routerLink="/preguntas-frecuentes">Preguntas frecuentes</a></li>
         <li><a routerLink="/contacto">Contactanos</a></li>
+        <li><a [href]="'mailto:' + business.email">{{ business.email }}</a></li>
       </ul>
     </nav>
   </div>
   <div class="home-footer-base">
-    <span>© Camba</span>
+    <span>© {{ business.name }} · RUT {{ business.rut }}</span>
     <nav aria-label="Legal">
       <ul>
         <li><a routerLink="/politica-de-privacidad">Política de privacidad</a></li>
         <li><a routerLink="/terminos-y-condiciones">Términos y condiciones</a></li>
+        <li><a routerLink="/arrepentimiento">Botón de arrepentimiento</a></li>
       </ul>
     </nav>
     <a class="home-footer-top" [href]="topHref()">

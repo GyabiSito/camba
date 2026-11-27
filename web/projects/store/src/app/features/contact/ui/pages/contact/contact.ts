@@ -1,8 +1,8 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
+import { environment } from '../../../../../../environments/environment';
 import { useStoreMeta } from '../../../../../core/seo/store-meta';
-import type { PublicStoreInfo } from '../../../../../shared/data-access/public-store-info';
 import { scrollHelpOnNavigation } from '../../../../../shared/ui/help-article/scroll-help-on-navigation';
 import { CONTACT_SENDER } from '../../../application/contact-sender';
 import { contactSenderProvider } from '../../../data-access/contact-api';
@@ -21,7 +21,7 @@ export class Contact {
   private readonly destroy = inject(DestroyRef);
   protected readonly title = 'Contactanos';
   protected readonly description = 'Escribinos si tenés una consulta sobre un producto, un pedido o tu cuenta.';
-  protected readonly info = inject(ActivatedRoute).snapshot.data['info'] as PublicStoreInfo | null;
+  protected readonly business = environment.business;
   protected readonly interactive = signal(false);
   protected readonly sending = signal(false);
   protected readonly sent = signal(false);
@@ -57,15 +57,6 @@ export class Contact {
       reduced.removeEventListener('change', stop);
       stop();
     });
-  }
-
-  protected phoneLink(phone: string): string {
-    return 'tel:' + phone.replace(/[ .()-]/g, '');
-  }
-
-  protected emailLink(email: string): string {
-    const domain = email.lastIndexOf('@');
-    return 'mailto:' + encodeURIComponent(email.slice(0, domain)) + email.slice(domain);
   }
 
   protected async send(): Promise<void> {

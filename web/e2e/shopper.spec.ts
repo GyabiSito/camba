@@ -410,7 +410,10 @@ test('a buyer sees the API delivery rate and confirms a persisted delivery order
   const amount = (summary: typeof totals, label: string) =>
     summary.getByText(label, { exact: true }).locator('..').getByRole('definition');
   await expect(amount(totals, 'Entrega')).toHaveText('UYU 185');
-  await expect(amount(totals, 'Total')).toHaveText('UYU 1.075');
+  await expect(amount(totals, 'Total en UYU')).toHaveText('UYU 1.075');
+  await expect(totals.getByRole('link', { name: /condiciones de compra/ }))
+    .toHaveAttribute('href', '/terminos-y-condiciones?version=2026-11-27');
+  await expect(totals.locator('p').filter({ hasText: 'Retracto:' })).toContainText('10 días corridos');
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
   await page.screenshot({ path: info.outputPath('checkout-delivery-320.png'), fullPage: true });
 
@@ -432,6 +435,7 @@ test('a buyer sees the API delivery rate and confirms a persisted delivery order
       department_id: 2, locality_id: expect.any(Number),
     },
     quote_token: delivery.quote_token,
+    terms_version: '2026-11-27',
   });
   expect(order.submitted.address).not.toHaveProperty('department');
   expect(order.submitted.address).not.toHaveProperty('locality');
