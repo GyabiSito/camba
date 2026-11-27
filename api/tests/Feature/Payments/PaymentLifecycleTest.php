@@ -48,6 +48,8 @@ class PaymentLifecycleTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $refunds = sys_get_temp_dir().'/camba-refunds-'.Str::uuid();
+        $this->beforeApplicationDestroyed(fn () => File::deleteDirectory($refunds));
         config([
             'session.driver' => 'database',
             'app.url' => 'https://camba.example.test',
@@ -56,6 +58,7 @@ class PaymentLifecycleTest extends TestCase
             'mercadopago.webhook_secret' => 'local-signature-test',
             'mercadopago.live' => false,
             'mercadopago.checkout_orders' => false,
+            'logging.channels.refounds.handler_with.directory' => $refunds,
         ]);
         $this->withCredentials()->withHeader('Origin', 'http://localhost');
         Http::preventStrayRequests();
@@ -232,6 +235,70 @@ class PaymentLifecycleTest extends TestCase
         $this->getJson('/api/v1/cart')->assertOk()->assertJsonCount(1, 'data.items');
     }
 
+    public function test_orders_refund_effects_require_the_completed_full_original_payment_and_are_once_only(): void
+    {
+        config(['mercadopago.checkout_orders' => true, 'checkout.pickup_address' => 'QA pickup point']);
+        $order = $this->submitLoggedCheckout('orders-refund', keepCart: true);
+        $snapshot = null;
+        Http::fake([
+            'https://api.mercadopago.com/v1/orders' => fn (Request $request) => Http::response($this->providerOrder($request['external_reference']), 201),
+            'https://api.mercadopago.com/v1/orders/'.self::ORDERS_ID => function () use (&$snapshot, $order) {
+                return Http::response($snapshot ?? $this->orderResult($order, 'processed'));
+            },
+        ]);
+        $this->start($order, (string) Str::uuid())->assertCreated();
+        $this->providerOrderWebhook('refund-approval')->assertOk();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertSame('paid', $order->fresh()->status->value);
+
+        $this->travel(2)->minutes();
+        $snapshot = $this->orderResult($order, 'processed');
+        $snapshot['status'] = $snapshot['status_detail'] = 'refunded';
+        $snapshot['transactions']['payments'][0]['status'] = 'refunded';
+        $snapshot['transactions']['payments'][0]['status_detail'] = 'refunded';
+        $snapshot['transactions']['refunds'] = [[
+            'id' => 'REF01M8CNM554AA2N9KGGJBWNM6H4', 'transaction_id' => self::TRANSACTION_ID,
+            'amount' => '23.00', 'status' => 'processed',
+        ]];
+        $path = config('logging.channels.refounds.handler_with.directory').'/'.now()->tz('America/Montevideo')->format('dmY').'.log';
+        $effects = fn () => CommerceNotice::query()->whereIn('kind', ['buyer_total_refund', 'admin_total_refund', 'total_refund_log'])->count();
+        foreach ([
+            ['amount' => '23.00', 'status' => 'processed'],
+            ['amount' => '24.00', 'status' => 'processing'],
+            ['amount' => '24.00', 'status' => 'processed', 'transaction_id' => 'PAY01WRONGPAYMENT'],
+        ] as $index => $invalid) {
+            $snapshot['transactions']['refunds'][0] = [...$snapshot['transactions']['refunds'][0], ...$invalid];
+            $this->providerOrderWebhook('refund-incomplete-'.$index, action: 'order.refunded')->assertOk();
+            $this->artisan('camba:reconcile-payments')->assertSuccessful();
+            $this->assertSame(0, $effects());
+            $this->assertSame('paid', $order->fresh()->status->value);
+            $this->assertFileDoesNotExist($path);
+        }
+        $snapshot['transactions']['refunds'][0]['transaction_id'] = self::TRANSACTION_ID;
+        $this->providerOrderWebhook('refund-complete', action: 'order.refunded')->assertOk();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->providerOrderWebhook('refund-complete-replay', action: 'order.refunded')->assertOk();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->travel(2)->minutes();
+        $this->actingAs(User::factory()->create(['role' => 'admin']), 'web')
+            ->postJson('/api/v1/admin/orders/'.$order->reference.'/payments/refresh')->assertAccepted();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertSame('refunded', $order->fresh()->status->value);
+        $this->assertSame(3, $effects());
+        // Recover an append that reached disk before the database acknowledged it.
+        $log = CommerceNotice::query()->where('kind', CommerceNotice::TOTAL_REFUND_LOG)->sole();
+        $log->forceFill(['state' => 'pending', 'available_at' => now(), 'sent_at' => null])->save();
+        $this->artisan('camba:notices')->assertSuccessful();
+        $this->assertSame('sent', $log->fresh()->state);
+        $lines = file($path, FILE_IGNORE_NEW_LINES);
+        $this->assertCount(1, $lines);
+        $this->assertSame([
+            'verified_at' => now()->subMinutes(2)->tz('America/Montevideo')->toIso8601String(),
+            'order_reference' => $order->reference, 'provider_order_id' => self::ORDERS_ID,
+            'provider_payment_id' => self::TRANSACTION_ID, 'amount_cents' => $order->total_cents, 'currency' => 'UYU',
+        ], json_decode($lines[0], true, flags: JSON_THROW_ON_ERROR));
+    }
+
     public function test_orders_explicit_cancel_checks_the_provider_before_releasing_once(): void
     {
         config(['mercadopago.checkout_orders' => true, 'checkout.pickup_address' => 'QA pickup point']);
@@ -334,7 +401,7 @@ class PaymentLifecycleTest extends TestCase
         ];
     }
 
-    private function providerOrderWebhook(string $requestId, bool $valid = true, string $id = self::ORDERS_ID): TestResponse
+    private function providerOrderWebhook(string $requestId, bool $valid = true, string $id = self::ORDERS_ID, string $action = 'order.processed'): TestResponse
     {
         $ts = (string) now()->getTimestampMs();
         $signature = $valid
@@ -342,7 +409,7 @@ class PaymentLifecycleTest extends TestCase
             : str_repeat('0', 64);
 
         return $this->postJson("/api/v1/webhooks/mercadopago?data.id=$id&type=order", [
-            'type' => 'order', 'action' => 'order.processed', 'data' => ['id' => $id],
+            'type' => 'order', 'action' => $action, 'data' => ['id' => $id],
         ], ['x-request-id' => $requestId, 'x-signature' => "ts=$ts,v1=$signature"]);
     }
 
@@ -1191,6 +1258,7 @@ class PaymentLifecycleTest extends TestCase
             'id' => $id, 'collector_id' => 234, 'external_reference' => $order->reference,
             'status' => $status, 'currency_id' => 'UYU', 'live_mode' => false,
             'transaction_amount' => '24.00', 'date_last_updated' => $date,
+            ...($status === 'refunded' ? ['transaction_amount_refunded' => '24.00'] : []),
         ];
     }
 

@@ -1,7 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
-import { formatMoney } from '@camba/shared';
+import { formatDate, formatMoney } from '@camba/shared';
 import { BehaviorSubject, switchMap } from 'rxjs';
 import { readState } from '../../shared/operations-data';
 import { orderLabels } from '../orders';
@@ -23,20 +23,22 @@ export class DashboardPage {
     'No pudimos cargar el inicio. Reintentá para ver los datos actualizados.',
   ))));
   protected readonly money = formatMoney;
+  protected readonly date = formatDate;
   protected readonly orderStatus = orderLabels;
+  protected readonly pendingOrders = {
+    key: 'pending_payment', label: 'Pendientes de pago',
+    icon: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 7v5l3 2',
+    path: '/pedidos', query: { status: 'pending_payment' },
+  } as const;
   protected readonly priorities = [
-    { key: 'pending_payment', label: 'Pendientes de pago', icon: 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 7v5l3 2', path: '/pedidos', query: { status: 'pending_payment' } },
+    this.pendingOrders,
     { key: 'needs_preparation', label: 'Pagados por preparar', icon: 'm12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Zm8 4.5L12 12 4 7.5M12 12v9m4-11.25-8-4.5', path: '/pedidos', query: { status: 'paid', fulfilment_status: 'needs_preparation' } },
     { key: 'ready_for_pickup', label: 'Listos para retiro', icon: 'M6 8h12l2 12H4L6 8Zm3 0V6a3 3 0 0 1 6 0v2m-6 6 2 2 4-4', path: '/pedidos', query: { status: 'paid', fulfilment_status: 'ready_for_pickup' } },
     { key: 'out_of_stock', label: 'Publicados sin stock', icon: 'M4 7h16v13H4zM3 4h18v3H3zm9 6v3m0 3h.01', path: '/productos', query: { status: 'published', availability: 'out_of_stock' } },
+    { key: 'received_withdrawals', label: 'Arrepentimientos por revisar', icon: 'M8 6 4 10l4 4m-4-4h10a5 5 0 0 1 0 10h-3', path: '/pedidos/arrepentimientos', query: { status: 'received' } },
   ] satisfies { key: keyof Dashboard['priorities']; label: string; icon: string; path: string; query: Record<string, string> }[];
 
   protected retry() { this.reload.next(this.reload.value + 1); }
-
-  protected date(value: string, timezone: string) {
-    const utc = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value) ? value.replace(' ', 'T') + 'Z' : value;
-    return new Intl.DateTimeFormat('es-UY', { dateStyle: 'medium', timeStyle: 'short', timeZone: timezone }).format(new Date(utc));
-  }
 
   protected day(value: string) {
     // Calendar boundaries are already dates in the store timezone; do not shift them again.

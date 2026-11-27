@@ -29,8 +29,23 @@ class NoticeEligibility
         if ($notice->kind === CommerceNotice::WITHDRAWAL_RECEIPT) {
             $case = Withdrawal::query()->find($notice->subject_id);
 
-            return $case && filter_var($case->email, FILTER_VALIDATE_EMAIL)
+            return $case?->verifiedOrder() && filter_var($case->email, FILTER_VALIDATE_EMAIL)
                 ? [$case->email, null, $case->reference] : null;
+        }
+        if ($notice->kind === CommerceNotice::ADMIN_WITHDRAWAL_RECEIVED) {
+            $admin = $this->boundAdministrator($notice);
+            $reference = Withdrawal::query()->whereKey($notice->subject_id)->value('reference');
+
+            return $admin && $reference && TransactionalEmail::adminWithdrawalUrl($reference) !== null
+                ? [$admin->email, null, $reference] : null;
+        }
+        if ($notice->kind === CommerceNotice::BUYER_WITHDRAWAL_RESOLVED) {
+            $case = Withdrawal::query()->find($notice->subject_id);
+            $order = $case?->status === 'refunded' ? $case->verifiedOrder() : null;
+            $buyer = $this->buyer($order?->user_id);
+
+            return $buyer && filter_var($buyer->email, FILTER_VALIDATE_EMAIL)
+                ? [$buyer->email, $order->reference, $case->reference] : null;
         }
         if (in_array($notice->kind, CommerceNotice::BUYER_ACCOUNT_MAIL_KINDS, true)) {
             $buyer = User::query()->where('role', 'buyer')->find($notice->subject_id);
@@ -46,10 +61,22 @@ class NoticeEligibility
         if (! $order) {
             return null;
         }
-        if ($notice->kind === CommerceNotice::ADMIN_ORDER_CREATED) {
-            $admin = $this->soleAdministrator();
+        if ($notice->kind === CommerceNotice::ADMIN_TOTAL_REFUND) {
+            $admin = $this->boundAdministrator($notice);
 
-            return $admin && hash_equals($notice->source_hash ?? '', $this->administratorFingerprint($admin))
+            return $admin && TransactionalEmail::adminOrderUrl($order->reference) !== null
+                ? [$admin->email, $order->reference] : null;
+        }
+        if ($notice->kind === CommerceNotice::BUYER_TOTAL_REFUND) {
+            $buyer = $this->buyer($order->user_id);
+
+            return $buyer && filter_var($buyer->email, FILTER_VALIDATE_EMAIL)
+                ? [$buyer->email, $order->reference] : null;
+        }
+        if ($notice->kind === CommerceNotice::ADMIN_ORDER_CREATED) {
+            $admin = $this->boundAdministrator($notice);
+
+            return $admin
                 && ($order->checkout_managed ? $order->paid_at : $order->created_at)?->gte(now()->subDays(self::MAIL_WINDOW_DAYS))
                 && TransactionalEmail::adminOrderUrl($order->reference) !== null
                 ? [$admin->email, $order->reference] : null;
@@ -76,6 +103,22 @@ class NoticeEligibility
         };
 
         return $eligible ? [$address, $order->reference] : null;
+    }
+
+    public function administratorBinding(): array
+    {
+        $admin = $this->soleAdministrator();
+
+        return $admin
+            ? ['source_hash' => $this->administratorFingerprint($admin)]
+            : ['state' => 'cancelled', 'available_at' => null, 'error_code' => 'no_eligible_admin'];
+    }
+
+    private function boundAdministrator(CommerceNotice $notice): ?User
+    {
+        $admin = $this->soleAdministrator();
+
+        return $admin && hash_equals($notice->source_hash ?? '', $this->administratorFingerprint($admin)) ? $admin : null;
     }
 
     public function soleAdministrator(): ?User

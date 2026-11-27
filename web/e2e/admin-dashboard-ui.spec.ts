@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
+test.use({ timezoneId: 'UTC' });
+
 const orders = Array.from({ length: 5 }, (_, index) => ({
   reference: `CAM-2026-${String(index + 1).padStart(6, '0')}`,
   status: index === 0 ? 'pending_payment' : 'paid',
@@ -12,7 +14,7 @@ const orders = Array.from({ length: 5 }, (_, index) => ({
   total_cents: 129950,
 }));
 const summary = {
-  priorities: { pending_payment: 1, needs_preparation: 2, ready_for_pickup: 3, out_of_stock: 4 },
+  priorities: { pending_payment: 1, needs_preparation: 2, ready_for_pickup: 3, out_of_stock: 4, received_withdrawals: 6 },
   recent_orders: orders,
   sales: {
     timezone: 'America/Montevideo', from: '2026-10-25', through: '2026-11-23',
@@ -24,7 +26,7 @@ const summary = {
   },
 };
 const empty = {
-  priorities: { pending_payment: 0, needs_preparation: 0, ready_for_pickup: 0, out_of_stock: 0 },
+  priorities: { pending_payment: 0, needs_preparation: 0, ready_for_pickup: 0, out_of_stock: 0, received_withdrawals: 0 },
   recent_orders: [],
   sales: { ...summary.sales, order_count: 0, total_cents: 0,
     months: summary.sales.months.map(month => ({ ...month, order_count: 0, total_cents: 0 })) },
@@ -39,6 +41,46 @@ async function session(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => session(page));
+
+test('grouped navigation marks the withdrawal route after deep links and reloads', async ({ page }) => {
+  await page.route('**/api/v1/admin/dashboard', route => route.fulfill({ json: { data: summary } }));
+  await page.goto('/dashboard');
+  const nav = page.getByRole('navigation', { name: 'Administración' });
+  for (const [group, links] of [
+    ['Operación', ['Inicio', 'Pedidos', 'Arrepentimientos', 'Avisos']],
+    ['Catálogo', ['Productos', 'Categorías', 'Marcas']],
+    ['Tienda', ['Portada', 'Configuración']],
+  ] as const) await expect(nav.getByRole('group', { name: group }).getByRole('link')).toHaveText([...links]);
+  await expect(page.getByText('Mi sesión', { exact: true })).toBeVisible();
+  const actions = page.getByRole('navigation', { name: 'Acciones rápidas' });
+  await expect(actions.getByRole('link', { name: 'Nuevo producto' })).toHaveAttribute('href', '/productos/nuevo');
+  await expect(actions.getByRole('link', { name: 'Pedidos pendientes' })).toHaveAttribute('href', '/pedidos?status=pending_payment');
+  await expect(actions.getByRole('link', { name: 'Arrepentimientos por revisar' })).toHaveCount(0);
+
+  await page.goto('/pedidos/arrepentimientos');
+  await page.reload();
+  const current = nav.locator('a[aria-current="page"]');
+  await expect(current).toHaveText('Arrepentimientos');
+
+  await page.setViewportSize({ width: 320, height: 880 });
+  const menu = page.getByRole('button', { name: 'Menú' });
+  await expect(nav).toBeHidden();
+  await menu.focus();
+  await page.keyboard.press('Enter');
+  await expect(menu).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('Tab');
+  await expect(nav.getByRole('link', { name: 'Inicio' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(menu).toBeFocused();
+  await expect(nav).toBeHidden();
+  await page.keyboard.press('Enter');
+  await expect(menu).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Enter');
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(menu).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.getByRole('main')).toBeFocused();
+});
 
 test('real pending request shows a skeleton, then recent orders, exact drilldowns and quick actions', async ({ page }, info) => {
   let release!: () => void;
@@ -57,9 +99,11 @@ test('real pending request shows a skeleton, then recent orders, exact drilldown
     ['Pagados por preparar', '/pedidos?status=paid&fulfilment_status=needs_preparation'],
     ['Listos para retiro', '/pedidos?status=paid&fulfilment_status=ready_for_pickup'],
     ['Publicados sin stock', '/productos?status=published&availability=out_of_stock'],
+    ['Arrepentimientos por revisar', '/pedidos/arrepentimientos?status=received'],
   ]) {
     await expect(priorities.getByRole('link', { name: new RegExp(label) })).toHaveAttribute('href', route);
   }
+  await expect(priorities.getByRole('link', { name: /Arrepentimientos por revisar/ })).toContainText('6');
   for (const [label, route] of [
     ['Nuevo producto', '/productos/nuevo'], ['Carga masiva', '/productos/importar'], ['Editar portada', '/portada'],
   ]) await expect(page.getByRole('link', { name: label, exact: true })).toHaveAttribute('href', route);
@@ -67,7 +111,7 @@ test('real pending request shows a skeleton, then recent orders, exact drilldown
   await expect(page.getByRole('link', { name: 'Ver pedido CAM-2026-000001', exact: true })).toHaveAttribute('href', '/pedidos/CAM-2026-000001');
   await expect(page.getByRole('link', { name: 'Ver todos los pedidos' })).toHaveAttribute('href', '/pedidos');
   const recent = page.getByRole('region', { name: 'Pedidos recientes' });
-  await expect(recent).toContainText('22 nov');
+  await expect(recent).toContainText('22/11/2026, 22:30');
   await expect(recent).toContainText('Pago pendiente');
   await expect(recent).toContainText('Envío');
   await expect(recent).toContainText('Retiro');
@@ -83,6 +127,20 @@ test('real pending request shows a skeleton, then recent orders, exact drilldown
   await page.screenshot({ path: info.outputPath('dashboard-mocked-1440.png'), fullPage: true });
 });
 
+test('recent order instants use Montevideo and display midnight as 00:00 in a UTC browser', async ({ page }) => {
+  const instants = [
+    ['2026-11-28T02:30:00Z', '27/11/2026, 23:30'],
+    ['2026-12-01T02:59:59Z', '30/11/2026, 23:59'],
+    ['2026-12-01T03:00:00Z', '01/12/2026, 00:00'],
+  ];
+  await page.route('**/api/v1/admin/dashboard', route => route.fulfill({
+    json: { data: { ...summary, recent_orders: instants.map(([created_at], i) => ({ ...orders[i], created_at })) } },
+  }));
+  await page.goto('/dashboard');
+  expect(await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone)).toBe('UTC');
+  for (const [iso, label] of instants) await expect(page.locator(`time[datetime="${iso}"]`)).toHaveText(label);
+});
+
 test('failure is recoverable and zero summaries teach the empty state', async ({ page }) => {
   let calls = 0;
   await page.route('**/api/v1/admin/dashboard', route => ++calls === 1
@@ -94,7 +152,7 @@ test('failure is recoverable and zero summaries teach the empty state', async ({
   await expect(page.getByText('No hubo ventas confirmadas en estos 30 días.', { exact: true })).toBeVisible();
   await expect(page.getByText('Todavía no hay ventas confirmadas en estos seis meses.', { exact: true })).toBeVisible();
   expect(calls).toBe(2);
-  await expect(page.getByRole('region', { name: 'Qué necesita atención' }).getByRole('link')).toHaveCount(4);
+  await expect(page.getByRole('region', { name: 'Qué necesita atención' }).getByRole('link')).toHaveCount(5);
 });
 
 test('older monthly sales remain visible when the last 30 days are empty', async ({ page }) => {
@@ -106,14 +164,27 @@ test('older monthly sales remain visible when the last 30 days are empty', async
   await expect(page.getByRole('list', { name: 'Ventas mensuales en UYU' })).toBeVisible();
 });
 
+test('a missing withdrawal count is visibly unavailable rather than zero', async ({ page }) => {
+  const { received_withdrawals: _count, ...otherPriorities } = summary.priorities;
+  await page.route('**/api/v1/admin/dashboard', route => route.fulfill({
+    json: { data: { ...summary, priorities: otherPriorities } },
+  }));
+  await page.goto('/dashboard');
+  const card = page.getByRole('link', { name: /Arrepentimientos por revisar/ });
+  await expect(card).toContainText('No disponible');
+  await expect(card.locator('strong')).toHaveCount(0);
+});
+
 test('priority cards keep their icons, counters and arrows aligned with long labels', async ({ page }) => {
   await page.route('**/api/v1/admin/dashboard', route => route.fulfill({ json: { data: summary } }));
-  for (const width of [1440, 390]) {
+  for (const [width, expectedRows] of [[1440, 1], [1180, 2], [390, 5]] as const) {
     await page.setViewportSize({ width, height: 880 });
     await page.goto('/dashboard');
     const cards = page.getByRole('region', { name: 'Qué necesita atención' }).getByRole('link');
-    await expect(cards.locator('.priority-icon')).toHaveCount(4);
-    await expect(page.getByRole('navigation', { name: 'Acciones rápidas' }).locator('a svg[aria-hidden="true"]')).toHaveCount(3);
+    await expect(cards.locator('.priority-icon')).toHaveCount(5);
+    await expect(page.getByRole('navigation', { name: 'Acciones rápidas' }).locator('a svg[aria-hidden="true"]')).toHaveCount(2);
+    const rects = await cards.evaluateAll(elements => elements.map(element => element.getBoundingClientRect().y));
+    expect(new Set(rects).size).toBe(expectedRows);
     await cards.first().locator('.priority-label').evaluate(label => {
       label.textContent = 'Pedidos que todavía necesitan confirmación del pago antes de la preparación';
     });

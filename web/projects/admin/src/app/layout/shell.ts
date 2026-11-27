@@ -63,8 +63,9 @@ export class AdminShell {
   private readonly catalogActive = isActive('/productos', this.router, { ...sectionMatch, paths: 'subset' });
   protected readonly productsActive = computed(() => this.catalogActive() && !this.categoriesActive() && !this.brandsActive());
   protected readonly noticesActive = isActive('/pedidos/avisos', this.router, sectionMatch);
+  protected readonly withdrawalsActive = isActive('/pedidos/arrepentimientos', this.router, { ...sectionMatch, paths: 'subset' });
   private readonly orderSection = isActive('/pedidos', this.router, { ...sectionMatch, paths: 'subset' });
-  protected readonly ordersActive = computed(() => this.orderSection() && !this.noticesActive());
+  protected readonly ordersActive = computed(() => this.orderSection() && !this.noticesActive() && !this.withdrawalsActive());
   protected readonly noticeReturn = computed(() => {
     const url = this.router.lastSuccessfulNavigation()?.finalUrl;
     const path = this.router.url.split(/[?#]/, 1)[0];

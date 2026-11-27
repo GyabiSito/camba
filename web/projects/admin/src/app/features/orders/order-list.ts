@@ -34,7 +34,6 @@ const invertedDates = ({ date_from, date_to }: OrderFilters) =>
         <p>Consultá los pagos y organizá la preparación, el envío y el retiro.</p>
       </div>
       <div class="actions">
-        <a class="button button--quiet" routerLink="/pedidos/arrepentimientos">Arrepentimientos</a>
         <a class="button button--quiet" routerLink="/pedidos/avisos">Avisos operativos</a>
       </div>
     </header>

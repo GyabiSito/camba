@@ -1,7 +1,7 @@
-import { DOCUMENT, Location } from '@angular/common';
-import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { DOCUMENT, isPlatformBrowser, Location } from '@angular/common';
+import { Component, computed, DestroyRef, inject, PLATFORM_ID, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { apiMessage, formatDate, formatMoney } from '@camba/shared';
+import { apiMessage, CART_CHANGED, formatDate, formatMoney } from '@camba/shared';
 import { firstValueFrom, timer } from 'rxjs';
 import { httpStatus } from '../../shared/data-access/api-contracts';
 import { fulfilmentStatus, Order, orderStatus } from './data-access/order.models';
@@ -19,12 +19,14 @@ export class OrderPage {
   private readonly client = inject(OrdersApi);
   private readonly destroyRef = inject(DestroyRef);
   private readonly browser = inject(DOCUMENT).defaultView;
+  private readonly inBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   private readonly reference = this.route.snapshot.paramMap.get('reference') ?? '';
   private readonly uuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
   private readonly rejectionAtDeparture = signal<string | undefined>(undefined);
   private readonly returnCheckFinished = signal(false);
   private readonly returnMentionsPayment: boolean;
   private paymentKey?: string;
+  private paidCartRefreshed = false;
 
   protected readonly order = signal<Order | null>(null);
   protected readonly loading = signal(true);
@@ -115,6 +117,10 @@ export class OrderPage {
     try {
       const { data } = await firstValueFrom(this.client.get(this.reference));
       this.order.set(data);
+      if (data.status === 'paid' && !this.paidCartRefreshed && this.inBrowser && !this.destroyRef.destroyed) {
+        this.paidCartRefreshed = true;
+        this.browser?.dispatchEvent(new Event(CART_CHANGED));
+      }
       this.notFound.set(false);
       return true;
     } catch (error) {

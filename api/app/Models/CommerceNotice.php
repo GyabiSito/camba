@@ -18,6 +18,18 @@ class CommerceNotice extends Model
 
     public const WITHDRAWAL_RECEIPT = 'withdrawal_receipt';
 
+    public const ADMIN_WITHDRAWAL_RECEIVED = 'admin_withdrawal_received';
+
+    public const BUYER_TOTAL_REFUND = 'buyer_total_refund';
+
+    public const ADMIN_TOTAL_REFUND = 'admin_total_refund';
+
+    public const TOTAL_REFUND_LOG = 'total_refund_log';
+
+    public const BUYER_WITHDRAWAL_RESOLVED = 'buyer_withdrawal_resolved';
+
+    public const REFUND_MAIL_KINDS = [self::BUYER_TOTAL_REFUND, self::ADMIN_TOTAL_REFUND, self::BUYER_WITHDRAWAL_RESOLVED];
+
     protected $guarded = ['id'];
 
     protected $hidden = ['dedup_key', 'source_hash'];

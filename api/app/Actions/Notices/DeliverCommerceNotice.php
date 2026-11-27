@@ -7,6 +7,7 @@ use App\Mail\TransactionalEmail;
 use App\Models\CommerceNotice;
 use App\Models\Order;
 use App\Models\User;
+use App\Models\Withdrawal;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use RuntimeException;
@@ -38,15 +39,27 @@ class DeliverCommerceNotice
                     throw new RuntimeException('Commerce notices require a single delivery transport.');
                 }
                 $pendingMail = Mail::mailer()->to($recipient[0]);
-                $order = $recipient[1] === null ? null : Order::query()->find($notice->subject_id);
+                $order = $recipient[1] === null ? null : Order::query()->where('reference', $recipient[1])->first();
                 $buyerName = $notice->kind === CommerceNotice::BUYER_WELCOME
                     ? User::query()->whereKey($notice->subject_id)->value('name')
                     : null;
                 $receipt = isset($recipient[2]) ? [
                     'Constancia' => $recipient[2],
-                    'Fecha de recepción' => $notice->source_at->timezone('America/Montevideo')->format('d/m/Y H:i').' (Uruguay)',
+                    ($notice->kind === CommerceNotice::BUYER_WITHDRAWAL_RESOLVED ? 'Fecha de cierre' : 'Fecha de recepción') => $notice->source_at->toImmutable()->tz(config('store.timezone'))->format('d/m/Y, H:i').' (Uruguay)',
                 ] : [];
-                $message = new CommerceNoticeMail($notice->id, $notice->kind, $recipient[1], $order, TransactionalEmail::support(), $buyerName, $receipt);
+                $reference = $recipient[1];
+                if ($notice->kind === CommerceNotice::ADMIN_TOTAL_REFUND && $order) {
+                    $case = Withdrawal::verifiedReferenceFor($order);
+                    if ($case !== null) {
+                        $receipt['Constancia'] = $case;
+                    }
+                }
+                if ($notice->kind === CommerceNotice::ADMIN_WITHDRAWAL_RECEIVED) {
+                    $reference = $recipient[2];
+                    $receipt['Pedido'] = Withdrawal::query()->find($notice->subject_id)?->verifiedOrder()?->reference
+                        ?? 'Todavía no está vinculado';
+                }
+                $message = new CommerceNoticeMail($notice->id, $notice->kind, $reference, $order, TransactionalEmail::support(), $buyerName, $receipt);
             } catch (Throwable) {
                 $notice->forceFill($this->preparationFailure($notice->attempts))->save();
 

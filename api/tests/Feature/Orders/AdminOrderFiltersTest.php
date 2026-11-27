@@ -53,6 +53,19 @@ class AdminOrderFiltersTest extends TestCase
         $this->getJson(self::URL)->assertOk()->assertJsonPath('meta.total', 31);
     }
 
+    public function test_2330_montevideo_belongs_to_the_27th_and_is_serialized_in_utc(): void
+    {
+        $this->admin();
+        config(['store.timezone' => 'America/Montevideo']);
+        $order = $this->order(['created_at' => '2026-11-28 02:30:00']);
+        $this->order(['created_at' => '2026-11-28 03:00:00']);
+
+        $row = $this->getJson(self::URL.'?date_from=2026-11-27&date_to=2026-11-27')->assertOk()
+            ->assertJsonPath('meta.total', 1)->assertJsonPath('data.0.reference', $order->reference)
+            ->json('data.0');
+        $this->assertMatchesRegularExpression('/^2026-11-28T02:30:00(?:\.0+)?Z$/', $row['created_at']);
+    }
+
     public function test_search_matches_references_and_order_contacts_without_returning_contact(): void
     {
         $this->admin();

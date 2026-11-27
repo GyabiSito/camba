@@ -12,6 +12,16 @@ final class TransactionalEmail
 
     public static function adminOrderUrl(string $reference): ?string
     {
+        return self::adminUrl('/pedidos/'.rawurlencode($reference));
+    }
+
+    public static function adminWithdrawalUrl(string $reference): ?string
+    {
+        return self::adminUrl('/pedidos/arrepentimientos?solicitud='.rawurlencode($reference));
+    }
+
+    private static function adminUrl(string $path): ?string
+    {
         $origin = config('app.admin_url');
         $parts = is_string($origin) && filter_var($origin, FILTER_VALIDATE_URL) ? parse_url($origin) : false;
         if (! $parts || ! in_array($parts['scheme'], ['http', 'https'], true)
@@ -20,7 +30,7 @@ final class TransactionalEmail
             return null;
         }
 
-        return rtrim($origin, '/').'/pedidos/'.rawurlencode($reference);
+        return rtrim($origin, '/').$path;
     }
 
     public static function support(): array

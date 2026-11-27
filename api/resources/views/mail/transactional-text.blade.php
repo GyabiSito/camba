@@ -29,6 +29,10 @@ Mensaje:
 
 Condiciones de tu compra: {!! $contractUrl !!}
 @endisset
+@isset($withdrawalUrl)
+
+Revisar solicitud de arrepentimiento: {!! $withdrawalUrl !!}
+@endisset
 @if (($supportEmail ?? null) || ($supportPhone ?? null))
 
 Ayuda: {{ implode(' · ', array_filter([$supportEmail ?? null, $supportPhone ?? null])) }}

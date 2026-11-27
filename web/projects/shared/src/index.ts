@@ -142,17 +142,23 @@ const amount = (digits: number) => new Intl.NumberFormat('es-UY', {
 });
 const whole = amount(0);
 const decimal = amount(2);
-const date = new Intl.DateTimeFormat('es-UY', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Montevideo' });
+const storeTimeZone = 'America/Montevideo';
+const dateFormatter = (timeZone: string) => new Intl.DateTimeFormat('es-UY', {
+  year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone,
+});
+const storeDate = dateFormatter(storeTimeZone);
 
 export function formatMoney(cents: number | null | undefined): string {
   return cents == null ? '—' : (cents % 100 ? decimal : whole).format(cents / 100);
 }
 
-export function formatDate(value: string | null | undefined): string {
+export function formatDate(value: string | null | undefined, timeZone = storeTimeZone): string {
   if (!value) return '—';
   const utc = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value) ? value.replace(' ', 'T') + 'Z' : value;
   const parsed = new Date(utc);
-  return Number.isNaN(parsed.valueOf()) ? '—' : date.format(parsed);
+  return Number.isNaN(parsed.valueOf()) ? '—'
+    : (timeZone === storeTimeZone ? storeDate : dateFormatter(timeZone)).format(parsed);
 }
 
 export function apiMessage(error: unknown, fallback = 'No se pudo completar la solicitud. Intentá de nuevo.'): string {

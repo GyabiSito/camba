@@ -207,18 +207,25 @@ class CheckoutProClient implements MPHttpClient
                 'failed' => $state === 'failed' ? 'rejected' : null,
                 'canceled', 'expired' => 'cancelled',
                 'processing', 'action_required' => 'in_process',
-                'refunded' => $state === 'refunded' ? 'refunded' : null,
+                'refunded' => $state === 'refunded' && $detail === 'refunded'
+                    && ($payment['status_detail'] ?? null) === 'refunded'
+                    && self::processedRefundCents($payload['transactions']['refunds'] ?? null, $paymentId) === $amount
+                        ? 'refunded' : null,
                 default => null,
             };
             if ($status !== null) {
                 $evidence[$paymentId] = [
                     'id' => $paymentId, 'reference' => $parts[1], 'attempt_id' => (int) $parts[2], 'provider_order_id' => $id,
                     'amount_cents' => $amount, 'status' => $status, 'updated_at' => $updated->format('Y-m-d\TH:i:s.v\Z'),
+                    ...($status === 'refunded' ? ['refunded_cents' => $amount] : []),
                 ];
             }
         }
         if ($state === 'processed' && $detail === 'accredited' && count(array_filter($evidence, fn ($row) => $row['status'] === 'approved')) !== 1) {
             throw new RuntimeException('Mercado Pago did not verify one fully accredited transaction.');
+        }
+        if ($state === 'refunded' && count(array_filter($evidence, fn ($row) => $row['status'] === 'refunded')) !== 1) {
+            throw new RuntimeException('Mercado Pago did not verify one complete refund.');
         }
 
         return [
@@ -227,6 +234,27 @@ class CheckoutProClient implements MPHttpClient
             'expires_at' => $created->add(new DateInterval($duration)), 'updated_at' => $updated->format('Y-m-d\TH:i:s.v\Z'),
             'url' => self::isCheckoutUrl($url) ? $url : null, 'payments' => array_values($evidence),
         ];
+    }
+
+    private static function processedRefundCents(mixed $refunds, string $paymentId): ?int
+    {
+        if (! is_array($refunds) || ! array_is_list($refunds) || count($refunds) > 100) {
+            return null;
+        }
+        $processed = [];
+        foreach ($refunds as $refund) {
+            if (($refund['transaction_id'] ?? null) !== $paymentId || ($refund['status'] ?? null) !== 'processed') {
+                continue;
+            }
+            $id = $refund['id'] ?? null;
+            $amount = self::cents($refund['amount'] ?? null);
+            if (! is_string($id) || $id === '' || isset($processed[$id]) || $amount === null || $amount <= 0) {
+                return null;
+            }
+            $processed[$id] = $amount;
+        }
+
+        return array_sum($processed);
     }
 
     private static function orderDate(mixed $date): CarbonImmutable
@@ -289,10 +317,18 @@ class CheckoutProClient implements MPHttpClient
             $attemptId = (int) $parts[2];
         }
 
+        $amountCents = (int) $money[1] * 100 + (int) str_pad($money[2] ?? '', 2, '0');
+        $refunded = $payment['transaction_amount_refunded'] ?? null;
+        if ($status === 'refunded' && (self::cents(is_float($refunded) ? (string) $refunded : $refunded) !== $amountCents
+            || ($payment['status_detail'] ?? null) === 'partially_refunded')) {
+            throw new RuntimeException('Mercado Pago did not verify a complete payment refund.');
+        }
+
         return [
             'id' => $id, 'reference' => $reference, 'status' => $status,
-            'amount_cents' => (int) $money[1] * 100 + (int) str_pad($money[2] ?? '', 2, '0'),
+            'amount_cents' => $amountCents,
             'updated_at' => $instant->format('Y-m-d\TH:i:s.v\Z'),
+            ...($status === 'refunded' ? ['refunded_cents' => $amountCents] : []),
             ...($attemptId === null ? [] : ['attempt_id' => $attemptId]),
         ];
     }

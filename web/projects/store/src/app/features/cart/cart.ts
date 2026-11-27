@@ -1,4 +1,5 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { Component, computed, DestroyRef, inject, PLATFORM_ID, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { apiMessage, CART_CHANGED, formatMoney } from '@camba/shared';
@@ -18,6 +19,9 @@ export class CartPage {
   private readonly client = inject(CartApi);
   private readonly orders = inject(OrdersApi);
   private readonly router = inject(Router);
+  private readonly browser = inject(DOCUMENT).defaultView;
+  private readonly inBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+  private readonly destroyRef = inject(DestroyRef);
   protected readonly covers = inject(CatalogCovers);
   protected readonly items = signal<CartItem[]>([]);
   protected readonly loading = signal(true);
@@ -57,6 +61,7 @@ export class CartPage {
         cart.items.map((item) => [item.product_id, previous[item.product_id] ?? item.quantity]),
       ),
     );
+    if (this.inBrowser && !this.destroyRef.destroyed) this.browser?.dispatchEvent(new Event(CART_CHANGED));
   }
 
   protected async refresh(showLoading = true) {
@@ -142,7 +147,6 @@ export class CartPage {
         if (saved) this.setQuantity(id, saved.quantity);
       }
       this.updated.set(true);
-      window.dispatchEvent(new Event(CART_CHANGED));
     } catch (error) {
       this.error.set(
         apiMessage(

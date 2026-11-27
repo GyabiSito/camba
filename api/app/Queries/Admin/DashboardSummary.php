@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Http\Resources\Orders\OrderResource;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Withdrawal;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Carbon;
 
@@ -33,6 +34,7 @@ class DashboardSummary
                 'ready_for_pickup' => Order::query()->where('status', OrderStatus::Paid)
                     ->where('fulfilment_status', 'ready_for_pickup')->count(),
                 'out_of_stock' => Product::query()->published()->withoutAvailableStock()->count(),
+                'received_withdrawals' => Withdrawal::query()->where('status', 'received')->count(),
             ],
             'recent_orders' => OrderResource::collection(Order::query()->latest('id')->limit(5)->get([
                 'reference', 'status', 'currency', 'subtotal_cents', 'shipping_cents', 'total_cents',

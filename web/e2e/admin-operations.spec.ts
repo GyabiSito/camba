@@ -127,6 +127,8 @@ test('filters and pages orders, retains notes on conflict, then completes a pick
   await expect(page).toHaveURL(/page=2/);
   await page.getByRole('link', { name: `Ver pedido ${reference}` }).click();
   await expect(page.getByRole('heading', { name: 'Pedido 83E8D374' })).toBeVisible();
+  await expect(page.getByText('Fecha de creación:', { exact: true })).toBeVisible();
+  await expect(page.getByText('Fecha de aprobación del pago', { exact: true })).toBeVisible();
   await expect(page.locator('.order-identity')).toContainText(reference);
   await expect(page.getByRole('group', { name: 'Pago del pedido' })).toContainText('Pagado');
   await expect(page.getByRole('group', { name: 'Preparación del pedido' })).toContainText('Sin preparar');

@@ -84,6 +84,15 @@ return [
             'formatter' => JsonFormatter::class,
         ],
 
+        'refounds' => [
+            'driver' => 'monolog',
+            'name' => 'refounds',
+            'level' => 'info',
+            'handler' => PaymentDailyFileHandler::class,
+            'handler_with' => ['directory' => storage_path('logs/refounds')],
+            'formatter' => JsonFormatter::class,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

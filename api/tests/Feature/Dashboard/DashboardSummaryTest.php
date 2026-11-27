@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\User;
+use App\Models\Withdrawal;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -52,7 +53,7 @@ class DashboardSummaryTest extends TestCase
     {
         $this->admin();
         $this->getJson(self::URL)->assertOk()->assertExactJson(['data' => [
-            'priorities' => ['pending_payment' => 0, 'needs_preparation' => 0, 'ready_for_pickup' => 0, 'out_of_stock' => 0],
+            'priorities' => ['pending_payment' => 0, 'needs_preparation' => 0, 'ready_for_pickup' => 0, 'out_of_stock' => 0, 'received_withdrawals' => 0],
             'recent_orders' => [],
             'sales' => [
                 'timezone' => 'America/Montevideo', 'from' => '2026-01-30', 'through' => '2026-02-28',
@@ -83,8 +84,43 @@ class DashboardSummaryTest extends TestCase
         }
 
         $this->getJson(self::URL)->assertOk()->assertJsonPath('data.priorities', [
-            'pending_payment' => 2, 'needs_preparation' => 2, 'ready_for_pickup' => 1, 'out_of_stock' => 1,
+            'pending_payment' => 2, 'needs_preparation' => 2, 'ready_for_pickup' => 1, 'out_of_stock' => 1, 'received_withdrawals' => 0,
         ]);
+    }
+
+    public function test_received_withdrawal_priority_matches_filtered_total_and_updates_after_review(): void
+    {
+        $this->admin();
+        $inbox = '/api/v1/admin/withdrawals';
+        $received = [];
+        foreach ([...array_fill(0, 26, 'received'), 'reviewing', 'closed', 'refunded'] as $status) {
+            $reference = (string) Str::uuid();
+            Withdrawal::query()->create([
+                'reference' => $reference,
+                'order_reference' => (string) Str::uuid(),
+                'request_key' => hash('sha256', $reference),
+                'email' => 'withdrawal@example.test',
+                'status' => $status,
+            ]);
+            if ($status === 'received') {
+                $received[] = $reference;
+            }
+        }
+
+        $this->getJson(self::URL)->assertOk()->assertJsonPath('data.priorities.received_withdrawals', 26);
+        $this->getJson($inbox)->assertOk()->assertJsonPath('meta.total', 29)->assertJsonPath('data.0.status', 'refunded');
+        $first = $this->getJson($inbox.'?status=received')->assertOk()
+            ->assertJsonPath('meta.total', 26)->assertJsonPath('meta.last_page', 2)->assertJsonCount(25, 'data')->json('data');
+        $this->assertSame(['received'], array_values(array_unique(array_column($first, 'status'))));
+        $reference = $received[0];
+        $this->getJson($inbox.'?status=received&page=2')->assertOk()->assertJsonPath('data.0.reference', $reference);
+        $this->patchJson($inbox.'/'.$reference, ['action' => 'review'])->assertOk()->assertJsonPath('data.status', 'reviewing');
+        $this->getJson(self::URL)->assertOk()->assertJsonPath('data.priorities.received_withdrawals', 25);
+        $this->getJson($inbox.'?status=received')->assertOk()->assertJsonPath('meta.total', 25)->assertJsonPath('meta.last_page', 1);
+        $this->getJson($inbox.'?reference='.$reference)->assertOk()->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.reference', $reference)->assertJsonPath('data.0.status', 'reviewing');
+        $this->getJson($inbox.'?status=unknown')->assertUnprocessable()->assertJsonValidationErrors('status');
+        $this->getJson($inbox.'?reference=unknown')->assertUnprocessable()->assertJsonValidationErrors('reference');
     }
 
     public function test_recent_orders_are_the_five_newest_ids_without_private_details(): void
@@ -157,6 +193,19 @@ class DashboardSummaryTest extends TestCase
             ->assertJsonPath('data.sales.months.0.month', '2025-10')
             ->assertJsonPath('data.sales.months.4', ['month' => '2026-02', 'order_count' => 1, 'total_cents' => 100])
             ->assertJsonPath('data.sales.months.5', ['month' => '2026-03', 'order_count' => 1, 'total_cents' => 200]);
+    }
+
+    public function test_november_ends_before_december_midnight_in_montevideo(): void
+    {
+        $this->admin();
+        $this->travelTo(Carbon::parse('2026-12-01T03:00:01Z'));
+        $this->order(['status' => 'paid', 'paid_at' => '2026-12-01 02:59:59', 'total_cents' => 100]);
+        $this->order(['status' => 'paid', 'paid_at' => '2026-12-01 03:00:00', 'total_cents' => 200]);
+
+        $this->getJson(self::URL)->assertOk()
+            ->assertJsonPath('data.sales.through', '2026-12-01')
+            ->assertJsonPath('data.sales.months.4', ['month' => '2026-11', 'order_count' => 1, 'total_cents' => 100])
+            ->assertJsonPath('data.sales.months.5', ['month' => '2026-12', 'order_count' => 1, 'total_cents' => 200]);
     }
 
     private function admin(): void

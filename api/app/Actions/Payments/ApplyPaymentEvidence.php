@@ -3,6 +3,7 @@
 namespace App\Actions\Payments;
 
 use App\Actions\Notices\RecordOrderMail;
+use App\Actions\Notices\RecordRefundEffects;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentAttemptStatus;
 use App\Enums\PaymentStatus;
@@ -19,7 +20,11 @@ use Monolog\Level;
 
 class ApplyPaymentEvidence
 {
-    public function __construct(private readonly CheckoutReservation $reservation, private readonly RecordOrderMail $notices) {}
+    public function __construct(
+        private readonly CheckoutReservation $reservation,
+        private readonly RecordOrderMail $notices,
+        private readonly RecordRefundEffects $refunds,
+    ) {}
 
     /**
      * The caller has fetched and authenticated every supplied payment with CheckoutProClient.
@@ -92,6 +97,17 @@ class ApplyPaymentEvidence
             }
 
             $order->save();
+            if ($matched && $order->status === OrderStatus::Refunded && $order->paid_at !== null
+                && $order->paid_provider_payment_id !== null && ! $order->hasPaymentEvidenceConflict()) {
+                $payment = Payment::query()->where('order_id', $order->id)
+                    ->where('provider_payment_id', $order->paid_provider_payment_id)
+                    ->where('status', PaymentStatus::Refunded)->where('amount_cents', $order->total_cents)->first();
+                if ($payment && collect($paymentsForLock)->contains(fn (array $observed) => $observed['id'] === $payment->provider_payment_id && $observed['status'] === PaymentStatus::Refunded->value
+                    && ($observed['refunded_cents'] ?? null) === $payment->amount_cents
+                    && $observed['updated_at'] === $payment->provider_updated_at)) {
+                    $this->refunds->verified($order, $payment);
+                }
+            }
             if ($previous !== OrderStatus::Paid && $order->status === OrderStatus::Paid) {
                 if ($cart && $cart->claimed_at === null) {
                     $cart->removePurchasedItems($order->items()->pluck('quantity', 'product_id')->all());
@@ -231,9 +247,15 @@ class ApplyPaymentEvidence
         }
         if ($state === PaymentStatus::Approved) {
             $this->applyApproval($order, $id);
-        } elseif (in_array($state, [PaymentStatus::Refunded, PaymentStatus::ChargedBack], true)) {
+        } elseif ($state === PaymentStatus::Refunded) {
+            if ($order->paid_at !== null && $order->paid_provider_payment_id === $id
+                && ($evidence['refunded_cents'] ?? null) === $payment->amount_cents) {
+                $order->status = OrderStatus::Refunded;
+                $this->flag($order, 'payment_reversed');
+            }
+        } elseif ($state === PaymentStatus::ChargedBack) {
             if ($order->paid_provider_payment_id === null || $order->paid_provider_payment_id === $id) {
-                $order->status = $state === PaymentStatus::Refunded ? OrderStatus::Refunded : OrderStatus::ChargedBack;
+                $order->status = OrderStatus::ChargedBack;
             }
             $this->flag($order, 'payment_reversed');
         }

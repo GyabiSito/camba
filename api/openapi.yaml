@@ -1156,6 +1156,7 @@ components:
             needs_preparation: { type: integer, minimum: 0 }
             ready_for_pickup: { type: integer, minimum: 0 }
             out_of_stock: { type: integer, minimum: 0 }
+            received_withdrawals: { type: integer, minimum: 0, description: Total withdrawal requests in the received state before pagination. }
         recent_orders:
           type: array
           maxItems: 5

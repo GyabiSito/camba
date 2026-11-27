@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Orders;
 
+use App\Actions\Notices\DeliverCommerceNotice;
 use App\Actions\Notices\NoticeEligibility;
 use App\Actions\Payments\ApplyPaymentEvidence;
 use App\Commerce\PurchaseTerms;
@@ -337,15 +338,13 @@ class OrderCheckoutTest extends TestCase
         $reference = $this->place($payload, (string) Str::uuid())->assertCreated()->json('data.reference');
         $order = Order::query()->where('reference', $reference)->firstOrFail();
         $receipt = $this->postJson('/api/v1/withdrawals', [
-            'order_reference' => $reference, 'email' => 'otro-correo@camba.test',
+            'order_reference' => $reference, 'email' => $order->contact['email'],
         ])->assertCreated()->json('data.reference');
         $this->actingAs(User::factory()->create(['role' => 'admin']));
-        $this->getJson('/api/v1/admin/withdrawals')->assertOk()->assertJsonPath('data.0.order_matched', false);
+        $this->getJson('/api/v1/admin/withdrawals')->assertOk()->assertJsonPath('data.0.order_matched', true);
         $path = '/api/v1/admin/withdrawals/'.$receipt;
         $this->patchJson($path, ['action' => 'confirm_refund'])->assertConflict();
         $this->patchJson($path, ['action' => 'review'])->assertOk();
-        $this->patchJson($path, ['action' => 'link_order'])->assertOk()
-            ->assertJsonPath('data.reference', $receipt)->assertJsonPath('data.order_matched', true);
 
         $order->forceFill(['status' => 'refunded', 'paid_provider_payment_id' => '1209876', 'paid_at' => now()])->save();
         $payment = Payment::query()->forceCreate([
@@ -358,6 +357,13 @@ class OrderCheckoutTest extends TestCase
             ->assertJsonPath('data.refund_reference', '1209876')->assertJsonPath('data.status', 'refunded');
         $this->patchJson($path, ['action' => 'confirm_refund'])->assertExactJson($done->json());
         $this->assertSame('refunded', $payment->fresh()->status->value);
+        $notice = CommerceNotice::query()->where('kind', 'buyer_withdrawal_resolved')->sole();
+        $this->assertSame('withdrawal', $notice->subject_type);
+        Mail::fake();
+        app(DeliverCommerceNotice::class)->execute($notice->id);
+        Mail::assertSent(CommerceNoticeMail::class, fn ($mail) => $mail->hasTo(User::findOrFail($order->user_id)->email)
+            && $mail->envelope()->subject === 'Camba: resolvimos tu solicitud de arrepentimiento'
+            && str_contains($mail->render(), $receipt));
     }
 
     public function test_checkout_rejects_stale_quotes_invalid_lines_and_unavailable_stock_atomically(): void

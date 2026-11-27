@@ -15,6 +15,11 @@ Los correos usan la [plantilla HTML](../api/resources/views/mail/transactional.b
 | Enviamos tu pedido | Marcá un pedido pagado de entrega como enviado, desde el Admin. |
 | Tu pedido fue entregado | Confirmá la entrega de un pedido enviado, desde el Admin. |
 | Nuevo pedido en Camba | Confirmá un pedido válido, incluso pendiente de pago. Lo recibe el único administrador verificado; el aviso del panel también se conserva. |
+| Constancia de solicitud de arrepentimiento | Enviá el formulario público de arrepentimiento. Siempre aparece una constancia guardable; solo se envía una copia por correo si la referencia y el correo coinciden con la compra. No confirma un reintegro. |
+| Nueva solicitud de arrepentimiento | La misma solicitud nueva genera un aviso independiente al único administrador verificado. «Abrir solicitud» lleva al caso en Admin con la sesión habitual. |
+| Camba: confirmamos tu reintegro | La conciliación confirma por primera vez que Mercado Pago reintegró el importe completo del pago original. Llega a la cuenta del comprador. |
+| Camba: reintegro total verificado | La misma verificación genera un aviso independiente al único administrador verificado, con el pedido y la solicitud vinculada si existe. |
+| Camba: resolvimos tu solicitud de arrepentimiento | Desde una solicitud abierta con reintegro verificado, elegí «Registrar reintegro confirmado». Llega a la cuenta del comprador, con la constancia y la fecha del cierre. No sale al cerrar sin reintegro. |
 | Tu pago sigue pendiente | El pedido sigue pendiente y entra en la ventana previa al vencimiento; la tienda y el comprador verificado tienen el recordatorio activado. |
 | Tenés productos en el carrito | El carrito de un comprador verificado conserva stock, supera el plazo de inactividad y no tiene una compra posterior; ambos permisos de recordatorio están activos. |
 
@@ -27,6 +32,12 @@ Los correos de envío y entrega a domicilio se registran en la misma transacció
 El registro guarda la cuenta y un único aviso de bienvenida en la misma transacción. El scheduler lo encola después del commit, sin esperar la verificación. El correo de verificación y su enlace se envían por separado. Una falla de SMTP no revierte el registro: se aplican los [reintentos seguros del registro de avisos](../api/docs/notices.md#delivery-and-recovery). Si no se sabe si SMTP aceptó el correo, no se reenvía automáticamente.
 
 El cambio de contraseña guarda el aviso con la cuenta en la misma transacción. El correo no contiene contraseñas ni tokens; el botón abre el formulario habitual de recuperación.
+
+Para comprobar el arrepentimiento en la demo existente, usá un pedido de prueba en [el formulario público](http://localhost:4200/arrepentimiento). Con el correo de compra correcto llegan la copia y el aviso interno a [Mailpit](http://localhost:8025/). Con otro correo aparece la misma confirmación guardable, pero solo llega el aviso interno. Ese caso se puede revisar y cerrar, no vincular manualmente ni usar para registrar un reintegro. Repetir el envío devuelve el mismo número y no genera otro correo.
+
+La verificación de un reintegro total se hace contra la evidencia del proveedor, no contra el cuerpo del webhook. Orders requiere reintegros procesados para el pago original que sumen el importe exacto; Payments verifica el importe devuelto contra ese pago. La verificación registra los dos avisos y el trabajo de auditoría en la misma transacción. Un reintento no los duplica. Si se interrumpe la escritura, el scheduler vuelve a proyectar la entrada al archivo del día original, sin repetir una línea completa. Un fallo de correo no revierte un reintegro; se aplican las reglas de recuperación del registro de avisos.
+
+En Docker local, el registro se lee dentro de API, worker o scheduler en `/var/www/html/storage/logs/refounds/DDMMAAAA.log`, con fecha y hora de Uruguay. Usa el volumen compartido `api-storage`; no está montado en el host. El JSON se limita al instante de verificación, referencia Camba, ID de orden (si está disponible) y de pago del proveedor, monto en centésimos, moneda y constancia vinculada si existe. Antes de habilitarlo en otro stack, asegurá un almacenamiento persistente compartido para ese directorio entre sus procesos de conciliación.
 
 ## Reproducir con Mailpit sin tocar la demo
 

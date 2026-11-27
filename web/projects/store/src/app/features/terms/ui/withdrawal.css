@@ -1,0 +1,54 @@
+.withdrawal-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 32rem) minmax(0, 25rem);
+  align-items: start;
+  gap: clamp(1.5rem, 5vw, 4rem);
+}
+
+.withdrawal-fields {
+  display: grid;
+  gap: 1rem;
+}
+
+.withdrawal-fields label { font-weight: 700; }
+.withdrawal-fields input { min-block-size: 2.75rem; }
+.withdrawal-fields .button { justify-self: start; }
+.withdrawal-fields input[aria-invalid='true'] {
+  border-color: var(--danger);
+  outline-color: var(--danger);
+}
+
+.withdrawal-layout .shop-panel p { margin: 0; }
+.withdrawal-layout .field-help { color: var(--muted); }
+.withdrawal-layout .field-error { color: var(--danger); font-weight: 650; }
+.withdrawal-layout :is(.field-help, .field-error) { font-size: .875rem; line-height: 1.5; }
+
+.withdrawal-receipt h2 { color: var(--home-brand); }
+.withdrawal-receipt [role='status'] { display: grid; gap: .65rem; }
+.withdrawal-receipt .withdrawal-print { justify-self: start; }
+@media print { .withdrawal-print { display: none; } }
+.withdrawal-receipt strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.withdrawal-layout ol {
+  display: grid;
+  gap: .6rem;
+  margin: .9rem 0;
+  padding-inline-start: 1.3rem;
+  line-height: 1.55;
+}
+.withdrawal-layout li::marker { color: var(--home-action); font-weight: 700; }
+.withdrawal-layout details { border-block-start: 1px solid var(--line); }
+.withdrawal-layout summary {
+  padding-block: .7rem;
+  color: var(--home-action);
+  cursor: pointer;
+  font-weight: 650;
+}
+
+@media (max-width: 48rem) {
+  .withdrawal-layout { grid-template-columns: minmax(0, 1fr); }
+}

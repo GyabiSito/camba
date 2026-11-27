@@ -1,4 +1,8 @@
-<a class="ops-back ops-link" routerLink="/pedidos" [queryParams]="params()">Volver a pedidos</a>
+@if (params()['from'] === 'arrepentimientos') {
+  <a class="ops-back ops-link" routerLink="/pedidos/arrepentimientos" [queryParams]="withdrawalParams()">Volver a la bandeja</a>
+} @else {
+  <a class="ops-back ops-link" routerLink="/pedidos" [queryParams]="params()">Volver a pedidos</a>
+}
 @let result = response();
 @let detail = result?.status === 'loaded' ? result.value : null;
 
@@ -10,7 +14,7 @@
       }}
     </h1>
     @if (detail) {
-      <p>{{ date(detail.data.created_at) }}</p>
+      <p><span>Fecha de creación:</span>&ngsp;<time [attr.datetime]="detail.data.created_at">{{ date(detail.data.created_at) }}</time></p>
       <div class="order-identity" aria-label="Referencia completa del pedido">
         <span>Referencia</span>
         <strong class="order-id">{{ detail.data.reference }}</strong>
@@ -194,8 +198,8 @@
       <dl class="ops-facts">
         @if (payment?.paid_at; as paidAt) {
           <div>
-            <dt>Fecha de aprobación</dt>
-            <dd>{{ date(paidAt) }}</dd>
+            <dt>Fecha de aprobación del pago</dt>
+            <dd><time [attr.datetime]="paidAt">{{ date(paidAt) }}</time></dd>
           </div>
         }
         @if (order.status === 'pending_payment') {

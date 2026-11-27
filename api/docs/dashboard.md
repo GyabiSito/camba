@@ -10,8 +10,11 @@
 | Paid, still needs preparation | Orders: `status=paid&fulfilment_status=needs_preparation` |
 | Ready for pickup | Orders: `status=paid&fulfilment_status=ready_for_pickup` |
 | Published without available stock | Products: `status=published&availability=out_of_stock` |
+| Withdrawals awaiting review (`received_withdrawals`) | Withdrawals: `status=received` |
 
 `needs_preparation` is a list filter for `unstarted` and `preparing`, not a fulfilment state. `out_of_stock` uses the same available stock value as the product resource. Existing filters and state transitions are unchanged.
+
+`GET /api/v1/admin/withdrawals` accepts an optional `status` (`received`, `reviewing`, `closed`, `refunded`) and an optional exact receipt UUID in `reference`. The filters apply before pagination, so `meta.total` for `status=received` counts the same records as `received_withdrawals`, including cases beyond the first page. An invalid filter returns `422`. When returning to a case after a status change, query by `reference` alone to reopen it outside the original list filter.
 
 ## Confirmed sales
 

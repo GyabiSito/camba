@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink, type Params } from '@angular/router';
 import { formatDate, formatMoney } from '@camba/shared';
 import { BehaviorSubject, Observable, combineLatest, switchMap } from 'rxjs';
 import {
@@ -43,7 +43,11 @@ export class OrderDetailPage {
   };
   readonly date = formatDate;
   readonly money = formatMoney;
-  readonly params = toSignal(this.route.queryParams, { initialValue: {} });
+  readonly params = toSignal(this.route.queryParams, { initialValue: {} as Params });
+  readonly withdrawalParams = computed(() => {
+    const { q, status, page, solicitud } = this.params();
+    return { q, status, page, solicitud };
+  });
   readonly note = signal('');
   readonly tracking = signal('');
   readonly working = signal<'fulfilment' | 'payment' | null>(null);

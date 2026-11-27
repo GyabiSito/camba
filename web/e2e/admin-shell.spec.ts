@@ -12,6 +12,18 @@ test('verified admin reaches the catalog and can sign out', async ({ page }, inf
     page.getByRole('navigation', { name: 'Administración' }).getByText('Productos'),
   ).toHaveAttribute('aria-current', 'page');
 
+  for (const width of [1440, 1920]) {
+    await page.setViewportSize({ width, height: 992 });
+    const workspace = await page.locator('.admin-body').boundingBox();
+    const sidebar = await page.locator('.admin-sidebar').boundingBox();
+    expect(Math.abs(workspace!.x - sidebar!.width - (width - workspace!.x - workspace!.width))).toBeLessThanOrEqual(1);
+
+    const inventory = await page.getByRole('table', { name: 'Inventario de productos' }).boundingBox();
+    const detail = await page.locator('.selection').boundingBox();
+    expect(detail!.x).toBeGreaterThanOrEqual(inventory!.x + inventory!.width);
+    expect(Math.abs(detail!.y - inventory!.y)).toBeLessThanOrEqual(1);
+  }
+
   await page.screenshot({
     path: info.outputPath('admin-catalog-desktop.png'),
     animations: 'disabled',
@@ -41,6 +53,12 @@ test('verified admin reaches the catalog and can sign out', async ({ page }, inf
   await navigation.getByRole('link', { name: 'Configuración' }).click();
   await expect(page).toHaveURL(/\/configuracion$/);
   await expect(menu).toHaveAttribute('aria-expanded', 'false');
+  await page.setViewportSize({ width: 1920, height: 992 });
+  await expect(page.locator('.settings-form')).toBeVisible();
+  const settings = (await page.locator('.settings-form').boundingBox())!;
+  const content = (await page.locator('.admin-body').boundingBox())!;
+  expect(settings.width).toBeLessThanOrEqual(1024);
+  expect(Math.abs(settings.x - content.x - (content.x + content.width - settings.x - settings.width))).toBeLessThanOrEqual(1);
   await page.locator('header summary[aria-label="Opciones de Camba Mesa"]').click();
   await page.getByRole('button', { name: 'Cerrar sesión' }).click();
   await expect(page).toHaveURL(/\/ingresar/);

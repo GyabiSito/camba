@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Actions\Notices\DeliverRefundLog;
 use App\Actions\Notices\ProjectCommerceNotices;
 use App\Jobs\SendCommerceNotice;
 use App\Models\CommerceNotice;
@@ -14,9 +15,14 @@ class ProjectCommerceNoticesCommand extends Command
 
     protected $description = 'Project committed commerce events and enqueue due notices';
 
-    public function handle(ProjectCommerceNotices $project): int
+    public function handle(ProjectCommerceNotices $project, DeliverRefundLog $refundLogs): int
     {
         $project->execute();
+        $logs = CommerceNotice::query()->where('channel', 'log')->where('kind', CommerceNotice::TOTAL_REFUND_LOG)
+            ->where('state', 'pending')->where('available_at', '<=', now())->orderBy('id')->limit(25)->pluck('id');
+        foreach ($logs as $id) {
+            $refundLogs->execute($id);
+        }
         $due = CommerceNotice::query()->where('channel', 'mail')->where('state', 'pending')
             ->where('available_at', '<=', now())->orderBy('available_at')->orderBy('id')->limit(100)->pluck('id');
         foreach ($due as $id) {
