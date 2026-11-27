@@ -2,10 +2,11 @@
 
 namespace Tests\Feature\Orders;
 
+use App\Actions\Notices\NoticeEligibility;
 use App\Actions\Payments\ApplyPaymentEvidence;
 use App\Commerce\PurchaseTerms;
-use App\Mail\CommerceNoticeMail;
 use App\Jobs\SendCommerceNotice;
+use App\Mail\CommerceNoticeMail;
 use App\Models\Category;
 use App\Models\CommerceNotice;
 use App\Models\Order;
@@ -299,6 +300,11 @@ class OrderCheckoutTest extends TestCase
         $stored = DB::table('orders')->where('reference', $reference)->first();
         $created->assertJsonPath('data.terms_version', PurchaseTerms::VERSION);
         $this->assertSame(PurchaseTerms::VERSION, $stored->terms_version);
+        $accountEmail = User::query()->findOrFail($stored->user_id)->email;
+        $this->assertNotSame($payload['contact']['email'], $accountEmail);
+        $this->assertSame([$accountEmail, $reference], app(NoticeEligibility::class)->recipient(
+            new CommerceNotice(['kind' => 'order_created', 'subject_id' => $stored->id]),
+        ));
         $mail = new CommerceNoticeMail(1, 'order_created', $reference, Order::query()->where('reference', $reference)->firstOrFail());
         $this->assertStringContainsString(PurchaseTerms::withdrawal(), $mail->render());
         $this->assertStringContainsString('terminos-y-condiciones?version='.PurchaseTerms::VERSION, $mail->render());
@@ -331,12 +337,15 @@ class OrderCheckoutTest extends TestCase
         $reference = $this->place($payload, (string) Str::uuid())->assertCreated()->json('data.reference');
         $order = Order::query()->where('reference', $reference)->firstOrFail();
         $receipt = $this->postJson('/api/v1/withdrawals', [
-            'order_reference' => $reference, 'email' => $payload['contact']['email'],
+            'order_reference' => $reference, 'email' => 'otro-correo@camba.test',
         ])->assertCreated()->json('data.reference');
         $this->actingAs(User::factory()->create(['role' => 'admin']));
-        $this->getJson('/api/v1/admin/withdrawals')->assertOk()->assertJsonPath('data.0.order_matched', true);
+        $this->getJson('/api/v1/admin/withdrawals')->assertOk()->assertJsonPath('data.0.order_matched', false);
         $path = '/api/v1/admin/withdrawals/'.$receipt;
         $this->patchJson($path, ['action' => 'confirm_refund'])->assertConflict();
+        $this->patchJson($path, ['action' => 'review'])->assertOk();
+        $this->patchJson($path, ['action' => 'link_order'])->assertOk()
+            ->assertJsonPath('data.reference', $receipt)->assertJsonPath('data.order_matched', true);
 
         $order->forceFill(['status' => 'refunded', 'paid_provider_payment_id' => '1209876', 'paid_at' => now()])->save();
         $payment = Payment::query()->forceCreate([

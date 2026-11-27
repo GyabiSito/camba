@@ -65,10 +65,20 @@ class WithdrawalController
     public function update(Request $request, string $reference): JsonResponse
     {
         $this->ensureReady();
-        $action = $request->validate(['action' => ['required', 'in:review,close,confirm_refund']])['action'];
+        $action = $request->validate(['action' => ['required', 'in:review,link_order,close,confirm_refund']])['action'];
         $record = DB::transaction(function () use ($action, $reference, $request): Withdrawal {
             $case = Withdrawal::query()->where('reference', $reference)->lockForUpdate()->firstOrFail();
-            if ($case->status === 'refunded' || ($case->status === 'closed' && $action !== 'confirm_refund')) {
+            abort_if(
+                ($case->status === 'closed' && ! in_array($action, ['close', 'confirm_refund'], true))
+                || ($case->status === 'refunded' && $action !== 'confirm_refund'),
+                409, 'La solicitud ya se cerró. Actualizá la lista para ver el estado actual.',
+            );
+            if (match ($action) {
+                'review' => $case->status === 'reviewing',
+                'link_order' => $case->order_id !== null,
+                'close' => $case->status === 'closed',
+                'confirm_refund' => $case->status === 'refunded',
+            }) {
                 return $case;
             }
             $changes = ['handled_by' => $request->user()->id];
@@ -83,6 +93,11 @@ class WithdrawalController
                     'status' => 'refunded', 'refund_payment_id' => $payment->id,
                     'refund_provider_reference' => $payment->provider_payment_id, 'refund_confirmed_at' => now(),
                 ];
+            } elseif ($action === 'link_order') {
+                abort_unless($case->status === 'reviewing', 409, 'Abrí la revisión antes de vincular el pedido.');
+                $orderId = Order::query()->where('reference', $case->order_reference)->lockForUpdate()->value('id');
+                abort_if($orderId === null, 409, 'No encontramos un pedido para la referencia de esta solicitud.');
+                $changes['order_id'] = $orderId;
             } else {
                 $changes['status'] = $action === 'review' ? 'reviewing' : 'closed';
             }

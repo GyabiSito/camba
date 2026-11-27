@@ -61,7 +61,7 @@ class AppServiceProvider extends ServiceProvider
             return [
                 Limit::perHour(15)->by('ip:'.$request->ip()),
                 ...(is_string($email) && strlen($email) <= 254 ? [
-                    Limit::perHour(4)->by('email:'.hash_hmac('sha256', mb_strtolower(trim($email)), config('app.key'))),
+                    Limit::perHour(4)->by('connection-email:'.hash_hmac('sha256', $request->ip().'|'.mb_strtolower(trim($email)), config('app.key'))),
                 ] : []),
             ];
         });

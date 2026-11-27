@@ -56,9 +56,7 @@ class NoticeEligibility
         }
         $status = $order->getRawOriginal('status');
         $buyer = $this->buyer($order->user_id);
-        $address = $notice->kind === 'order_created' && $order->terms_version !== null
-            ? ($order->contact['email'] ?? null)
-            : $buyer?->email;
+        $address = $buyer?->email;
         if (! $address && $order->user_id === null && str_starts_with($order->owner_key, 'guest:')) {
             $address = $order->contact['email'] ?? null;
         }

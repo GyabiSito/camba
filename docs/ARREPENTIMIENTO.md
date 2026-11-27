@@ -4,7 +4,7 @@
 
 1. El comprador revisa artículos, modalidad, costo de entrega o retiro y **total en UYU**. Puede volver y corregir los datos. La compra conserva la versión y una copia del texto de los Términos; no se asigna una versión retroactiva a compras viejas. El correo de confirmación incluye el aviso escrito de retracto y un enlace a la versión guardable.
 2. En Inicio, **Botón de arrepentimiento** abre `/arrepentimiento`. Pide solo la referencia completa y el correo de compra. Guardá la constancia con su fecha; Camba también encola una copia por correo. El mensaje no confirma coincidencia del pedido, plazo ni reintegro. Repetir los mismos datos recupera la constancia original.
-3. En **Admin → Pedidos → Arrepentimientos**, abrí la revisión. Si no hubo coincidencia, verificá los datos por un canal seguro, sin pedir contraseñas, tarjetas ni enviar documentación a un tercero. La recepción no se bloquea por dudas sobre el plazo.
+3. En **Admin → Pedidos → Arrepentimientos**, abrí la revisión. Si no hubo coincidencia, buscá el pedido por la referencia y verificá a la persona por un canal seguro, sin pedir contraseñas, tarjetas ni enviar documentación a un tercero. Después elegí **Vincular pedido verificado**, que conserva la constancia original. La recepción no se bloquea por dudas sobre el plazo.
 4. Si corresponde restituir el pago, gestioná el reintegro completo en Mercado Pago. En el detalle del pedido usá la consulta de pago existente y esperá la conciliación. Volvé a Arrepentimientos y elegí **Registrar reintegro confirmado**. Camba exige evidencia conciliada del pago original y su importe completo; esta pantalla **no ejecuta cobros ni reembolsos**. También se puede cerrar una revisión sin registrar un reintegro.
 
 ## Fuentes y alcance

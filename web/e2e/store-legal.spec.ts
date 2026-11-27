@@ -32,6 +32,11 @@ test('public withdrawal provides a neutral receipt and reaches Admin from the or
     await expect(caseRow).toContainText('Pedido no identificado');
     await caseRow.getByRole('button', { name: 'Abrir revisión' }).click();
     await expect(caseRow).toContainText('En revisión');
+    await caseRow.getByRole('button', { name: 'Vincular pedido verificado' }).click();
+    await expect(admin.getByRole('alert')).toBeVisible();
+    await expect(admin.getByText('Solicitud actualizada.', { exact: true })).toHaveCount(0);
+    await admin.getByRole('button', { name: 'Actualizar solicitudes' }).click();
+    await expect(caseRow).toContainText('En revisión');
   } finally {
     await admin.close();
   }

@@ -5,7 +5,7 @@ import { ApiClient, apiMessage } from '@camba/shared';
 import { firstValueFrom } from 'rxjs';
 import type { Page } from '../../shared/operations-data';
 
-type Action = 'review' | 'close' | 'confirm_refund';
+type Action = 'review' | 'link_order' | 'close' | 'confirm_refund';
 type Status = 'received' | 'reviewing' | 'closed' | 'refunded';
 type Withdrawal = {
   reference: string;
@@ -29,7 +29,10 @@ type Withdrawal = {
       <a class="button button--quiet" routerLink="/pedidos">Volver a Pedidos</a>
     </header>
     <p>Para hacer el reintegro, usá Mercado Pago. Después consultá el pago en el pedido y volvé acá para registrar la confirmación. Esta pantalla no mueve dinero.</p>
-    @if (error()) { <p role="alert">{{ error() }}</p> }
+    @if (error()) {
+      <p role="alert">{{ error() }}</p>
+      <button class="button button--quiet" type="button" [disabled]="loading() || busy()" (click)="load(result()?.meta?.current_page ?? 1)">Actualizar solicitudes</button>
+    }
     @if (feedback()) { <p role="status">{{ feedback() }}</p> }
     @if (loading()) { <p role="status">Cargando solicitudes…</p> }
     @if (result(); as page) {
@@ -50,6 +53,10 @@ type Withdrawal = {
             } @else {
               <div class="actions">
                 @if (item.status === 'received') { <button class="button button--quiet" type="button" [disabled]="busy()" (click)="act(item, 'review')">Abrir revisión</button> }
+                @if (!item.order_matched && item.status === 'reviewing') {
+                  <p>Vinculá el pedido solo después de verificar a la persona por un canal seguro.</p>
+                  <button class="button button--quiet" type="button" [disabled]="busy()" (click)="act(item, 'link_order')">Vincular pedido verificado</button>
+                }
                 @if (item.status !== 'closed') { <button class="button button--quiet" type="button" [disabled]="busy()" (click)="act(item, 'close')">Cerrar sin registrar reintegro</button> }
                 @if (item.order_matched) { <button class="button" type="button" [disabled]="busy()" (click)="act(item, 'confirm_refund')">Registrar reintegro confirmado</button> }
               </div>

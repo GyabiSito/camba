@@ -7,7 +7,9 @@ use App\Mail\CommerceNoticeMail;
 use App\Models\CommerceNotice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -44,7 +46,19 @@ class WithdrawalTest extends TestCase
         $path = '/api/v1/admin/withdrawals/'.$first->json('data.reference');
         $this->patchJson($path, ['action' => 'confirm_refund'])->assertConflict();
         $this->patchJson($path, ['action' => 'review'])->assertOk()->assertJsonPath('data.status', 'reviewing');
+        $this->patchJson($path, ['action' => 'link_order'])->assertConflict();
         $this->patchJson($path, ['action' => 'close'])->assertOk()->assertJsonPath('data.status', 'closed');
+        $this->patchJson($path, ['action' => 'review'])->assertConflict();
+    }
+
+    public function test_withdrawal_quotas_are_isolated_by_connection(): void
+    {
+        $limit = RateLimiter::limiter('withdrawal');
+        $keys = fn (string $ip): array => array_column($limit(Request::create(
+            '/api/v1/withdrawals', 'POST', ['email' => 'solicitud@camba.test'], server: ['REMOTE_ADDR' => $ip],
+        )), 'key');
+
+        $this->assertSame([], array_intersect($keys('192.0.2.11'), $keys('192.0.2.12')));
     }
 
     public function test_purchase_terms_publish_the_same_rule_for_current_and_versioned_links(): void
