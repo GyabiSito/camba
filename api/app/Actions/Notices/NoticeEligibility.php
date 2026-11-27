@@ -2,6 +2,7 @@
 
 namespace App\Actions\Notices;
 
+use App\Commerce\WithdrawalOwnerConfirmation;
 use App\Mail\TransactionalEmail;
 use App\Models\BuyerReminderPreference;
 use App\Models\Cart;
@@ -29,8 +30,16 @@ class NoticeEligibility
         if ($notice->kind === CommerceNotice::WITHDRAWAL_RECEIPT) {
             $case = Withdrawal::query()->find($notice->subject_id);
 
-            return $case?->verifiedOrder() && filter_var($case->email, FILTER_VALIDATE_EMAIL)
+            return $case && Withdrawal::purchaseMatches($case->order, $case->order_reference, $case->email)
+                && filter_var($case->email, FILTER_VALIDATE_EMAIL)
                 ? [$case->email, null, $case->reference] : null;
+        }
+        if ($notice->kind === CommerceNotice::WITHDRAWAL_OWNER_CONFIRMATION) {
+            $case = Withdrawal::query()->find($notice->subject_id);
+            $buyer = $case ? WithdrawalOwnerConfirmation::activeRecipient($case, $case->requestedOrder) : null;
+
+            return $buyer && hash_equals($notice->dedup_key, WithdrawalOwnerConfirmation::noticeKey($case))
+                ? [$buyer->email, null, $case->reference] : null;
         }
         if ($notice->kind === CommerceNotice::ADMIN_WITHDRAWAL_RECEIVED) {
             $admin = $this->boundAdministrator($notice);

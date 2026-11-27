@@ -22,6 +22,7 @@ class CommerceNoticeMail extends Mailable
         private array $support = [],
         private ?string $buyerName = null,
         private array $receipt = [],
+        private ?string $confirmationUrl = null,
     ) {}
 
     public function envelope(): Envelope
@@ -29,6 +30,7 @@ class CommerceNoticeMail extends Mailable
         return new Envelope(subject: in_array($this->kind, [
             ...CommerceNotice::BUYER_ACCOUNT_MAIL_KINDS, CommerceNotice::ADMIN_ORDER_CREATED,
             CommerceNotice::ADMIN_WITHDRAWAL_RECEIVED, CommerceNotice::ORDER_DELIVERED,
+            CommerceNotice::WITHDRAWAL_OWNER_CONFIRMATION,
         ], true)
             ? $this->title()
             : 'Camba: '.mb_lcfirst($this->title()));
@@ -89,6 +91,7 @@ class CommerceNoticeMail extends Mailable
         [$actionLabel, $actionUrl] = match (true) {
             $adminNotice => ['Ver pedido', TransactionalEmail::adminOrderUrl($this->reference ?? '') ?? throw new LogicException('Missing Admin origin.')],
             $this->kind === CommerceNotice::ADMIN_WITHDRAWAL_RECEIVED => ['Abrir solicitud', TransactionalEmail::adminWithdrawalUrl($this->reference ?? '') ?? throw new LogicException('Missing Admin origin.')],
+            $this->kind === CommerceNotice::WITHDRAWAL_OWNER_CONFIRMATION => ['Revisar solicitud', $this->confirmationUrl ?? throw new LogicException('Missing withdrawal confirmation link.')],
             $this->kind === CommerceNotice::BUYER_PASSWORD_CHANGED => ['Restablecer contraseña', $store.'/cuenta/recuperar'],
             $this->kind === 'cart_reminder' => ['Ver carrito', $store.'/carrito'],
             $this->kind === CommerceNotice::WITHDRAWAL_RECEIPT => ['Contactanos', $store.'/contacto'],
@@ -110,6 +113,7 @@ class CommerceNoticeMail extends Mailable
                 CommerceNotice::ADMIN_ORDER_CREATED => 'Entró un pedido en la tienda. Revisá el estado del pago y los datos en Admin.',
                 CommerceNotice::ADMIN_WITHDRAWAL_RECEIVED => 'Entró una solicitud de arrepentimiento. Revisá el caso en Admin.',
                 CommerceNotice::WITHDRAWAL_RECEIPT => 'Registramos tu solicitud de arrepentimiento. Guardá esta constancia. No confirma que el pedido esté identificado ni que se haya hecho un reintegro.',
+                CommerceNotice::WITHDRAWAL_OWNER_CONFIRMATION => 'Nos pidieron verificar una solicitud vinculada a una compra de tu cuenta. Si la hiciste vos, abrí el enlace y confirmala en la tienda. El enlace vence a los 30 minutos de ser solicitado. Si no la hiciste, ignorá el mensaje.',
             },
             'details' => $this->order ? [
                 'Referencia' => $this->reference,
@@ -151,6 +155,7 @@ class CommerceNoticeMail extends Mailable
             CommerceNotice::ADMIN_ORDER_CREATED => 'Nuevo pedido en Camba',
             CommerceNotice::ADMIN_WITHDRAWAL_RECEIVED => 'Nueva solicitud de arrepentimiento',
             CommerceNotice::WITHDRAWAL_RECEIPT => 'Constancia de solicitud de arrepentimiento',
+            CommerceNotice::WITHDRAWAL_OWNER_CONFIRMATION => 'Confirmá tu solicitud de arrepentimiento',
             CommerceNotice::BUYER_TOTAL_REFUND => 'Confirmamos tu reintegro',
             CommerceNotice::ADMIN_TOTAL_REFUND => 'Reintegro total verificado',
             CommerceNotice::BUYER_WITHDRAWAL_RESOLVED => 'Resolvimos tu solicitud de arrepentimiento',

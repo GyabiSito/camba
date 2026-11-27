@@ -3,6 +3,8 @@
 namespace App\Mail;
 
 use App\Models\StoreSettings;
+use App\Models\Withdrawal;
+use LogicException;
 
 final class TransactionalEmail
 {
@@ -18,6 +20,13 @@ final class TransactionalEmail
     public static function adminWithdrawalUrl(string $reference): ?string
     {
         return self::adminUrl('/pedidos/arrepentimientos?solicitud='.rawurlencode($reference));
+    }
+
+    public static function withdrawalConfirmationUrl(Withdrawal $case): string
+    {
+        $token = $case->confirmation_token ?? throw new LogicException('Missing withdrawal confirmation token.');
+
+        return rtrim(config('app.url'), '/').'/arrepentimiento/confirmar/'.rawurlencode($case->reference).'#'.$token;
     }
 
     private static function adminUrl(string $path): ?string

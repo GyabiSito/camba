@@ -30,10 +30,11 @@
             <label for="withdrawal-email">Correo de la compra</label>
             <input #emailField id="withdrawal-email" type="email" autocomplete="email" formControlName="email" maxlength="254" required
               [attr.aria-invalid]="emailError ? 'true' : null"
-              [attr.aria-describedby]="emailError ? 'withdrawal-email-error' : null">
+              [attr.aria-describedby]="emailError ? 'withdrawal-email-error withdrawal-email-help' : 'withdrawal-email-help'">
             @if (emailError) {
               <p class="field-error" id="withdrawal-email-error" role="alert">Ingresá un correo válido.</p>
             }
+            <p class="field-help" id="withdrawal-email-help">Si compraste con una cuenta, usá su correo verificado.</p>
           </div>
           @if (error()) { <p class="field-error" role="alert">{{ error() }}</p> }
           <button class="button" type="submit">{{ busy() ? 'Enviando…' : 'Registrar solicitud' }}</button>

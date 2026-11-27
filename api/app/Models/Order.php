@@ -63,6 +63,11 @@ class Order extends Model
         return $this->belongsTo(OrderPayment::class);
     }
 
+    public function buyer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     public function hasPaymentEvidenceConflict(): bool
     {
         return array_intersect($this->payment_issues ?? [], ['provider_evidence_mismatch', 'conflicting_provider_timestamp']) !== [];

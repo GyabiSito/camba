@@ -78,6 +78,12 @@
             </dd>
           </div>
           <div><dt>Correo de la solicitud</dt><dd>{{ item.email }}</dd></div>
+          @if (item.confirmation_requested_at) {
+            <div><dt>Confirmación solicitada</dt><dd>{{ date(item.confirmation_requested_at) }} · Admin #{{ item.confirmation_requested_by }}</dd></div>
+          }
+          @if (item.confirmation_confirmed_at) {
+            <div><dt>Titular confirmó</dt><dd>{{ date(item.confirmation_confirmed_at) }} (Uruguay)</dd></div>
+          }
         </dl>
 
         @if (item.refund_reference) {
@@ -92,7 +98,15 @@
               <button type="button" class="button" [disabled]="busy()" (click)="act(item, 'review', title)">Abrir revisión</button>
             } @else if (item.status === 'reviewing' && !item.order_matched) {
               <h2>Solicitud sin pedido vinculado</h2>
-              <p>Los datos no se pudieron verificar. Podés revisar y cerrar el caso, pero no registrar un reintegro desde esta solicitud.</p>
+              @if (item.confirmation_pending) {
+                <p>Le pedimos al titular que confirme la solicitud. No registres un reintegro hasta vincular el pedido.</p>
+                <button type="button" class="button button--quiet" [disabled]="busy()" (click)="retry()">Actualizar solicitud</button>
+              } @else if (item.can_request_confirmation) {
+                <p>Podés enviarle un enlace al correo verificado del titular. El pedido se vincula solo si confirma.</p>
+                <button type="button" class="button" [disabled]="busy()" (click)="act(item, 'request_confirmation', title)">Solicitar confirmación</button>
+              } @else {
+                <p>Los datos no se pudieron verificar. Podés revisar y cerrar el caso, pero no registrar un reintegro desde esta solicitud.</p>
+              }
             } @else if (refundVerified()) {
               <h2>Reintegro total verificado</h2>
               <p>Registrá la confirmación para que quede asociada a la solicitud. Esta acción no mueve dinero.</p>

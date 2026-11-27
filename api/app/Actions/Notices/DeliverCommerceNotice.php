@@ -59,7 +59,9 @@ class DeliverCommerceNotice
                     $receipt['Pedido'] = Withdrawal::query()->find($notice->subject_id)?->verifiedOrder()?->reference
                         ?? 'Todavía no está vinculado';
                 }
-                $message = new CommerceNoticeMail($notice->id, $notice->kind, $reference, $order, TransactionalEmail::support(), $buyerName, $receipt);
+                $confirmationUrl = $notice->kind === CommerceNotice::WITHDRAWAL_OWNER_CONFIRMATION
+                    ? TransactionalEmail::withdrawalConfirmationUrl(Withdrawal::query()->findOrFail($notice->subject_id)) : null;
+                $message = new CommerceNoticeMail($notice->id, $notice->kind, $reference, $order, TransactionalEmail::support(), $buyerName, $receipt, $confirmationUrl);
             } catch (Throwable) {
                 $notice->forceFill($this->preparationFailure($notice->attempts))->save();
 

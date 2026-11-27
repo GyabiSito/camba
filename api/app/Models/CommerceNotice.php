@@ -20,6 +20,8 @@ class CommerceNotice extends Model
 
     public const ADMIN_WITHDRAWAL_RECEIVED = 'admin_withdrawal_received';
 
+    public const WITHDRAWAL_OWNER_CONFIRMATION = 'withdrawal_owner_confirmation';
+
     public const BUYER_TOTAL_REFUND = 'buyer_total_refund';
 
     public const ADMIN_TOTAL_REFUND = 'admin_total_refund';

@@ -14,6 +14,8 @@ Route::prefix('v1')->group(function (): void {
         return ['data' => $terms];
     });
     Route::post('withdrawals', [WithdrawalController::class, 'store'])->middleware('throttle:withdrawal');
+    Route::post('withdrawals/{reference}/confirmation', [WithdrawalController::class, 'confirm'])
+        ->whereUuid('reference')->middleware('throttle:10,1');
     Route::post('checkout/quote', [OrderController::class, 'quote']);
     Route::get('orders', [OrderController::class, 'index']);
     Route::post('orders', [OrderController::class, 'store'])->middleware(['auth:web', 'can:camba-buyer'])->name('orders.store');

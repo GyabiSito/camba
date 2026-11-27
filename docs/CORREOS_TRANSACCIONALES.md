@@ -17,6 +17,7 @@ Los correos usan la [plantilla HTML](../api/resources/views/mail/transactional.b
 | Nuevo pedido en Camba | Confirmá un pedido válido, incluso pendiente de pago. Lo recibe el único administrador verificado; el aviso del panel también se conserva. |
 | Constancia de solicitud de arrepentimiento | Enviá el formulario público de arrepentimiento. Siempre aparece una constancia guardable; solo se envía una copia por correo si la referencia y el correo coinciden con la compra. No confirma un reintegro. |
 | Nueva solicitud de arrepentimiento | La misma solicitud nueva genera un aviso independiente al único administrador verificado. «Abrir solicitud» lleva al caso en Admin con la sesión habitual. |
+| Confirmá tu solicitud de arrepentimiento | Desde un caso en revisión sin vínculo, «Solicitar confirmación» envía un enlace al correo verificado de la cuenta dueña del pedido. Vence a los 30 minutos y se consume solo con «Sí, hice esta solicitud». |
 | Camba: confirmamos tu reintegro | La conciliación confirma por primera vez que Mercado Pago reintegró el importe completo del pago original. Llega a la cuenta del comprador. |
 | Camba: reintegro total verificado | La misma verificación genera un aviso independiente al único administrador verificado, con el pedido y la solicitud vinculada si existe. |
 | Camba: resolvimos tu solicitud de arrepentimiento | Desde una solicitud abierta con reintegro verificado, elegí «Registrar reintegro confirmado». Llega a la cuenta del comprador, con la constancia y la fecha del cierre. No sale al cerrar sin reintegro. |

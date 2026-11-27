@@ -9,7 +9,7 @@ import { choices, pageNumber, readState, validChoice, type Page } from '../../sh
 import { OperationLoading, OperationPager } from '../../shared/operation-ui';
 import { OrdersApi } from './data-access/orders-api';
 
-type Action = 'review' | 'close' | 'confirm_refund';
+type Action = 'review' | 'close' | 'confirm_refund' | 'request_confirmation';
 const statusLabels = {
   received: 'Recibida', reviewing: 'En revisión', closed: 'Cerrada', refunded: 'Reintegro confirmado',
 };
@@ -22,12 +22,18 @@ type Withdrawal = {
   received_at: string;
   refund_reference: string | null;
   refund_confirmed_at: string | null;
+  can_request_confirmation: boolean;
+  confirmation_pending: boolean;
+  confirmation_requested_by: number | null;
+  confirmation_requested_at: string | null;
+  confirmation_confirmed_at: string | null;
 };
 
 const actionResult: Record<Action, string> = {
   review: 'Revisión abierta.',
   close: 'Solicitud cerrada sin reintegro.',
   confirm_refund: 'Reintegro confirmado registrado.',
+  request_confirmation: 'Confirmación solicitada al titular del pedido.',
 };
 const query = (params: ParamMap) => ({
   q: (params.get('q') ?? '').trim().slice(0, 120),

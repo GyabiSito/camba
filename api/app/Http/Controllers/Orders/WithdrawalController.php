@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Orders;
 
 use App\Actions\Notices\NoticeEligibility;
 use App\Actions\Notices\RecordRefundEffects;
+use App\Commerce\WithdrawalOwnerConfirmation;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\CommerceNotice;
@@ -29,7 +30,7 @@ class WithdrawalController
         $email = Str::lower(trim($fields['email']));
 
         $record = DB::transaction(function () use ($reference, $email, $eligibility): Withdrawal {
-            $order = Order::query()->where('reference', $reference)->first();
+            $order = Order::query()->with('buyer')->where('reference', $reference)->first();
             $matches = Withdrawal::purchaseMatches($order, $reference, $email);
             $withdrawal = Withdrawal::query()->createOrFirst([
                 'request_key' => hash_hmac('sha256', "$reference|$email", config('app.key')),
@@ -60,9 +61,16 @@ class WithdrawalController
             return $withdrawal;
         }, 3);
 
-        return response()->json(['data' => [
-            'reference' => $record->reference, 'received_at' => $record->created_at->toISOString(),
-        ]], 201);
+        return response()->json(['data' => $this->receipt($record)], 201)->header('Cache-Control', 'no-store');
+    }
+
+    public function confirm(Request $request, string $reference, WithdrawalOwnerConfirmation $confirmation): JsonResponse
+    {
+        $this->ensureReady();
+        $fields = $request->validate(['token' => ['required', 'string', 'regex:/\A[0-9a-f]{64}\z/']]);
+        $case = $confirmation->confirm($reference, $fields['token']);
+
+        return response()->json(['data' => $this->receipt($case)])->header('Cache-Control', 'no-store');
     }
 
     public function index(Request $request): JsonResponse
@@ -72,7 +80,7 @@ class WithdrawalController
             'status' => ['sometimes', 'required', 'string', 'in:received,reviewing,closed,refunded'],
             'reference' => ['sometimes', 'required', 'uuid'],
         ]);
-        $page = Withdrawal::query()->with('order:id,reference,contact')
+        $page = Withdrawal::query()->with(['order.buyer', 'requestedOrder.buyer'])
             ->when($filters['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
             ->when($filters['reference'] ?? null, fn ($query, $reference) => $query->where('reference', $reference))
             ->latest('id')->paginate(25)->through($this->forAdmin(...));
@@ -83,11 +91,11 @@ class WithdrawalController
         ])->header('Cache-Control', 'no-store');
     }
 
-    public function update(Request $request, string $reference, RecordRefundEffects $refunds): JsonResponse
+    public function update(Request $request, string $reference, RecordRefundEffects $refunds, WithdrawalOwnerConfirmation $confirmation): JsonResponse
     {
         $this->ensureReady();
-        $action = $request->validate(['action' => ['required', 'in:review,link_order,close,confirm_refund']])['action'];
-        $record = DB::transaction(function () use ($action, $reference, $request, $refunds): Withdrawal {
+        $action = $request->validate(['action' => ['required', 'in:review,link_order,close,confirm_refund,request_confirmation']])['action'];
+        $record = DB::transaction(function () use ($action, $reference, $request, $refunds, $confirmation): Withdrawal {
             $case = Withdrawal::query()->where('reference', $reference)->lockForUpdate()->firstOrFail();
             $wasClosed = $case->status === 'closed';
             abort_if(
@@ -95,10 +103,15 @@ class WithdrawalController
                 || ($case->status === 'refunded' && $action !== 'confirm_refund'),
                 409, 'La solicitud ya se cerró. Actualizá la lista para ver el estado actual.',
             );
+            if ($action === 'request_confirmation') {
+                $confirmation->request($case, $request->user()->id);
+
+                return $case;
+            }
             $order = null;
             if (in_array($action, ['link_order', 'confirm_refund'], true)) {
                 $order = Order::query()->lockForUpdate()->find($case->order_id);
-                abort_unless(Withdrawal::purchaseMatches($order, $case->order_reference, $case->email), 409,
+                abort_unless($case->isVerifiedFor($order), 409,
                     'Los datos de la solicitud no coinciden con la compra.');
             }
             if (match ($action) {
@@ -141,15 +154,28 @@ class WithdrawalController
 
     private function forAdmin(Withdrawal $case): array
     {
+        $matched = $case->verifiedOrder() !== null;
+        $canRequest = ! $matched && $case->status === 'reviewing' && Withdrawal::verifiedBuyer($case->requestedOrder) !== null;
+
         return [
             'reference' => $case->reference,
             'order_reference' => $case->order_reference,
-            'order_matched' => $case->verifiedOrder() !== null,
+            'order_matched' => $matched,
             'email' => $case->email,
             'status' => $case->status,
             'received_at' => $case->created_at->toISOString(),
             'refund_reference' => $case->refund_provider_reference,
             'refund_confirmed_at' => $case->refund_confirmed_at?->toISOString(),
+            'can_request_confirmation' => $canRequest,
+            'confirmation_pending' => $canRequest && WithdrawalOwnerConfirmation::activeRecipient($case, $case->requestedOrder) !== null,
+            'confirmation_requested_by' => $case->confirmation_requested_by,
+            'confirmation_requested_at' => $case->confirmation_requested_at?->toISOString(),
+            'confirmation_confirmed_at' => $case->confirmation_confirmed_at?->toISOString(),
         ];
+    }
+
+    private function receipt(Withdrawal $case): array
+    {
+        return ['reference' => $case->reference, 'received_at' => $case->created_at->toISOString()];
     }
 }

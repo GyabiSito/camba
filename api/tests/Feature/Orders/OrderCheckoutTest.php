@@ -338,7 +338,7 @@ class OrderCheckoutTest extends TestCase
         $reference = $this->place($payload, (string) Str::uuid())->assertCreated()->json('data.reference');
         $order = Order::query()->where('reference', $reference)->firstOrFail();
         $receipt = $this->postJson('/api/v1/withdrawals', [
-            'order_reference' => $reference, 'email' => $order->contact['email'],
+            'order_reference' => $reference, 'email' => User::findOrFail($order->user_id)->email,
         ])->assertCreated()->json('data.reference');
         $this->actingAs(User::factory()->create(['role' => 'admin']));
         $this->getJson('/api/v1/admin/withdrawals')->assertOk()->assertJsonPath('data.0.order_matched', true);

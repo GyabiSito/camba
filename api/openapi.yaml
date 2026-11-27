@@ -797,7 +797,7 @@ paths:
   /api/v1/store-info:
     get:
       operationId: getStoreInfo
-      description: The public email and phone come from Laravel runtime configuration. The internal contact form recipient is not exposed.
+      description: The public email, phone and nullable fiscalName come from Laravel runtime configuration. The internal contact form recipient is not exposed.
       externalDocs: { url: docs/settings.md }
       responses:
         '200':
@@ -805,6 +805,30 @@ paths:
             Public business contact and shipping information. data.checkout_pro_available
             is a configuration boolean, not a Mercado Pago connectivity check. No provider
             credentials, seller IDs or private controls are returned.
+  /api/v1/withdrawals/{reference}/confirmation:
+    post:
+      operationId: confirmWithdrawalAsOrderOwner
+      description: Consumes an unexpired owner-confirmation token and links the existing withdrawal. No login or refund operation.
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, pattern: '^[0-9a-f]{64}$' }
+      responses:
+        '200': { description: The original public receipt number and receipt date }
+        '410': { description: Link unavailable, expired, altered or already used }
+        '419': { description: Missing or invalid CSRF token on first-party browser requests }
+        '422': { description: Invalid request format }
+        '429': { description: Too many requests }
   /api/v1/admin/settings:
     get:
       operationId: getStoreSettings

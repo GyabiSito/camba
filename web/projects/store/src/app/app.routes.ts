@@ -21,6 +21,8 @@ export const routes: Routes = [
   shippingRoute,
   faqRoute,
   termsRoute,
+  { path: 'arrepentimiento/confirmar/:reference', title: 'Confirmá tu solicitud · Camba',
+    loadComponent: () => import('./features/terms/ui/withdrawal-confirmation').then(m => m.WithdrawalConfirmationPage) },
   withdrawalRoute,
   privacyRoute,
   ...homeRoutes,

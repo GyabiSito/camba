@@ -1,0 +1,26 @@
+<store-help-article title="Confirmá tu solicitud" description="Confirmá solo si vos hiciste la solicitud de arrepentimiento.">
+  <div class="help-content">
+    <section class="shop-panel">
+      @if (receipt(); as proof) {
+        <div role="status">
+          <h2>Solicitud confirmada</h2>
+          <p>Constancia: <strong>{{ proof.reference }}</strong></p>
+          <p>Recepción original: {{ date(proof.received_at) }} (Uruguay).</p>
+          <p>Vinculamos la solicitud con la compra. Esto no significa que se haya hecho un reintegro.</p>
+        </div>
+      } @else if (invalid()) {
+        <p role="alert">El enlace venció, ya se usó o no es válido. Si necesitás ayuda, <a routerLink="/contacto">contactanos</a>.</p>
+      } @else {
+        <p>Si no reconocés la solicitud, cerrá esta página. Abrir el enlace no confirma nada.</p>
+        @if (failed()) {
+          <p role="alert">No pudimos confirmar la solicitud. Volvé a intentar.</p>
+        }
+        <div>
+          <button type="button" class="button" [disabled]="!ready() || busy()" (click)="confirm()">
+            {{ busy() ? 'Confirmando…' : 'Sí, hice esta solicitud' }}
+          </button>
+        </div>
+      }
+    </section>
+  </div>
+</store-help-article>
