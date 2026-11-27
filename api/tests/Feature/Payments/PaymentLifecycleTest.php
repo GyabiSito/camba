@@ -299,6 +299,157 @@ class PaymentLifecycleTest extends TestCase
         ], json_decode($lines[0], true, flags: JSON_THROW_ON_ERROR));
     }
 
+    #[DataProvider('ordersChargebackFulfilment')]
+    public function test_orders_signed_chargeback_blocks_fulfilment_without_rewriting_its_history(
+        string $detail, array $deliveredStages, string $blockedStage,
+    ): void {
+        [$order, $approval, $setSnapshot] = $this->paidOrdersCheckoutForChargeback();
+        $path = '/api/v1/admin/orders/'.$order->reference;
+        $this->actingAs(User::factory()->create(['role' => 'admin']), 'web');
+        $order->fresh()->forceFill([
+            'shipping_method' => 'delivery',
+            ...($blockedStage === 'preparing' ? ['fulfilment_status' => 'unstarted'] : []),
+        ])->save();
+        foreach ($deliveredStages as $stage) {
+            $this->patchJson($path.'/fulfilment', ['status' => $stage])->assertOk();
+        }
+        $before = $this->getJson($path)->assertOk()->assertJsonPath('data.status', 'paid')->json();
+
+        $this->providerOrderWebhook('chargeback-not-yet-verified', action: 'order.charged_back')->assertOk();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertSame('paid', $order->fresh()->status->value);
+
+        $this->travel(2)->minutes();
+        $setSnapshot($this->chargedBackOrder($approval, $detail));
+        $this->providerOrderWebhook('chargeback-invalid', false, action: 'order.charged_back')->assertUnauthorized();
+        $this->providerOrderWebhook('chargeback-signed', action: 'order.charged_back')->assertOk();
+        $this->assertSame('paid', $order->fresh()->status->value);
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertSame(['verified', 'verified', 'verified'], DB::table('payment_webhook_events')->orderBy('id')->pluck('result')->all());
+        $this->getJson($path)->assertOk()->assertJsonPath('data.status', 'charged_back');
+
+        $this->providerOrderWebhook('chargeback-signed', action: 'order.charged_back')->assertOk();
+        $this->providerOrderWebhook('chargeback-repeated', action: 'order.charged_back')->assertOk();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $setSnapshot($approval);
+        $this->providerOrderWebhook('chargeback-late-approval')->assertOk();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertDatabaseCount('payment_webhook_events', 5);
+        $this->assertDatabaseMissing('payment_webhook_events', ['processed_at' => null]);
+        $this->assertDatabaseCount('payments', 1);
+        $this->assertDatabaseHas('payments', ['provider_payment_id' => self::TRANSACTION_ID, 'status' => 'charged_back']);
+        $this->assertDatabaseCount('payment_observations', 2);
+        $this->assertSame(3, $this->stock($order));
+        $this->assertNull($order->fresh()->stock_released_at);
+
+        $this->patchJson($path.'/fulfilment', ['status' => $blockedStage])->assertConflict();
+        $this->getJson($path)->assertOk()->assertJsonPath('data.status', 'charged_back')
+            ->assertJsonPath('data.fulfilment_status', $before['data']['fulfilment_status'])
+            ->assertJsonPath('events', $before['events'])->assertJsonPath('payment.issues', ['payment_reversed'])
+            ->assertJsonPath('payment.observations.0.status', 'charged_back');
+
+        app(ProjectCommerceNotices::class)->execute();
+        app(ProjectCommerceNotices::class)->execute();
+        $this->getJson('/api/v1/admin/notices?kind=payment_issue&state=active')->assertOk()
+            ->assertJsonCount(1, 'data')->assertJsonPath('data.0.issue', 'payment_reversed')
+            ->assertJsonPath('data.0.order_reference', $order->reference);
+        $this->assertDatabaseMissing('commerce_notices', ['kind' => CommerceNotice::TOTAL_REFUND_LOG]);
+    }
+
+    public static function ordersChargebackFulfilment(): array
+    {
+        return [
+            'before preparation' => ['in_process', [], 'preparing'],
+            'before shipment' => ['in_process', [], 'shipped'],
+            'before delivery' => ['settled', ['shipped'], 'completed'],
+            'already delivered' => ['reimbursed', ['shipped', 'completed'], 'completed'],
+        ];
+    }
+
+    public function test_orders_chargeback_of_another_payment_cannot_reverse_or_hide_original_evidence(): void
+    {
+        [$order, $approval, $setSnapshot] = $this->paidOrdersCheckoutForChargeback();
+        $this->travel(2)->minutes();
+        $valid = $this->chargedBackOrder($approval, 'settled');
+        $this->travel(2)->minutes();
+        $wrong = $this->chargedBackOrder($approval, 'settled', 'PAY01WRONGPAYMENT');
+        $setSnapshot($wrong);
+        $this->providerOrderWebhook('chargeback-of-other-payment', action: 'order.charged_back')->assertOk();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertDatabaseHas('payment_webhook_events', ['provider_order_id' => self::ORDERS_ID, 'result' => 'conflicting_evidence']);
+        $this->assertSame('paid', $order->fresh()->status->value);
+        $this->assertNotContains('payment_reversed', $order->fresh()->payment_issues);
+        $this->assertDatabaseMissing('payments', ['provider_payment_id' => 'PAY01WRONGPAYMENT']);
+        $this->assertSame(3, $this->stock($order));
+
+        $setSnapshot($valid);
+        $this->providerOrderWebhook('chargeback-of-original-payment', action: 'order.charged_back')->assertOk();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertSame('charged_back', $order->fresh()->status->value);
+        $this->assertSame(3, $this->stock($order));
+    }
+
+    public function test_orders_chargeback_rejects_unverified_amounts_and_transactions(): void
+    {
+        $payment = ['id' => self::TRANSACTION_ID, 'status' => 'charged_back', 'status_detail' => 'settled',
+            'amount' => '24.00', 'paid_amount' => '24.00'];
+        $snapshot = [...$this->providerOrder(Str::uuid().'_attempt_1', 'charged_back'), 'status_detail' => 'settled',
+            'total_paid_amount' => '24.00', 'transactions' => ['payments' => [$payment]]];
+        $received = [];
+        Http::fake(['https://api.mercadopago.com/v1/orders/'.self::ORDERS_ID => function () use (&$received) {
+            return Http::response($received);
+        }]);
+
+        $badPayments = [[], [[...$payment, 'amount' => '23.99']], [[...$payment, 'paid_amount' => '0.00']],
+            [$payment, $payment], [$payment, [...$payment, 'id' => 'PAY01WRONGPAYMENT']]];
+        foreach ([
+            ...array_map(fn ($payments) => [...$snapshot, 'transactions' => ['payments' => $payments]], $badPayments),
+            ...array_map(fn ($amount) => [...$snapshot, 'total_paid_amount' => $amount], ['23.99', '24.01', null]),
+        ] as $index => $received) {
+            try {
+                app(CheckoutProClient::class)->order(self::ORDERS_ID);
+                $this->fail('Invalid chargeback snapshot was accepted: '.$index);
+            } catch (\RuntimeException $error) {
+                $this->assertStringStartsWith('Mercado Pago', $error->getMessage());
+            }
+        }
+    }
+
+    private function paidOrdersCheckoutForChargeback(): array
+    {
+        config(['mercadopago.checkout_orders' => true, 'checkout.pickup_address' => 'QA pickup point']);
+        $order = $this->submitLoggedCheckout('orders-chargeback', keepCart: true);
+        $snapshot = [];
+        Http::fake([
+            'https://api.mercadopago.com/v1/orders' => fn (Request $request) => Http::response($this->providerOrder($request['external_reference']), 201),
+            'https://api.mercadopago.com/v1/orders/'.self::ORDERS_ID => function () use (&$snapshot) {
+                return Http::response($snapshot);
+            },
+        ]);
+        $this->start($order, (string) Str::uuid())->assertCreated();
+        $snapshot = $approval = $this->orderResult($order, 'processed');
+        $this->providerOrderWebhook('chargeback-initial-approval')->assertOk();
+        $this->artisan('camba:reconcile-payments')->assertSuccessful();
+        $this->assertSame('paid', $order->fresh()->status->value);
+
+        return [$order, $approval, function (array $newSnapshot) use (&$snapshot): void {
+            $snapshot = $newSnapshot;
+        }];
+    }
+
+    private function chargedBackOrder(array $approval, string $detail, string $paymentId = self::TRANSACTION_ID): array
+    {
+        $approval['status'] = $approval['transactions']['payments'][0]['status'] = 'charged_back';
+        $approval['status_detail'] = $approval['transactions']['payments'][0]['status_detail'] = $detail;
+        $approval['last_updated_date'] = now()->toISOString();
+        $approval['transactions']['payments'][0]['id'] = $paymentId;
+        $approval['transactions']['chargebacks'] = [[
+            'id' => 'CBK12JRTXT3GC8CJGW394QZZ349M7', 'transaction_id' => $paymentId, 'status' => $detail,
+        ]];
+
+        return $approval;
+    }
+
     public function test_orders_explicit_cancel_checks_the_provider_before_releasing_once(): void
     {
         config(['mercadopago.checkout_orders' => true, 'checkout.pickup_address' => 'QA pickup point']);

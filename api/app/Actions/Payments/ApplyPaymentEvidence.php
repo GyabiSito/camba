@@ -135,6 +135,15 @@ class ApplyPaymentEvidence
         if ($attempt->provider_order_updated_at !== null && strcmp($snapshot['updated_at'], $attempt->provider_order_updated_at) < 0) {
             return true;
         }
+        // Evidence about another payment must not advance the original attempt's watermark.
+        if ($snapshot['state'] === 'charged_back' && ($order->paid_at === null || ! collect($snapshot['payments'])->contains(
+            fn (array $payment) => $payment['status'] === PaymentStatus::ChargedBack->value
+                && $payment['id'] === $order->paid_provider_payment_id,
+        ))) {
+            $this->flag($order, 'provider_evidence_mismatch');
+
+            return false;
+        }
 
         $unbound = $attempt->provider_order_id === null;
         $attempt->forceFill([

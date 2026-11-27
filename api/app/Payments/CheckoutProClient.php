@@ -183,7 +183,7 @@ class CheckoutProClient implements MPHttpClient
         $state = $payload['status'] ?? null;
         $detail = $payload['status_detail'] ?? ($state === 'created' ? 'created' : null);
         $paid = self::cents($payload['total_paid_amount'] ?? null);
-        if (! in_array($state, ['created', 'processing', 'action_required', 'processed', 'failed', 'canceled', 'expired', 'refunded'], true)
+        if (! in_array($state, ['created', 'processing', 'action_required', 'processed', 'failed', 'canceled', 'expired', 'refunded', 'charged_back'], true)
             || ! is_string($detail) || ! preg_match('/\A[a-z_]{1,64}\z/', $detail)
             || (in_array($state, ['failed', 'canceled', 'expired'], true) && $paid > 0)) {
             throw new RuntimeException('Mercado Pago returned an invalid order state.');
@@ -192,6 +192,7 @@ class CheckoutProClient implements MPHttpClient
         if (! is_array($payments) || ! array_is_list($payments) || count($payments) > 12) {
             throw new RuntimeException('Mercado Pago returned invalid order transactions.');
         }
+        $chargebackDetails = ['in_process', 'settled', 'reimbursed'];
         $evidence = [];
         foreach ($payments as $payment) {
             $paymentId = $payment['id'] ?? null;
@@ -211,6 +212,9 @@ class CheckoutProClient implements MPHttpClient
                     && ($payment['status_detail'] ?? null) === 'refunded'
                     && self::processedRefundCents($payload['transactions']['refunds'] ?? null, $paymentId) === $amount
                         ? 'refunded' : null,
+                'charged_back' => $state === 'charged_back' && in_array($detail, $chargebackDetails, true)
+                    && in_array($payment['status_detail'] ?? null, $chargebackDetails, true)
+                    && $paid === $total && self::cents($payment['paid_amount'] ?? null) === $total ? 'charged_back' : null,
                 default => null,
             };
             if ($status !== null) {
@@ -226,6 +230,9 @@ class CheckoutProClient implements MPHttpClient
         }
         if ($state === 'refunded' && count(array_filter($evidence, fn ($row) => $row['status'] === 'refunded')) !== 1) {
             throw new RuntimeException('Mercado Pago did not verify one complete refund.');
+        }
+        if ($state === 'charged_back' && count(array_filter($evidence, fn ($row) => $row['status'] === 'charged_back')) !== 1) {
+            throw new RuntimeException('Mercado Pago did not verify one charged-back transaction.');
         }
 
         return [
