@@ -6,6 +6,7 @@ use App\Models\Address;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -17,6 +18,12 @@ class AdminCustomerTest extends TestCase
 
     protected function beforeRefreshingDatabase(): void
     {
+        if (config('database.default') === 'pgsql') {
+            $this->assertSame('camba_demo_test', config('database.connections.pgsql.database'));
+
+            return;
+        }
+
         $this->assertSame('sqlite', config('database.default'));
         $this->assertSame(':memory:', config('database.connections.sqlite.database'));
     }
@@ -65,6 +72,29 @@ class AdminCustomerTest extends TestCase
             ->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $first->id)->assertJsonPath('data.0.email_verified', false);
         $this->getJson(self::URL.'?q=DISTINCT%40example.test')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.id', $first->id);
         $this->getJson(self::URL.'?q=%25')->assertOk()->assertJsonPath('meta.total', 0);
+    }
+
+    public function test_search_matches_accented_names_regardless_of_case_without_removing_accents(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $buyer = User::factory()->create([
+            'role' => 'buyer', 'name' => 'Álvaro', 'email' => 'distinct@example.test',
+        ]);
+
+        $lowercaseBuyer = User::factory()->create([
+            'role' => 'buyer', 'name' => 'álvaro', 'email' => 'other@example.test',
+        ]);
+        $postgresC = config('database.default') === 'pgsql'
+            && DB::scalar('SELECT datctype FROM pg_database WHERE datname = current_database()') === 'C';
+        $expectedIds = $postgresC ? [$lowercaseBuyer->id] : [$buyer->id, $lowercaseBuyer->id];
+
+        foreach (['Álvaro', 'álvaro', 'ÁLVARO', 'álv'] as $term) {
+            $results = $this->getJson(self::URL.'?q='.rawurlencode($term))->assertOk()
+                ->assertJsonPath('meta.total', count($expectedIds));
+            $this->assertEqualsCanonicalizing($expectedIds, array_column($results->json('data'), 'id'), $term);
+        }
+
+        $this->getJson(self::URL.'?q=Alvaro')->assertOk()->assertJsonPath('meta.total', 0);
     }
 
     public function test_search_treats_wildcards_and_escape_character_literally(): void

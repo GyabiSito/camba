@@ -21,8 +21,15 @@ class CustomerController
         $search = trim($filters['q'] ?? '');
         if ($search !== '') {
             $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($search)).'%';
+            $namePredicate = "LOWER(name) LIKE ? ESCAPE '!'";
+            $connection = $query->getConnection();
+            if ($connection->getDriverName() === 'sqlite') {
+                $connection->getReadPdo()->sqliteCreateFunction('camba_unicode_lower', mb_strtolower(...), 1, \PDO::SQLITE_DETERMINISTIC);
+                $namePredicate = "camba_unicode_lower(name) LIKE ? ESCAPE '!'";
+            }
+
             $query->where(fn ($fields) => $fields
-                ->whereRaw("LOWER(name) LIKE ? ESCAPE '!'", [$pattern])
+                ->whereRaw($namePredicate, [$pattern])
                 ->orWhereRaw("LOWER(email) LIKE ? ESCAPE '!'", [$pattern]));
         }
 
