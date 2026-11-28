@@ -4,11 +4,11 @@ Guests can browse, but only a signed-in buyer can use the cart and create an ord
 
 ## Checkout
 
-1. **Quote:** `POST /api/v1/checkout/quote` with `{"items":[{"product_id":12,"quantity":2}]}`. Submit 1–50 distinct catalog IDs, each with an integer quantity of 1–1,000. The API checks publication and stock and returns live prices and the configured shipping options. A delivery quote can include `address: {department_id, locality_id}`; the server verifies the pair without changing the configured flat delivery rate. A quote does not reserve stock.
+1. **Quote:** `POST /api/v1/checkout/quote` with `{"items":[{"product_id":12,"quantity":2}]}`. Submit 1–50 distinct catalog IDs, each with an integer quantity of 1–1,000. The API checks publication and stock and returns live prices and the configured shipping options. Include `address: {department_id, locality_id}` to validate destination and quote the final delivery price. If delivery is available, a configured free-delivery threshold compares against the live product subtotal, inclusive. The preliminary quote without an address uses the base rate. A quote does not reserve stock.
 2. **Choose an option:** Display its `total_cents` and confirm the buyer's contact details and delivery address, if applicable.
 3. **Confirm:** `POST /api/v1/orders` with the same items, `shipping_method`, the option's `quote_token`, and contact details. Send a UUID in the `Idempotency-Key` header. Reuse it for retries of the same checkout, not for a new order.
 
-The quote includes `currency` (`UYU`), `subtotal_cents`, `items`, and `shipping_options`. Each item includes `product_id`, `sku`, `name`, `quantity`, `unit_price_cents`, and `line_total_cents`. Each option includes `method`, `shipping_cents`, `total_cents`, `pickup_address` (null for delivery), and the opaque token. Prices are integer cents; do not send amounts back as input.
+The quote includes `currency` (`UYU`), `subtotal_cents`, `items`, and `shipping_options`. Each item includes `product_id`, `sku`, `name`, `quantity`, `unit_price_cents`, and `line_total_cents`. Each option includes `method`, `shipping_cents`, `total_cents`, `pickup_address` (null for delivery), and the opaque token. `free_delivery_applied: true` is present only on a delivery option eligible for the threshold; an existing zero base rate and pickup are unaffected. Prices are integer cents; do not send amounts back as input. When confirming, the server recalculates and rejects a stale price before reserving stock. Payment uses the stored order total, even if the threshold changes later.
 
 Example delivery body (replace the token with the returned value):
 

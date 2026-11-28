@@ -43,6 +43,8 @@ class StoreSettingsController
             'support_phone' => ['nullable', 'string', 'max:40'],
             'pickup_address' => ['nullable', 'string', 'max:255'],
             'delivery_cents' => ['nullable', 'integer:strict', 'min:0', 'max:2147483647'],
+            'free_delivery_enabled' => ['sometimes', 'boolean:strict'],
+            'free_delivery_minimum_cents' => ['nullable', 'integer:strict', 'min:1', 'max:2147483647'],
             'remind_payment' => ['sometimes', 'boolean:strict'],
             'payment_lead_minutes' => ['sometimes', 'integer:strict', 'min:1', 'max:25'],
             'remind_cart' => ['sometimes', 'boolean:strict'],
@@ -58,17 +60,21 @@ class StoreSettingsController
             $settings = StoreSettings::query()->lockForUpdate()->findOrFail(1);
             $before = $settings->effective();
             $settings->values = array_replace($settings->values, $patch);
+            $after = $settings->effective();
+            if ($after['free_delivery_enabled'] && $after['free_delivery_minimum_cents'] === null) {
+                throw ValidationException::withMessages(['free_delivery_minimum_cents' => 'Ingresá un monto mínimo mayor a cero para activar el envío gratis.']);
+            }
             if ($settings->isDirty('values')) {
                 $settings->save();
                 DB::table('store_setting_changes')->insert([
                     'actor_id' => $request->user()->id,
                     'before' => json_encode($before, JSON_THROW_ON_ERROR),
-                    'after' => json_encode($settings->effective(), JSON_THROW_ON_ERROR),
+                    'after' => json_encode($after, JSON_THROW_ON_ERROR),
                     'created_at' => now(),
                 ]);
             }
 
-            return $settings->effective();
+            return $after;
         }, 3);
 
         return $this->privateResponse(['data' => $values]);

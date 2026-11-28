@@ -352,7 +352,7 @@ paths:
   /api/v1/checkout/quote:
     post:
       operationId: quoteCheckout
-      description: Prices catalog items and configured pickup or delivery options without reserving stock. First-party guest and buyer sessions are supported.
+      description: Prices catalog items and configured pickup or delivery options without reserving stock. When an eligible delivery address is supplied and the product subtotal reaches the enabled minimum, the delivery option has zero shipping and free_delivery_applied true. First-party guest and buyer sessions are supported.
       externalDocs: { url: docs/orders.md }
       requestBody:
         required: true
@@ -919,6 +919,8 @@ paths:
                 support_phone: { type: [string, 'null'], maxLength: 40, description: Stored administrative value not published by the storefront }
                 pickup_address: { type: [string, 'null'], maxLength: 255 }
                 delivery_cents: { type: [integer, 'null'], minimum: 0, maximum: 2147483647 }
+                free_delivery_enabled: { type: boolean, default: false }
+                free_delivery_minimum_cents: { type: [integer, 'null'], minimum: 1, maximum: 2147483647, default: null, description: Required in the effective settings when free delivery is enabled. }
                 remind_payment: { type: boolean }
                 payment_lead_minutes: { type: integer, minimum: 1, maximum: 25 }
                 remind_cart: { type: boolean }

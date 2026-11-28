@@ -32,6 +32,8 @@ class StoreSettings extends Model
             'support_phone' => null,
             'pickup_address' => $validPickup ? trim($pickup) : null,
             'delivery_cents' => $validDelivery === false ? null : $validDelivery,
+            'free_delivery_enabled' => false,
+            'free_delivery_minimum_cents' => null,
             'remind_payment' => false,
             'payment_lead_minutes' => 10,
             'remind_cart' => false,

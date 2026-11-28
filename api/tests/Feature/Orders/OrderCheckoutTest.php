@@ -14,6 +14,7 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\PaymentAttempt;
 use App\Models\Product;
+use App\Models\StoreSettings;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -182,6 +183,89 @@ class OrderCheckoutTest extends TestCase
             ->assertJsonValidationErrors('shipping_method');
         $this->assertSame(10, $product->fresh()->stock);
         $this->assertDatabaseCount('orders', 0);
+    }
+
+    public function test_free_delivery_depends_on_the_live_subtotal_and_available_delivery(): void
+    {
+        $settings = StoreSettings::query()->findOrFail(1);
+        $settings->forceFill(['values' => ['free_delivery_enabled' => true, 'free_delivery_minimum_cents' => 250000]])->save();
+        $product = $this->product(cents: 249999);
+        $address = array_intersect_key($this->payload([], 'delivery', '')['address'], array_flip(['department_id', 'locality_id']));
+        foreach ([[249999, 1, 3500], [250000, 1, 0], [250001, 1, 0], [125000, 1, 3500], [125000, 2, 0]] as [$price, $quantity, $fee]) {
+            $product->forceFill(['price_cents' => $price])->save();
+            $items = [['product_id' => $product->id, 'quantity' => $quantity]];
+            $response = $this->postJson(self::QUOTE, compact('items', 'address'))->assertOk()
+                ->assertJsonPath('data.subtotal_cents', $price * $quantity)
+                ->assertJsonPath('data.shipping_options.0.method', 'pickup')
+                ->assertJsonPath('data.shipping_options.0.shipping_cents', 0)
+                ->assertJsonPath('data.shipping_options.1.method', 'delivery')
+                ->assertJsonPath('data.shipping_options.1.shipping_cents', $fee)
+                ->assertJsonPath('data.shipping_options.1.total_cents', $price * $quantity + $fee);
+            $response->assertJsonMissingPath('data.shipping_options.0.free_delivery_applied');
+            if ($fee === 0) {
+                $response->assertJsonPath('data.shipping_options.1.free_delivery_applied', true);
+            } else {
+                $response->assertJsonMissingPath('data.shipping_options.1.free_delivery_applied');
+            }
+        }
+        $this->postJson(self::QUOTE, ['items' => $items])->assertOk()
+            ->assertJsonPath('data.shipping_options.1.shipping_cents', 3500);
+        $this->postJson(self::QUOTE, ['items' => $items, 'address' => [...$address, 'department_id' => 1]])
+            ->assertUnprocessable()->assertJsonValidationErrors('address.locality_id');
+        $settings->forceFill(['values' => [...$settings->values, 'free_delivery_enabled' => false]])->save();
+        $this->postJson(self::QUOTE, compact('items', 'address'))->assertOk()
+            ->assertJsonPath('data.shipping_options.1.shipping_cents', 3500);
+        $settings->forceFill(['values' => [...$settings->values, 'free_delivery_enabled' => true, 'delivery_cents' => null]])->save();
+        $this->postJson(self::QUOTE, compact('items', 'address'))->assertOk()
+            ->assertJsonCount(1, 'data.shipping_options')->assertJsonPath('data.shipping_options.0.method', 'pickup');
+    }
+
+    public function test_free_delivery_requotes_before_placing_an_order_and_only_charges_the_stored_total(): void
+    {
+        config([
+            'app.url' => 'https://camba.example.test', 'mercadopago.access_token' => 'fake-local-test',
+            'mercadopago.collector_id' => '234', 'mercadopago.webhook_secret' => 'local-signature-test',
+            'mercadopago.live' => false, 'mercadopago.checkout_orders' => true,
+            'checkout.checkout_pro_reservation_minutes' => 10,
+        ]);
+        Http::preventStrayRequests();
+        $product = $this->product(cents: 125000);
+        $items = $this->items($product);
+        $settings = StoreSettings::query()->findOrFail(1);
+        $threshold = ['free_delivery_enabled' => true, 'free_delivery_minimum_cents' => 250000];
+        $settings->forceFill(['values' => $threshold])->save();
+        $payload = $this->payload($items, 'delivery', '');
+        $quote = $this->postJson(self::QUOTE, ['items' => $items, 'address' => array_intersect_key($payload['address'], array_flip(['department_id', 'locality_id']))])
+            ->assertOk()->assertJsonPath('data.shipping_options.1.shipping_cents', 0);
+        $this->keepSession($quote);
+        $payload['quote_token'] = $quote->json('data.shipping_options.1.quote_token');
+
+        $settings->forceFill(['values' => [...$threshold, 'free_delivery_minimum_cents' => 250001]])->save();
+        $this->place($payload)->assertConflict();
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertSame(10, $product->fresh()->stock);
+        $settings->forceFill(['values' => $threshold])->save();
+        $key = (string) Str::uuid();
+        $reference = $this->place($payload, $key)->assertCreated()
+            ->assertJsonPath('data.shipping_cents', 0)->assertJsonPath('data.total_cents', 250000)->json('data.reference');
+        $settings->forceFill(['values' => [...$threshold, 'free_delivery_enabled' => false]])->save();
+        $this->place($payload, $key)->assertOk()->assertJsonPath('data.total_cents', 250000);
+        $this->assertDatabaseHas('orders', ['reference' => $reference, 'shipping_cents' => 0, 'total_cents' => 250000]);
+
+        $endpoint = 'https://api.mercadopago.com/v1/orders';
+        $providerId = 'ORDTST01M8CNM554AA2N9KGGJBWNM6H4';
+        $checkoutUrl = 'https://www.mercadopago.com.uy/checkout/v1/redirect?order_id='.$providerId;
+        Http::fake([$endpoint => fn ($request) => Http::response([
+            'id' => $providerId, 'external_reference' => $request['external_reference'], 'status' => 'created',
+            'user_id' => '234', 'currency' => 'UYU', 'type' => 'online', 'processing_mode' => 'manual',
+            'capture_mode' => 'automatic', 'total_amount' => '2500.00', 'expiration_time' => 'PT10M',
+            'created_date' => now()->toISOString(), 'last_updated_date' => now()->toISOString(), 'checkout_url' => $checkoutUrl,
+        ], 201)]);
+        $this->postJson(self::ORDERS."/$reference/payments", [], ['Idempotency-Key' => (string) Str::uuid()])
+            ->assertCreated()->assertJsonPath('data.checkout_url', $checkoutUrl);
+        Http::assertSentCount(1);
+        Http::assertSent(fn ($request) => $request->url() === $endpoint && $request['total_amount'] === '2500.00'
+            && count($request['items']) === 1 && $request['items'][0]['quantity'] === 2 && $request['items'][0]['unit_price'] === '1250.00');
     }
 
     public function test_one_admin_notice_for_new_pending_order_and_checkout_replay(): void

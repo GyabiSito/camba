@@ -8,6 +8,8 @@ export type Settings = {
   support_phone: string | null;
   pickup_address: string | null;
   delivery_cents: number | null;
+  free_delivery_enabled: boolean;
+  free_delivery_minimum_cents: number | null;
   remind_payment: boolean;
   payment_lead_minutes: number;
   remind_cart: boolean;

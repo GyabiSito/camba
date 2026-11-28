@@ -26,10 +26,11 @@ class OrderController
         $correlation = PaymentLog::attempt();
         PaymentLog::write(Level::Info, 'checkout.quote.started', $correlation);
         try {
-            if ($address = $request->validated('address')) {
+            $address = $request->validated('address');
+            if ($address !== null) {
                 $geography->execute($address['department_id'], $address['locality_id'], 'address.locality_id');
             }
-            [$data] = $quote->execute($request->validated('items'));
+            [$data] = $quote->execute($request->validated('items'), deliveryAddressValidated: $address !== null);
         } catch (Throwable $error) {
             PaymentLog::failure('checkout.quote', $correlation, $error);
 

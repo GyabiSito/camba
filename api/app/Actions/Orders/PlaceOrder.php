@@ -75,7 +75,7 @@ class PlaceOrder
                 $address['locality'] = $locality->name;
             }
 
-            [$quote, $products] = $this->quote->execute($input['items'], lock: true);
+            [$quote, $products] = $this->quote->execute($input['items'], lock: true, deliveryAddressValidated: $address !== null);
             $shipping = collect($quote['shipping_options'])->firstWhere('method', $input['shipping_method']);
             if ($shipping === null) {
                 throw ValidationException::withMessages(['shipping_method' => 'The selected shipping method is unavailable.']);

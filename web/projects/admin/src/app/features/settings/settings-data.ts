@@ -33,7 +33,7 @@ export const settingGroups: {
   {
     id: 'entrega',
     title: 'Envío y retiro',
-    description: 'Si dejás un campo vacío, esa opción no se ofrece en nuevas compras.',
+    description: 'La tarifa y la dirección de retiro habilitan esas modalidades en nuevas compras.',
     fields: [
       { name: 'pickup_address', label: 'Dirección de retiro', kind: 'text', max: 255 },
       {
@@ -41,6 +41,14 @@ export const settingGroups: {
         label: 'Costo del envío en UYU',
         kind: 'money',
         hint: 'Ingresá 0 si el envío es gratis. Podés usar coma para los centésimos.',
+      },
+      { name: 'free_delivery_enabled', label: 'Activar envío gratis desde un monto', kind: 'checkbox' },
+      {
+        name: 'free_delivery_minimum_cents',
+        label: 'Monto mínimo (UYU)',
+        kind: 'money',
+        required: true,
+        hint: 'Se calcula sobre el subtotal de productos, sin contar el envío. Ej.: 2500,00.',
       },
     ],
   },
@@ -103,6 +111,7 @@ export function parseDelivery(input: string): number | null {
 export function displaySetting(key: keyof Settings, value: Settings[keyof Settings]): string {
   if (value === null || value === undefined || value === '') return 'Sin configurar';
   if (typeof value === 'boolean') return value ? 'Activado' : 'Desactivado';
-  if (key === 'delivery_cents' && typeof value === 'number') return formatMoney(value);
+  if ((key === 'delivery_cents' || key === 'free_delivery_minimum_cents') && typeof value === 'number')
+    return formatMoney(value);
   return String(value);
 }

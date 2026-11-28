@@ -48,6 +48,37 @@ class StoreSettingsTest extends TestCase
         $this->assertDatabaseCount('store_setting_changes', 1);
     }
 
+    public function test_free_delivery_settings_are_optional_and_require_positive_integer_cents_when_enabled(): void
+    {
+        $url = '/api/v1/admin/settings';
+        $enabled = ['free_delivery_enabled' => true];
+        $this->withHeader('Origin', 'http://localhost')->actingAs(User::factory()->create(), 'web')
+            ->patchJson($url, $enabled + ['free_delivery_minimum_cents' => 250000])->assertForbidden();
+        $this->app['auth']->forgetGuards();
+        $this->actingAs(User::factory()->create(['role' => 'admin']), 'web')->getJson($url)->assertOk()
+            ->assertJsonPath('data.free_delivery_enabled', false)->assertJsonPath('data.free_delivery_minimum_cents', null);
+
+        $this->patchJson($url, $enabled + ['business_name' => 'Do not save'])->assertUnprocessable()
+            ->assertJsonValidationErrors('free_delivery_minimum_cents');
+        $this->getJson($url)->assertOk()->assertJsonPath('data.business_name', 'Camba')
+            ->assertJsonPath('data.free_delivery_enabled', false);
+        $this->assertDatabaseCount('store_setting_changes', 0);
+        foreach ([0, -1, 250000.1, '250000'] as $invalid) {
+            $this->patchJson($url, $enabled + ['free_delivery_minimum_cents' => $invalid])
+                ->assertUnprocessable()->assertJsonValidationErrors('free_delivery_minimum_cents');
+        }
+        $this->patchJson($url, $enabled + ['free_delivery_minimum_cents' => 250000])->assertOk();
+        $this->patchJson($url, ['free_delivery_minimum_cents' => null])->assertUnprocessable();
+        $this->patchJson($url, ['free_delivery_minimum_cents' => 250001])->assertOk();
+        $this->getJson($url)->assertOk()
+            ->assertJsonPath('data.free_delivery_enabled', true)->assertJsonPath('data.free_delivery_minimum_cents', 250001);
+        $this->patchJson($url, ['free_delivery_enabled' => false])->assertOk()
+            ->assertJsonPath('data.free_delivery_enabled', false)->assertJsonPath('data.free_delivery_minimum_cents', 250001);
+        $this->getJson("$url/history")->assertOk()->assertJsonPath('data.0.before.free_delivery_enabled', true)
+            ->assertJsonPath('data.0.after.free_delivery_enabled', false);
+        $this->assertDatabaseCount('store_setting_changes', 3);
+    }
+
     public function test_public_contact_channels_come_only_from_configuration(): void
     {
         StoreSettings::query()->findOrFail(1)->forceFill(['values' => [

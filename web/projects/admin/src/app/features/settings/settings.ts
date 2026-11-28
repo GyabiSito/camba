@@ -43,6 +43,11 @@ export class SettingsPage {
       (control: { value: string }) =>
         !control.value.trim() || parseDelivery(control.value) !== null ? null : { amount: true },
     ],
+    free_delivery_enabled: [false],
+    free_delivery_minimum_cents: [
+      { value: '', disabled: true },
+      (control: { value: string }) => (parseDelivery(control.value) ?? 0) > 0 ? null : { amount: true },
+    ],
     remind_cart: [false],
     cart_delay_hours: [
       24,
@@ -71,6 +76,15 @@ export class SettingsPage {
     ),
   );
 
+  constructor() {
+    this.form.controls.free_delivery_enabled.valueChanges.pipe(takeUntilDestroyed(this.destroy)).subscribe(enabled => {
+      const minimum = this.form.controls.free_delivery_minimum_cents;
+      if (enabled) minimum.enable({ emitEvent: false });
+      else minimum.disable({ emitEvent: false });
+      this.clearError('free_delivery_minimum_cents');
+    });
+  }
+
   retry() {
     this.reload.next(0);
   }
@@ -92,6 +106,8 @@ export class SettingsPage {
     if (name === 'support_email' && control.hasError('email')) return 'Ingresá un correo válido.';
     if (name === 'delivery_cents')
       return 'Usá un importe entre 0 y 21.474.836,47, con hasta dos decimales.';
+    if (name === 'free_delivery_minimum_cents')
+      return 'Usá un importe entre 0,01 y 21.474.836,47, con hasta dos decimales.';
     if (control.hasError('maxlength')) return 'El texto es demasiado largo.';
     return 'Ingresá un número entero dentro del rango indicado.';
   }
@@ -110,6 +126,7 @@ export class SettingsPage {
     }
 
     const input = this.form.getRawValue();
+    const baseline = this.baseline;
     const values: EditableSettings = {
       ...input,
       business_name: input.business_name.trim(),
@@ -117,8 +134,9 @@ export class SettingsPage {
       support_phone: input.support_phone.trim() || null,
       pickup_address: input.pickup_address.trim() || null,
       delivery_cents: parseDelivery(input.delivery_cents),
+      free_delivery_minimum_cents: input.free_delivery_enabled ? parseDelivery(input.free_delivery_minimum_cents)
+        : baseline.free_delivery_minimum_cents,
     };
-    const baseline = this.baseline;
     const changed = settingFields.filter(({ name }) => values[name] !== baseline[name]);
     if (!changed.length) {
       this.feedback.set({ error: false, text: 'No hay cambios nuevos para guardar.' });
@@ -153,17 +171,19 @@ export class SettingsPage {
   }
 
   private restore(values: EditableSettings) {
-    this.baseline = values;
+    const enabled = values.free_delivery_enabled ?? false;
+    const minimum = values.free_delivery_minimum_cents ?? null;
+    const amount = (cents: number | null) => cents === null ? '' : (cents / 100).toFixed(2).replace('.', ',');
+    this.baseline = { ...values, free_delivery_enabled: enabled, free_delivery_minimum_cents: minimum };
     this.attempted.set(false);
     this.form.reset({
       ...values,
       support_email: values.support_email ?? '',
       support_phone: values.support_phone ?? '',
       pickup_address: values.pickup_address ?? '',
-      delivery_cents:
-        values.delivery_cents === null
-          ? ''
-          : (values.delivery_cents / 100).toFixed(2).replace('.', ','),
+      delivery_cents: amount(values.delivery_cents),
+      free_delivery_enabled: enabled,
+      free_delivery_minimum_cents: { value: amount(minimum), disabled: !enabled },
     });
   }
 }

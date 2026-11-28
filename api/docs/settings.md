@@ -7,4 +7,6 @@
 
 Checkout reads the same effective pickup/delivery values before quoting and reserving. Initially it falls back to `CAMBA_PICKUP_ADDRESS` and `CAMBA_DELIVERY_CENTS` until an admin sets those fields. Setting an option to null explicitly disables it.
 
+In **Configuración → Envío y retiro**, use **Activar envío gratis desde un monto** and **Monto mínimo (UYU)**. Installations default to `free_delivery_enabled: false` and `free_delivery_minimum_cents: null`, with no migration. The PATCH API accepts a boolean and positive integer cents; if the effective flag is enabled, a positive minimum is required. Disabling it does not erase the previously saved minimum unless it is sent as null. The rule only affects available delivery quotes with a validated destination, never pickup or past orders.
+
 The reminder toggles start off. Configured defaults are payment 10 minutes before reservation expiry, cart 24 hours after abandonment, low stock at 3 units, and fulfilment notice at 24 hours. Persisting these switches does not send a notification; the scheduler/workers implement delivery separately. No provider token, SMTP password or application secret can be read or edited here.

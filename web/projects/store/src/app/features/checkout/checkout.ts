@@ -47,6 +47,10 @@ export class CheckoutPage {
   protected readonly quoteError = signal('');
   protected readonly orderError = signal('');
   protected readonly money = formatMoney;
+  protected shippingCost(option: Shipping): string {
+    if (option.free_delivery_applied) return 'Envío gratis';
+    return option.shipping_cents ? this.money(option.shipping_cents) : 'Sin costo';
+  }
   protected readonly contact = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(120)]],
     email: ['', [Validators.required, Validators.email, Validators.maxLength(254)]],

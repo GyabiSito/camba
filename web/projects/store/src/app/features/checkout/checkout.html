@@ -52,7 +52,7 @@
                     >{{ option.method === 'pickup' ? 'Retiro' : 'Entrega a domicilio' }}
                     @if (priced) {
                       <small>
-                        {{ priced.shipping_cents ? money(priced.shipping_cents) : 'Sin costo' }}
+                        {{ shippingCost(priced) }}
                         @if (priced.pickup_address) {
                           · {{ priced.pickup_address }}
                         }
@@ -121,7 +121,7 @@
             @if (selected(); as option) {
               <div>
                 <dt>{{ option.method === 'pickup' ? 'Retiro' : 'Entrega' }}</dt>
-                <dd>{{ option.shipping_cents ? money(option.shipping_cents) : 'Sin costo' }}</dd>
+                <dd>{{ shippingCost(option) }}</dd>
               </div>
               <div class="total">
                 <dt>Total en UYU</dt>

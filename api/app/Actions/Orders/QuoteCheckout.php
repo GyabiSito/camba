@@ -12,11 +12,12 @@ class QuoteCheckout
 {
     /**
      * Call with a transaction when locking products for reservation.
+     * Set deliveryAddressValidated only after resolving the checkout address geography.
      *
      * @param  list<array{product_id: int, quantity: int}>  $items
      * @return array{array, Collection<int, Product>}
      */
-    public function execute(array $items, bool $lock = false): array
+    public function execute(array $items, bool $lock = false, bool $deliveryAddressValidated = false): array
     {
         $quantities = array_column($items, 'quantity', 'product_id');
         $query = Product::query()->published()->whereKey(array_keys($quantities))->orderBy('id');
@@ -51,7 +52,11 @@ class QuoteCheckout
             $shipping[] = $this->option('pickup', 0, $settings['pickup_address'], $subtotal, $lines);
         }
         if ($settings['delivery_cents'] !== null) {
-            $shipping[] = $this->option('delivery', $settings['delivery_cents'], null, $subtotal, $lines);
+            $minimum = $settings['free_delivery_minimum_cents'];
+            $free = $deliveryAddressValidated && $settings['free_delivery_enabled'] === true
+                && is_int($minimum) && $minimum > 0 && $subtotal >= $minimum;
+            $delivery = $this->option('delivery', $free ? 0 : $settings['delivery_cents'], null, $subtotal, $lines);
+            $shipping[] = $free ? [...$delivery, 'free_delivery_applied' => true] : $delivery;
         }
 
         return [[
