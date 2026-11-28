@@ -9,14 +9,15 @@ notepad (Join-Path $env:LOCALAPPDATA 'Camba\local-preview\admin-access.txt')
 ## Cargar un producto
 
 1. En **Productos → Otras tareas → Categorías y marcas**, creá o elegí una categoría activa. La marca es opcional. En **Nuevo producto**, completá nombre, precio en UYU, stock y categoría; elegí **Crear borrador**. Guardá el SKU para futuras búsquedas e importaciones.
-2. En **Galería**, usá **Agregar fotos → Subir fotos**. Podés usar JPG, PNG o WebP: hasta 12 fotos por producto, de 10 MB y 4096 × 4096 px como máximo por archivo. Elegí la portada y guardá el orden.
-3. Revisá los datos y elegí **Publicar**. Comprobá la ficha en la tienda. Si necesitás retirarla de la venta, usá **Archivar**.
+2. En **Galería**, elegí **Agregar fotos**. Ajustá el encuadre vertical 4:5 de cada foto con el zoom, los controles de desplazamiento o arrastrando la vista previa. Confirmá con **Usar recorte** y después **Subir fotos**. El máximo es de **5 fotos en total**, incluida la portada; se aceptan JPG, PNG y WebP de hasta 10 MB y 4096 px por lado.
+3. Para cambiar cuál aparece primero, elegí **Hacer portada** y **Guardar orden**. Para cambiar el archivo de una foto, usá **Reemplazar** y **Guardar reemplazo**. Si cancelás el recorte, se mantiene la foto guardada. Las galerías anteriores con más de cinco conservan todas sus fotos y no admiten nuevas altas.
+4. Revisá los datos y elegí **Publicar**. Comprobá la ficha en la tienda. Si necesitás retirarla de la venta, usá **Archivar**.
 
 ## Crear varios borradores por fotos
 
 1. En **Productos → Otras tareas → Carga por fotos**, armá un grupo por producto. Podés aplicar precio, stock o categoría comunes a los grupos seleccionados y corregir cada uno después.
 2. Elegí **Revisar borradores → Confirmar y crear borradores**. El lote no publica productos. Abrí **Revisar y publicar** para comprobar los datos y la portada de cada ficha antes de publicarla.
-3. Si una carga queda incierta, abrí el mismo borrador. Usá **Reintentar carga** con los mismos archivos en el mismo orden, o **Cerrar carga pendiente** si ya no los tenés. Si el servidor confirmó el cierre pero queda limpieza local, usá **Reintentar recuperación**: no vuelve a subir las fotos. No borres datos del sitio ni crees otro borrador para resolverlo.
+3. Si una carga queda incierta, abrí el mismo borrador. Si subiste desde **Galería**, **Reintentar carga** recupera los recortes guardados en ese navegador; una carga por lote se reintenta con los originales en el mismo orden. Si ya no los tenés, usá **Cerrar carga pendiente**. Si falta terminar la limpieza local, **Reintentar recuperación** no vuelve a subir fotos. No borres los datos del sitio ni crees otro borrador para resolverlo.
 
 ## Importar CSV/XLSX
 

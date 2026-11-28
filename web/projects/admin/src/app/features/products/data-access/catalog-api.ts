@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ApiClient, apiMessage } from '@camba/shared';
 import type { AdminClassification, AdminProduct, AdminProductPhoto, Page as SharedPage } from '@camba/shared';
 import { firstValueFrom } from 'rxjs';
+import { forgetCroppedPhotos, keepCroppedPhotos } from './photo-crop-recovery';
 
 export const admin = '/api/v1/admin';
 export const products = `${admin}/products`;
@@ -11,6 +12,7 @@ export const imports = `${admin}/catalog-imports`;
 export const labels = { draft: 'Borrador', published: 'Publicado', archived: 'Archivado' };
 export const maxInt = 2_147_483_647;
 export const catalogPageSize = 12;
+export const productPhotoLimit = 5;
 export const acceptedPhotos = 'image/jpeg,image/png,image/webp';
 
 export type Status = keyof typeof labels;
@@ -69,7 +71,8 @@ export function productInput(fields: ProductFields) {
 export type LocalPhoto = { key: number; file: File; url: string; error: string };
 let nextPhotoKey = 0;
 
-type PhotoUploadAttempt = { key: string; fingerprint: string; draftSku?: string; replayed?: boolean };
+export type CropUpload = { replaceImageId?: number };
+type PhotoUploadAttempt = { key: string; fingerprint: string; draftSku?: string; replayed?: boolean; crop?: CropUpload };
 export type PhotoUploadState = { attempt?: PhotoUploadAttempt; files?: File[]; closedKey?: string };
 type PhotoCloseResult =
   | { kind: 'unconfirmed' }
@@ -102,6 +105,9 @@ function readPhotoUpload(slot: string): PhotoUploadAttempt | null {
   const attempt: PhotoUploadAttempt = JSON.parse(value);
   if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(attempt?.key) || (attempt?.fingerprint !== '' && !/^(?:[A-Za-z0-9+/]{43}=){1,12}$/.test(attempt?.fingerprint))) {
     throw new Error('Invalid photo upload recovery record');
+  }
+  if (attempt.crop?.replaceImageId !== undefined && (!Number.isSafeInteger(attempt.crop.replaceImageId) || attempt.crop.replaceImageId < 1)) {
+    throw new Error('Invalid photo replacement target');
   }
   return attempt;
 }
@@ -217,15 +223,17 @@ export async function closePhotoUpload(api: ApiClient, destroy: DestroyRef, id: 
   }
   if (!product || !(await releaseUpload(slot, key, true))) return { kind: 'cleanup-pending', product };
 
+  if (state.attempt?.crop) await forgetCroppedPhotos(key);
   state.attempt = state.files = state.closedKey = undefined;
   return { kind: 'ready', product };
 }
 
-export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product: Product, photos: LocalPhoto[], state: PhotoUploadState, fromBatch = false) {
+export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product: Product, photos: LocalPhoto[], state: PhotoUploadState, fromBatch = false, crop?: CropUpload) {
   // The earlier response may clear storage while this retry is hashing. Keep the attempt we saw.
   const startedWith = state.attempt ?? photoUploadState(product.id).attempt;
   let fingerprint = '';
   const body = new FormData();
+  if (crop?.replaceImageId !== undefined) body.append('replace_image_id', String(crop.replaceImageId));
   try {
     // Digest files one at a time, keeping their selection order without storing photo contents.
     for (const { file } of photos) {
@@ -256,13 +264,13 @@ export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product:
         state.closedKey = existing.key;
         throw new PhotoUploadInputError(photoClosePending);
       }
-      if (existing && existing.fingerprint !== fingerprint) {
+      if (existing && (existing.fingerprint !== fingerprint || !!existing.crop !== !!crop || existing.crop?.replaceImageId !== crop?.replaceImageId)) {
         throw new PhotoUploadInputError('Hay una carga sin confirmar. Volvé a elegir las mismas fotos en el mismo orden y reintentá.');
       }
       if (existing && !fingerprint && (state.files?.length !== photos.length || photos.some(({ file }, i) => file !== state.files?.[i]))) {
         throw new PhotoUploadInputError('No se pueden comprobar los archivos anteriores. Cerrá la carga pendiente antes de elegir otros.');
       }
-      const attempt = existing ?? { key: uploadUuid(), fingerprint, ...(fromBatch && { draftSku: product.sku }) };
+      const attempt = existing ?? { key: uploadUuid(), fingerprint, ...(fromBatch && { draftSku: product.sku }), ...(crop && { crop }) };
       if (!stored || !stored.replayed) {
         localStorage.setItem(slot, JSON.stringify(existing ? { ...attempt, replayed: true } : attempt));
       }
@@ -280,10 +288,25 @@ export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product:
   const finish = async (confirmed: boolean) => {
     // Keep the result authoritative even if browser storage becomes unavailable after the request.
     const released = await releaseUpload(slot, attempt.key, confirmed);
+    if (released && attempt.crop) await forgetCroppedPhotos(attempt.key);
     if (confirmed || released) state.attempt = state.files = undefined;
   };
   try {
-    const result = await firstValueFrom(api.post<Data<Product>>(`${products}/${product.id}/images/uploads`, body, {
+    if (crop) {
+      try {
+        await keepCroppedPhotos(attempt.key, photos.map(({ file }) => file));
+      } catch {
+        throw new PhotoUploadInputError('No pudimos guardar el recorte para recuperarlo si falla la conexión. Revisá el almacenamiento del navegador.');
+      }
+      if (wasClosed(slot, attempt.key)) {
+        await forgetCroppedPhotos(attempt.key);
+        state.closedKey = attempt.key;
+        throw new PhotoUploadInputError(photoClosePending);
+      }
+      if (destroy.destroyed) throw new Error('Photo upload canceled');
+    }
+    const endpoint = `${products}/${product.id}/images/uploads${crop?.replaceImageId === undefined ? '' : '/replace'}`;
+    const result = await firstValueFrom(api.post<Data<Product>>(endpoint, body, {
       'Idempotency-Key': attempt.key,
     }).pipe(takeUntilDestroyed(destroy)));
     if (result?.data?.id !== product.id || !Array.isArray(result.data.images)) {
@@ -293,7 +316,8 @@ export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product:
     return result.data;
   } catch (error) {
     // A definitive first rejection is editable; rejection of a replay cannot settle the earlier request.
-    if (fresh && error instanceof HttpErrorResponse && [400, 401, 403, 404, 413, 415, 419, 422, 429].includes(error.status)) {
+    if (fresh && (error instanceof PhotoUploadInputError && !state.closedKey ||
+      error instanceof HttpErrorResponse && [400, 401, 403, 404, 413, 415, 419, 422, 429].includes(error.status))) {
       await finish(false);
     }
     throw error;

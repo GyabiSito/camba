@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { formatMoney } from '@camba/shared';
 import { finalize, firstValueFrom, forkJoin } from 'rxjs';
-import { Classification, LocalPhoto, PhotoUploadState, Product, ProductFields, acceptedPhotos, disconnected, fieldErrors, fieldsFrom, hasPendingPhotoUpload, localPhotos, pendingPhotoDrafts, photoCleanupPending, photoClosePending, photoCloseReady, photoCloseUnconfirmed, photoUploadFailure, photoUploadState, productInput, releasePhotos, summaryError, uploadError } from './data-access/catalog-api';
+import { Classification, LocalPhoto, PhotoUploadState, Product, ProductFields, acceptedPhotos, disconnected, fieldErrors, fieldsFrom, hasPendingPhotoUpload, localPhotos, pendingPhotoDrafts, photoCleanupPending, photoClosePending, photoCloseReady, photoCloseUnconfirmed, photoUploadFailure, photoUploadState, productInput, productPhotoLimit, releasePhotos, summaryError, uploadError } from './data-access/catalog-api';
 import { AdminCatalogApi } from './data-access/admin-catalog-api';
 import { ProductFieldsForm } from './product-fields';
 
@@ -35,6 +35,7 @@ export class PhotoDrafts {
   protected readonly interruptedDrafts = pendingPhotoDrafts();
   protected readonly common = { price: '', stock: '', category: null as number | null, brand: null as number | null };
   protected readonly acceptedPhotos = acceptedPhotos;
+  protected readonly photoLimit = productPhotoLimit;
   protected readonly formatMoney = formatMoney;
   protected readonly cleanupPending = photoCleanupPending;
   protected readonly closePendingMessage = photoClosePending;
@@ -78,8 +79,8 @@ export class PhotoDrafts {
     input.value = '';
     const group = this.groups().find((item) => item.key === key);
     if (!files.length || !group || this.running() || group.uncertainCreate || group.retryUpload) return;
-    if (group.photos.length + files.length > 12) {
-      this.update(group.key, { error: 'Podés agregar hasta 12 fotos por producto en esta carga.' });
+    if ((group.product?.images.length ?? 0) + group.photos.length + files.length > productPhotoLimit) {
+      this.update(group.key, { error: `Podés guardar hasta ${productPhotoLimit} fotos por producto, incluida la portada.` });
       return;
     }
     this.update(group.key, { photos: [...group.photos, ...localPhotos(files)], error: '', notice: undefined });

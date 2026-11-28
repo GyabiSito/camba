@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { usePhotoCrops } from './fixtures/use-photo-crops';
 
 const uploadPath = /\/api\/v1\/admin\/products\/\d+\/images\/uploads$/;
 const closePath = /\/api\/v1\/admin\/products\/\d+\/images\/uploads\/close$/;
@@ -61,6 +62,7 @@ test('TV-001 distinguishes a real close 200 from failed browser cleanup', async 
   const gallery = page.getByRole('region', { name: 'Galería' });
   await page.route(uploadPath, (request) => request.fulfill({ status: 504, json: {} }), { times: 1 });
   await gallery.getByLabel('Agregar fotos').setInputFiles(photo('image-pocket'));
+  await usePhotoCrops(page);
   await gallery.getByRole('button', { name: 'Subir fotos' }).click();
   await expect(gallery.getByRole('alert')).toContainText('confirmar');
   const id = new URL(page.url()).pathname.split('/').at(-1)!;
@@ -111,6 +113,7 @@ test('TV-001 distinguishes a real close 200 from failed browser cleanup', async 
 
   await other.route(uploadPath, (request) => request.fulfill({ status: 504, json: {} }), { times: 1 });
   await otherGallery.getByLabel('Agregar fotos').setInputFiles(photo('detail-photo'));
+  await usePhotoCrops(other);
   await otherGallery.getByRole('button', { name: 'Subir fotos' }).click();
   await expect(otherGallery.getByRole('alert')).toContainText('confirmar');
   const newer = await persistedKey(other, id);
@@ -196,6 +199,7 @@ test('a retry already hashing in another tab cannot recreate a closed reservatio
   const gallery = page.getByRole('region', { name: 'Galería' });
   await page.route(uploadPath, (route) => route.fulfill({ status: 504, json: {} }), { times: 1 });
   await gallery.getByLabel('Agregar fotos').setInputFiles(photo('image-pocket'));
+  await usePhotoCrops(page);
   await gallery.getByRole('button', { name: 'Subir fotos' }).click();
   await expect(gallery.getByRole('alert')).toContainText('confirmar');
   const id = new URL(page.url()).pathname.split('/').at(-1)!;
@@ -214,7 +218,6 @@ test('a retry already hashing in another tab cannot recreate a closed reservatio
       return digest(...args);
     } });
   });
-  await staleGallery.getByLabel('Volver a elegir las fotos').setInputFiles(photo('image-pocket'));
   await staleGallery.getByRole('button', { name: 'Reintentar carga' }).click();
   await expect(stale.locator('html')).toHaveAttribute('data-fixture-hashing', 'yes');
 

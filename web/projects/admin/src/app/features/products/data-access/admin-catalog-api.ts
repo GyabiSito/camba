@@ -1,6 +1,6 @@
 import { DestroyRef, Injectable, inject } from '@angular/core';
 import { ApiClient } from '@camba/shared';
-import { closePhotoUpload, productInput, uploadPhotos, type LocalPhoto, type PhotoUploadState } from './catalog-api';
+import { closePhotoUpload, productInput, uploadPhotos, type CropUpload, type LocalPhoto, type PhotoUploadState } from './catalog-api';
 import type { Collection, Data, Page, Product, Classification } from './catalog-api';
 
 export type ProductDetail = Data<Product> & { store_url?: string };
@@ -46,8 +46,8 @@ export class AdminCatalogApi {
   confirmImport(id: number) { return this.api.post<Data<CatalogImport>>(`${this.imports}/${id}/confirm`); }
   downloadImportTemplate() { return this.api.download(`${this.imports}/template`); }
   createPhotoDraft(input: ReturnType<typeof productInput>) { return this.createProduct(input); }
-  uploadPhotos(destroy: DestroyRef, product: Product, photos: LocalPhoto[], state: PhotoUploadState, fromBatch = false) {
-    return uploadPhotos(this.api, destroy, product, photos, state, fromBatch);
+  uploadPhotos(destroy: DestroyRef, product: Product, photos: LocalPhoto[], state: PhotoUploadState, fromBatch = false, crop?: CropUpload) {
+    return uploadPhotos(this.api, destroy, product, photos, state, fromBatch, crop);
   }
   closePhotoUpload(destroy: DestroyRef, id: number, state: PhotoUploadState) {
     return closePhotoUpload(this.api, destroy, id, state);

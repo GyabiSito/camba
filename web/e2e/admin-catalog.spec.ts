@@ -39,12 +39,14 @@ test('busca por SKU, guarda centésimos, publica con galería y archiva a 320 px
   await page.getByLabel('Stock', { exact: true }).fill('8');
   await page.getByRole('combobox', { name: 'Categoría', exact: true }).selectOption({ label: 'Remeras' });
   await page.getByRole('button', { name: 'Crear borrador' }).click();
-  await expect(page.getByRole('heading', { name: 'Remera de prueba edición' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Editar producto', exact: true })).toBeVisible();
+  await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue('Remera de prueba edición');
   const storeLink = page.getByRole('link', { name: /^Ver en tienda/ });
   await expect(storeLink).toHaveCount(0);
   await page.getByRole('button', { name: 'Publicar', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('Agregá al menos una foto');
   await page.getByLabel('Agregar fotos').setInputFiles([photo('image-plain'), photo('detail-photo')]);
+  await usePhotoCrops(page, 2);
   await page.getByRole('button', { name: 'Subir fotos' }).click();
   await expect(page.getByText('Fotos agregadas a la galería.')).toBeVisible();
   const gallery = page.getByRole('region', { name: 'Galería' });
@@ -248,12 +250,14 @@ for (const committed of [true, false]) {
     const name = committed ? 'Galería guardada sin confirmación' : 'Galería pendiente sin confirmación';
     await page.getByLabel('Nombre', { exact: true }).fill(name);
     await page.getByRole('button', { name: 'Crear borrador' }).click();
-    await expect(page.getByRole('heading', { name })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Editar producto', exact: true })).toBeVisible();
+    await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue(name);
     const draftPath = `/api/v1/admin/products/${page.url().split('/').at(-1)}`;
     const attempts = await uncertainUpload(page, committed);
     const gallery = page.getByRole('region', { name: 'Galería' });
     const files = [photo('image-pocket'), photo('detail-photo')];
     await gallery.getByLabel('Agregar fotos').setInputFiles(files);
+    await usePhotoCrops(page, 2);
     await gallery.getByRole('button', { name: 'Subir fotos' }).click();
     await expect(gallery.getByRole('alert')).toContainText('confirmar');
     const retry = gallery.getByRole('button', { name: 'Reintentar carga' });
@@ -266,19 +270,21 @@ for (const committed of [true, false]) {
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
       await page.screenshot({ path: testInfo.outputPath('gallery-retry-mobile.png') });
       await page.reload();
+      await expect(retry).toBeEnabled(); // IndexedDB restores the actual encodings without selecting files again.
       const originals = gallery.getByLabel('Volver a elegir las fotos');
       await expect(originals).toBeVisible();
       await originals.setInputFiles([...files].reverse());
+      await usePhotoCrops(page, 2);
       await retry.click();
       await expect(gallery.getByRole('alert')).toContainText('mismo orden');
       expect(attempts.uploads).toHaveLength(1);
       await originals.setInputFiles(files);
+      await usePhotoCrops(page, 2);
 
       // Another tab may confirm the upload and clear the durable slot after this tab offered recovery.
       const other = await page.context().newPage();
       await other.goto(page.url());
       const otherGallery = other.getByRole('region', { name: 'Galería' });
-      await otherGallery.getByLabel('Volver a elegir las fotos').setInputFiles(files);
       const otherRequest = other.waitForRequest((request) => request.method() === 'POST' && request.url().endsWith(`${draftPath}/images/uploads`));
       await otherGallery.getByRole('button', { name: 'Reintentar carga' }).click();
       expect((await otherRequest).headers()['idempotency-key']).toBe(attempts.uploads[0]);
@@ -286,15 +292,13 @@ for (const committed of [true, false]) {
       await other.close();
 
       const interruptedAgain = await uncertainUpload(page, true);
-      await originals.focus();
-      await page.keyboard.press('Tab');
+      await retry.focus();
       await expect(retry).toBeFocused();
       await page.keyboard.press('Enter');
       await expect(gallery.getByRole('alert')).toContainText('confirmar');
       expect(interruptedAgain.uploads).toEqual([attempts.uploads[0]]);
       await page.reload();
-      await expect(gallery.getByRole('status')).toContainText('mismo orden');
-      await originals.setInputFiles(files);
+      await expect(retry).toBeEnabled();
     } else {
       await page.route(`**${draftPath}/images/uploads`, (route) => route.fulfill({ status: 409, json: { message: 'Upload conflicts' } }), { times: 1 });
       await retry.click();
@@ -329,6 +333,7 @@ test('cierra una carga sin originales y permite subir otras fotos sin Web Locks'
   await expect(gallery).toBeVisible();
   const { uploads } = await uncertainUpload(page, false);
   await gallery.getByLabel('Agregar fotos').setInputFiles([photo('image-pocket')]);
+  await usePhotoCrops(page);
   await gallery.getByRole('button', { name: 'Subir fotos' }).click();
   await expect(gallery.getByRole('alert')).toContainText('confirmar');
   await page.reload();
@@ -339,6 +344,7 @@ test('cierra una carga sin originales y permite subir otras fotos sin Web Locks'
   await close.press('Enter');
   await expect(gallery.getByRole('status').filter({ hasText: 'Recuperación terminada' })).toBeVisible();
   await gallery.getByLabel('Agregar fotos').setInputFiles([photo('detail-photo')]);
+  await usePhotoCrops(page);
   await gallery.getByRole('button', { name: 'Subir fotos' }).click();
   await expect(gallery.getByRole('status').filter({ hasText: 'Fotos agregadas' })).toBeVisible();
   expect(new Set(uploads).size).toBe(2);
@@ -349,10 +355,12 @@ test('conserva las fotos y la portada cuando otra pestaña cambia la galería', 
   await page.getByRole('link', { name: 'Nuevo producto' }).click();
   await page.getByLabel('Nombre', { exact: true }).fill('Galería concurrente de prueba');
   await page.getByRole('button', { name: 'Crear borrador' }).click();
-  await expect(page.getByRole('heading', { name: 'Galería concurrente de prueba' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Editar producto', exact: true })).toBeVisible();
+  await expect(page.getByLabel('Nombre', { exact: true })).toHaveValue('Galería concurrente de prueba');
   const draftUrl = page.url();
   const draftPath = `/api/v1/admin/products/${draftUrl.split('/').at(-1)}`;
   await page.getByLabel('Agregar fotos').setInputFiles([photo('image-plain'), photo('detail-photo')]);
+  await usePhotoCrops(page, 2);
   const seed = page.waitForResponse((response) => response.url().endsWith(`${draftPath}/images/uploads`));
   await page.getByRole('button', { name: 'Subir fotos' }).click();
   const initial = await seed;
@@ -362,6 +370,7 @@ test('conserva las fotos y la portada cuando otra pestaña cambia la galería', 
   await stale.goto(draftUrl);
   await stale.getByRole('button', { name: 'Usar foto 2 como portada' }).click();
   await page.getByLabel('Agregar fotos').setInputFiles(photo('image-pocket'));
+  await usePhotoCrops(page);
 
   const reorderQueued = stale.waitForRequest((request) => request.url().endsWith(`${draftPath}/images/order`));
   const uploadDone = page.waitForResponse((response) => response.url().endsWith(`${draftPath}/images/uploads`));
@@ -589,3 +598,4 @@ test('filtra categorías y marcas antes de paginar y conserva la URL', async ({ 
     }
   }
 });
+import { usePhotoCrops } from './fixtures/use-photo-crops';

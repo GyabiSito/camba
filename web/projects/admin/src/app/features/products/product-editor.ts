@@ -11,7 +11,7 @@ import { AdminCatalogApi, ProductDetail, ProductHistory } from './data-access/ad
 @Component({
   imports: [RouterLink, ProductFieldsForm, ProductGallery],
   templateUrl: './product-editor.html',
-  styleUrls: ['./catalog.css', './work.css'],
+  styleUrls: ['./catalog.css', './work.css', './product-editor.css'],
 })
 export class ProductEditor {
   private readonly api = inject(AdminCatalogApi);

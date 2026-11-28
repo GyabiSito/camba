@@ -1,18 +1,22 @@
 <section class="catalog-page catalog-page--work">
   <a class="back" routerLink="/productos">Volver a productos</a>
-  <header class="page-heading">
+  <header class="page-heading editor-heading">
     <div>
-      <h1>{{ product()?.name || (id ? 'Producto' : 'Nuevo producto') }}</h1>
-      @if (product(); as item) { <p class="muted">SKU: {{ item.sku }}</p> }
+      <h1>{{ id ? 'Editar producto' : 'Nuevo producto' }}</h1>
+      @if (!loading() && !loadError()) {
+        <div class="editor-meta">
+          @if (product(); as item) {
+            <span class="status-pill" [attr.data-status]="item.status">{{ labels[item.status] }}</span>
+            @if (item.sku) { <span class="editor-sku muted">SKU: {{ item.sku }}</span> }
+          } @else {
+            <span class="status-pill">Sin guardar</span>
+          }
+        </div>
+      }
     </div>
-    @if (product(); as item) {
-      <div class="product-heading-actions">
-        <span class="status-pill" [attr.data-status]="item.status">{{ labels[item.status] }}</span>
-        @if (storefrontProductUrl(); as href) {
-          <a class="button button--quiet" [href]="href" target="_blank" rel="noopener noreferrer"
-            aria-label="Ver en tienda (abre en una pestaña nueva)">Ver en tienda <span aria-hidden="true">↗</span></a>
-        }
-      </div>
+    @if (storefrontProductUrl(); as href) {
+      <a class="button button--quiet" [href]="href" target="_blank" rel="noopener noreferrer"
+        aria-label="Ver en tienda (abre en una pestaña nueva)">Ver en tienda <span aria-hidden="true">↗</span></a>
     }
   </header>
   @if (loading()) {
@@ -22,40 +26,51 @@
     <p class="callout" role="alert">{{ loadError() }}</p>
     <button class="button button--quiet" type="button" (click)="load()">Reintentar</button>
   } @else {
-    <form class="work-section product-editor-form" (submit)="save($event)">
-      @if (!product()) { <p class="muted">El producto se crea como borrador. Podés añadir fotos antes de publicarlo.</p> }
-      <fieldset [disabled]="saving() || galleryBusy()" class="plain-fieldset">
-        <legend class="sr-only">Datos del producto</legend>
-        <app-product-fields [values]="fields" [categories]="categories()" [brands]="brands()" [errors]="errors()" />
-      </fieldset>
-      @if (error()) {
-        <div class="callout alert" role="alert">
-          <span>{{ error() }}</span>
-          @for (problem of errors()['images'] ?? []; track $index) { <div>{{ problem }}</div> }
-          @if (createUncertain()) { <div><a routerLink="/productos">Buscar en productos</a></div> }
-        </div>
+    <div class="editor-grid">
+      <form id="product-editor-form" class="product-editor-form" (submit)="save($event)">
+        <fieldset [disabled]="saving() || galleryBusy()" class="plain-fieldset">
+          <legend class="sr-only">Datos del producto</legend>
+          <app-product-fields [values]="fields" [categories]="categories()" [brands]="brands()" [errors]="errors()" />
+        </fieldset>
+        @if (error()) {
+          <div class="callout alert" role="alert">
+            <span>{{ error() }}</span>
+            @for (problem of errors()['images'] ?? []; track $index) { <div>{{ problem }}</div> }
+            @if (createUncertain()) { <div><a routerLink="/productos">Buscar en productos</a></div> }
+          </div>
+        }
+        @if (message()) { <p role="status">{{ message() }}</p> }
+      </form>
+      @if (product(); as item) {
+        <app-product-gallery [product]="item" [disabled]="saving()" (changed)="updateGallery($event)" (busyChange)="galleryBusy.set($event)" />
+      } @else {
+        <section class="gallery-draft" aria-labelledby="gallery-draft-heading">
+          <header><h2 id="gallery-draft-heading">Galería</h2><span class="muted">0 de 5 fotos</span></header>
+          <div class="draft-cover">
+            <div><h3>Portada</h3><p>Guardá el borrador para agregar fotos.</p>
+              <p class="muted">Podés seguir editando acá y publicar cuando esté listo.</p></div>
+          </div>
+        </section>
       }
-      @if (message()) { <p role="status">{{ message() }}</p> }
-      <div class="editor-actions">
-        <div class="save-actions">
-        <button class="button" type="submit" [disabled]="saving() || galleryBusy() || createUncertain()">
+    </div>
+    <div class="editor-toolbar">
+      <div class="actions">
+        <button class="button" type="submit" form="product-editor-form" [disabled]="saving() || galleryBusy() || createUncertain()">
           {{ saving() ? 'Guardando…' : id ? 'Guardar cambios' : 'Crear borrador' }}
         </button>
-        </div>
         @if (product(); as item) {
-          @if (item.status !== 'published') {
-            <div class="publish-actions">
-              <p class="muted">La publicación hace visible el producto en la tienda.</p>
+          <div class="editor-state-actions">
+            @if (item.status !== 'published') {
               <button class="button button--quiet" type="button" [disabled]="saving() || galleryBusy()" (click)="transition('publish')">Publicar</button>
-            </div>
-          }
-          @if (item.status !== 'archived') {
-            <button class="button button--quiet" type="button" [disabled]="saving() || galleryBusy()" (click)="archivePrompt.set(!archivePrompt())" [attr.aria-expanded]="archivePrompt()">Archivar</button>
-          }
+            }
+            @if (item.status !== 'archived') {
+              <button class="button button--quiet" type="button" [disabled]="saving() || galleryBusy()" (click)="archivePrompt.set(!archivePrompt())" [attr.aria-expanded]="archivePrompt()">Archivar</button>
+            }
+          </div>
         }
       </div>
       @if (archivePrompt()) {
-        <div class="callout">
+        <div class="callout archive-confirmation">
           <p>El producto dejará de verse en la tienda. Podés volver a publicarlo.</p>
           <div class="actions">
             <button class="button" type="button" [disabled]="saving() || galleryBusy()" (click)="transition('archive')">Confirmar archivo</button>
@@ -63,10 +78,9 @@
           </div>
         </div>
       }
-    </form>
-    @if (product(); as item) {
-      <app-product-gallery [product]="item" [disabled]="saving()" (changed)="updateGallery($event)" (busyChange)="galleryBusy.set($event)" />
-      <details class="work-section" (toggle)="openedHistory($event)">
+    </div>
+    @if (product()) {
+      <details class="work-section editor-history" (toggle)="openedHistory($event)">
         <summary>Historial de precio y stock</summary>
         @if (historyLoading()) {
           <div class="skeleton skeleton-line" aria-hidden="true"></div><p class="sr-only" role="status">Cargando historial…</p>

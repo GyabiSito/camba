@@ -1,25 +1,37 @@
-import { Component, DestroyRef, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, afterNextRender, computed, inject, input, linkedSignal, output, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Observable, finalize } from 'rxjs';
-import { Data, LocalPhoto, Photo, Product, acceptedPhotos, fieldErrors, hasPendingPhotoUpload, localPhotos, photoCleanupPending, photoClosePending, photoCloseReady, photoCloseUnconfirmed, photoUploadFailure, photoUploadState, releasePhotos, summaryError, uploadError } from './data-access/catalog-api';
+import { CropUpload, Data, LocalPhoto, Photo, Product, acceptedPhotos, fieldErrors, hasPendingPhotoUpload, localPhotos, photoCleanupPending, photoClosePending, photoCloseReady, photoCloseUnconfirmed, photoUploadFailure, photoUploadState, productPhotoLimit, releasePhotos, summaryError, uploadError } from './data-access/catalog-api';
 import { AdminCatalogApi } from './data-access/admin-catalog-api';
+import { readCroppedPhotos } from './data-access/photo-crop-recovery';
+import { ProductPhotoCrop } from './product-photo-crop';
+
+type CropSelection = { sources: LocalPhoto[]; crop: CropUpload; trigger: HTMLElement };
 
 @Component({
   selector: 'app-product-gallery',
+  imports: [ProductPhotoCrop],
   templateUrl: './product-gallery.html',
-  styleUrls: ['./catalog.css', './work.css'],
+  styleUrls: ['./catalog.css', './work.css', './product-gallery.css'],
 })
 export class ProductGallery {
   private readonly destroy = inject(DestroyRef);
   private readonly api = inject(AdminCatalogApi);
+  private readonly replacementInput = viewChild<ElementRef<HTMLInputElement>>('replacementInput');
+  private readonly uploadButton = viewChild<ElementRef<HTMLButtonElement>>('uploadButton');
   readonly product = input.required<Product>();
   readonly disabled = input(false);
   readonly changed = output<Product>();
   readonly busyChange = output<boolean>();
 
   protected readonly pending = signal<LocalPhoto[]>([]);
+  protected readonly pendingCrop = signal<CropUpload | undefined>(undefined);
+  protected readonly cropSelection = signal<CropSelection | null>(null);
   protected readonly alternateOrder = signal<Photo[] | null>(null);
   protected readonly gallery = computed(() => this.alternateOrder() ?? this.product().images);
+  protected readonly openSlots = computed(() => Array.from({ length: Math.max(0, productPhotoLimit - Math.max(1, this.gallery().length)) }));
+  protected readonly limit = productPhotoLimit;
+  protected readonly remaining = computed(() => Math.max(0, productPhotoLimit - this.gallery().length - this.pending().length));
   protected readonly busy = signal<'upload' | 'order' | 'refresh' | ''>('');
   protected readonly needsReview = signal(false);
   private readonly productId = computed(() => this.product().id);
@@ -31,31 +43,97 @@ export class ProductGallery {
   protected readonly hasError = (photo: LocalPhoto) => !!photo.error;
   protected readonly closePendingMessage = photoClosePending;
   protected readonly cleanupPending = () => photoCleanupPending(this.uploadState());
+  protected readonly cropRecovery = () => this.uploadState().attempt?.crop;
+  protected readonly locked = computed(() => this.disabled() || !!this.busy() || this.needsReview());
+  protected readonly orderLocked = computed(() => this.locked() || this.recovering());
   private dragged: number | null = null;
+  private replacement?: { id: number; trigger: HTMLElement };
 
   constructor() {
-    this.destroy.onDestroy(() => releasePhotos(this.pending()));
+    afterNextRender(() => void this.restoreCrop());
+    this.destroy.onDestroy(() => {
+      releasePhotos(this.pending());
+      releasePhotos(this.cropSelection()?.sources ?? []);
+    });
   }
 
-  protected choose(event: Event) {
+  protected choose(event: Event, replacing = false) {
     const control = event.target as HTMLInputElement;
     const files = [...(control.files ?? [])];
     control.value = '';
-    if (!files.length || this.cleanupPending()) return;
+    if (!files.length || this.locked() || this.cleanupPending() || this.cropSelection()) return;
     this.error.set('');
-    const replace = this.recovering();
-    if (files.length + (replace ? 0 : this.pending().length) > 12) {
-      this.error.set('Podés subir hasta 12 fotos por vez. Quitá algunas de la selección o elegí un grupo más chico.');
+    const recovery = this.recovering();
+    const crop = recovery ? this.cropRecovery() : { replaceImageId: replacing ? this.replacement?.id : undefined };
+    if ((!recovery && crop?.replaceImageId === undefined && files.length > this.remaining()) ||
+        (crop?.replaceImageId !== undefined && files.length !== 1) || (recovery && files.length > 12)) {
+      this.error.set(crop?.replaceImageId !== undefined ? 'Elegí una sola foto para el reemplazo.'
+        : 'Podés guardar hasta 5 fotos por producto, incluida la portada. Elegí menos fotos.');
       return;
     }
     const selected = localPhotos(files);
-    if (replace) releasePhotos(this.pending());
-    this.pending.update((list) => replace ? selected : [...list, ...selected]);
+    if (!crop) {
+      // Previously queued uploads (including batch drafts) must retry the untouched original bytes.
+      this.replacePending(selected);
+      return;
+    }
+    const invalid = selected.find(photo => photo.error);
+    if (invalid) {
+      this.error.set(`${invalid.file.name}: ${invalid.error}`);
+      releasePhotos(selected);
+      return;
+    }
+    this.cropSelection.set({ sources: selected, crop, trigger: replacing ? this.replacement?.trigger ?? control : control });
+  }
+
+  protected replacePhoto(id: number, event: Event) {
+    this.replacement = { id, trigger: event.currentTarget as HTMLElement };
+    this.replacementInput()?.nativeElement.click();
+  }
+
+  protected acceptCrop(files: File[]) {
+    const selection = this.cropSelection();
+    if (!selection) return;
+    const processed = localPhotos(files);
+    if (selection.crop.replaceImageId !== undefined || this.recovering()) {
+      this.replacePending(processed, selection.crop);
+    } else {
+      this.pendingCrop.set(selection.crop);
+      this.pending.update(pending => [...pending, ...processed]);
+    }
+    this.cancelCrop();
+    requestAnimationFrame(() => this.uploadButton()?.nativeElement.focus());
+  }
+
+  protected cancelCrop() {
+    const selection = this.cropSelection();
+    if (!selection) return;
+    releasePhotos(selection.sources);
+    this.cropSelection.set(null);
+    if (!selection.trigger.matches(':disabled')) selection.trigger.focus();
+  }
+
+  private replacePending(photos: LocalPhoto[], crop?: CropUpload) {
+    releasePhotos(this.pending());
+    this.pendingCrop.set(crop);
+    this.pending.set(photos);
+  }
+
+  private async restoreCrop() {
+    const attempt = this.uploadState().attempt;
+    if (!attempt?.crop || this.cleanupPending()) return;
+    const files = await readCroppedPhotos(attempt.key);
+    if (!files?.length || this.destroy.destroyed || this.uploadState().attempt?.key !== attempt.key ||
+        !this.recovering() || this.pending().length || this.cropSelection()) return;
+    if (!crypto.subtle) this.uploadState().files = files;
+    this.replacePending(localPhotos(files), attempt.crop);
   }
 
   protected remove(photo: LocalPhoto) {
     releasePhotos([photo]);
     this.pending.update((list) => list.filter((item) => item.key !== photo.key));
+    if (!this.pending().length) this.pendingCrop.set(undefined);
+    this.error.set('');
   }
 
   protected async closeRecovery() {
@@ -75,9 +153,9 @@ export class ProductGallery {
       this.uploadState.set(next);
       const another = !!next.attempt || hasPendingPhotoUpload(id);
       this.recovering.set(another);
-      releasePhotos(this.pending());
-      this.pending.set([]);
+      this.replacePending([]);
       this.message.set(photoCloseReady(another));
+      if (another) void this.restoreCrop();
     } finally {
       if (!this.destroy.destroyed) this.finish();
     }
@@ -87,15 +165,15 @@ export class ProductGallery {
     const list = this.pending();
     if (this.busy() || this.disabled() || this.cleanupPending() || !list.length || list.some((photo) => photo.error) || this.needsReview() || this.alternateOrder()) return;
     const product = this.product();
+    const crop = this.pendingCrop();
     this.start('upload');
     try {
-      const updated = await this.api.uploadPhotos(this.destroy, product, list, this.uploadState());
+      const updated = await this.api.uploadPhotos(this.destroy, product, list, this.uploadState(), false, crop);
       if (this.destroy.destroyed) return;
       this.changed.emit(updated);
-      releasePhotos(list);
-      this.pending.set([]);
+      this.replacePending([]);
       this.recovering.set(hasPendingPhotoUpload(product.id));
-      this.message.set('Fotos agregadas a la galería.');
+      this.message.set(crop?.replaceImageId === undefined ? 'Fotos agregadas a la galería.' : 'Foto reemplazada.');
     } catch (error) {
       if (this.destroy.destroyed) return;
       const recovering = !!this.uploadState().attempt || hasPendingPhotoUpload(product.id);
@@ -105,6 +183,8 @@ export class ProductGallery {
       const fields = fieldErrors(error);
       if (stateError) {
         this.error.set(stateError);
+      } else if (fields['photos'] || fields['replace_image_id']) {
+        this.error.set([...(fields['photos'] ?? []), ...(fields['replace_image_id'] ?? [])].map(uploadError).join(' '));
       } else if (Object.keys(fields).length) {
         this.pending.update((photos) => photos.map((photo, index) => ({
           ...photo, error: fields[`photos.${index}`]?.map(uploadError).join(' ') ?? photo.error,

@@ -95,7 +95,7 @@
             }
             @if (!preview() && !group.uncertainCreate && !group.retryUpload) {
               <label class="field">Fotos de este producto
-                <small>JPG, PNG o WebP; hasta 12 fotos de 10 MB cada una.</small>
+                <small>JPG, PNG o WebP; hasta {{ photoLimit }} fotos por producto, de 10 MB cada una.</small>
                 <input type="file" multiple [accept]="acceptedPhotos" (change)="choose(group.key, $event)" />
               </label>
             }
