@@ -5,7 +5,6 @@ namespace Tests\Feature\Dashboard;
 use App\Models\Category;
 use App\Models\Order;
 use App\Models\Product;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -93,7 +92,7 @@ class DashboardFiltersTest extends TestCase
 
     private function admin(): void
     {
-        $this->withHeader('Origin', 'http://localhost')->actingAs(User::factory()->create(['role' => 'admin']), 'web');
+        $this->withHeader('Origin', 'http://localhost')->actingAs($this->adminIdentity(), 'admin');
     }
 
     private function product(string $status, int $stock): Product

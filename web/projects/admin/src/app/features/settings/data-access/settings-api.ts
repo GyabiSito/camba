@@ -17,7 +17,7 @@ export type Settings = {
   low_stock_threshold: number;
   pending_fulfilment_hours: number;
 };
-export type AuditEntry = { id: number; actor_id: number; before: Settings; after: Settings; created_at: string };
+export type AuditEntry = { id: number; actor_id: number | null; actor_admin_id?: number | null; before: Settings; after: Settings; created_at: string };
 
 @Injectable({ providedIn: 'root' })
 export class SettingsApi {

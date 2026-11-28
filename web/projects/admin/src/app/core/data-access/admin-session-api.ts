@@ -12,10 +12,10 @@ export class AdminSessionApi {
   }
 
   signIn(email: string, password: string) {
-    return this.api.post('/api/v1/auth/login', { email, password });
+    return this.api.post('/api/v1/admin/auth/login', { email, password });
   }
 
   signOut() {
-    return this.api.post('/api/v1/auth/logout');
+    return this.api.post('/api/v1/admin/auth/logout');
   }
 }

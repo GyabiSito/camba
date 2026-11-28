@@ -25,6 +25,7 @@ type Withdrawal = {
   can_request_confirmation: boolean;
   confirmation_pending: boolean;
   confirmation_requested_by: number | null;
+  confirmation_requested_by_admin_id?: number | null;
   confirmation_requested_at: string | null;
   confirmation_confirmed_at: string | null;
 };

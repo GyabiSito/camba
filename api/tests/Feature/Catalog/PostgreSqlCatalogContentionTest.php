@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Catalog;
 
+use App\Models\Admin;
 use App\Models\Brand;
 use App\Models\Cart;
 use App\Models\Category;
@@ -22,7 +23,7 @@ class PostgreSqlCatalogContentionTest extends TestCase
 
     private string $media;
 
-    private User $admin;
+    private Admin $admin;
 
     protected function beforeRefreshingDatabase(): void
     {
@@ -40,7 +41,7 @@ class PostgreSqlCatalogContentionTest extends TestCase
     {
         $this->media = sys_get_temp_dir().DIRECTORY_SEPARATOR.'camba-catalog-race-'.Str::uuid();
         $this->beforeApplicationDestroyed(fn () => File::deleteDirectory($this->media));
-        $this->admin = User::factory()->create(['role' => 'admin']);
+        $this->admin = $this->adminIdentity();
     }
 
     public function test_category_deactivation_cannot_race_a_publication_into_inconsistency(): void
@@ -235,7 +236,7 @@ class PostgreSqlCatalogContentionTest extends TestCase
         return $product;
     }
 
-    private function race(string $table, int $id, array $a, array $b, ?User $actor = null): array
+    private function race(string $table, int $id, array $a, array $b, Admin|User|null $actor = null): array
     {
         $gate = $this->media.DIRECTORY_SEPARATOR.Str::uuid();
         File::ensureDirectoryExists($this->media);
@@ -318,7 +319,7 @@ class PostgreSqlCatalogContentionTest extends TestCase
         $this->fail('Timed out observing '.count($workers)." independent PostgreSQL $table row-lock waits.");
     }
 
-    private function worker(array $request, User $actor, string $gate): Process
+    private function worker(array $request, Admin|User $actor, string $gate): Process
     {
         $db = DB::connection();
 
@@ -330,6 +331,7 @@ class PostgreSqlCatalogContentionTest extends TestCase
             'DB_PASSWORD' => (string) $db->getConfig('password'),
             'DB_SSLMODE' => $db->getConfig('sslmode'),
             'CAMBA_CATALOG_TEST_ACTOR' => (string) $actor->id, 'CAMBA_CATALOG_TEST_MEDIA' => $this->media,
+            'CAMBA_CATALOG_TEST_ACTOR_REALM' => $actor instanceof Admin ? 'admin' : 'web',
         ], timeout: 60);
     }
 

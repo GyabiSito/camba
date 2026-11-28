@@ -104,7 +104,7 @@ class WithdrawalController
                 409, 'La solicitud ya se cerró. Actualizá la lista para ver el estado actual.',
             );
             if ($action === 'request_confirmation') {
-                $confirmation->request($case, $request->user()->id);
+                $confirmation->request($case, $request->user('admin')->id);
 
                 return $case;
             }
@@ -122,7 +122,7 @@ class WithdrawalController
             }) {
                 return $case;
             }
-            $changes = ['handled_by' => $request->user()->id];
+            $changes = ['handled_by_admin_id' => $request->user('admin')->id];
             if ($action === 'confirm_refund') {
                 $payment = $order?->paid_provider_payment_id === null ? null : Payment::query()
                     ->where('order_id', $order->id)->where('provider_payment_id', $order->paid_provider_payment_id)
@@ -169,6 +169,7 @@ class WithdrawalController
             'can_request_confirmation' => $canRequest,
             'confirmation_pending' => $canRequest && WithdrawalOwnerConfirmation::activeRecipient($case, $case->requestedOrder) !== null,
             'confirmation_requested_by' => $case->confirmation_requested_by,
+            'confirmation_requested_by_admin_id' => $case->confirmation_requested_by_admin_id,
             'confirmation_requested_at' => $case->confirmation_requested_at?->toISOString(),
             'confirmation_confirmed_at' => $case->confirmation_confirmed_at?->toISOString(),
         ];

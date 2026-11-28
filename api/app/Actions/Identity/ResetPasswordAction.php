@@ -28,7 +28,7 @@ class ResetPasswordAction
         }
 
         $status = DB::transaction(function () use ($id, $token, $data): string {
-            $account = User::query()->lockForUpdate()->find($id);
+            $account = User::query()->buyers()->lockForUpdate()->find($id);
             if (! $account) {
                 return Password::INVALID_USER;
             }
@@ -40,7 +40,7 @@ class ResetPasswordAction
                 'password' => $data['password'],
             ];
 
-            return Password::reset($credentials, function (User $user, string $password): void {
+            return Password::broker('users')->reset($credentials, function (User $user, string $password): void {
                 $user->forceFill(['password' => $password, 'remember_token' => Str::random(60)])->save();
                 if (config('session.driver') === 'database') {
                     DB::connection(config('session.connection'))->table(config('session.table'))

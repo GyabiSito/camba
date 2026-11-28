@@ -181,7 +181,7 @@
               <li>
                 <strong>{{ fulfilmentStatus[event.to_status] }}</strong>
                 <span class="muted"
-                  >{{ date(event.created_at) }} · Usuario {{ event.actor_id }}</span
+                  >{{ date(event.created_at) }} · {{ event.actor_admin_id ? 'Admin ' + event.actor_admin_id : event.actor_id ? 'Usuario ' + event.actor_id : 'Sistema' }}</span
                 >
                 @if (event.note) {
                   <p>{{ event.note }}</p>

@@ -9,7 +9,7 @@ const photo = (name: string) => resolve(__dirname, `../projects/admin/public/dem
 
 async function signIn(page: Page) {
   await page.goto('/productos');
-  await page.getByLabel('Correo electrónico').fill('upload-admin@camba.test');
+  await page.getByLabel('Correo electrónico').fill('a11y-admin@camba.test');
   await page.getByLabel('Contraseña', { exact: true }).fill('Camba-test-only-2026');
   await page.getByRole('button', { name: 'Ingresar' }).click();
   await expect(page.getByRole('heading', { name: 'Productos', exact: true })).toBeVisible({ timeout: 25_000 });
@@ -37,7 +37,7 @@ function persistedKey(page: Page, id: string) {
 
 async function uploadWithKey(page: Page, id: string, key: string, name: string) {
   const origin = new URL(page.url()).origin;
-  const csrf = (await page.context().cookies(origin)).find((cookie) => cookie.name === 'XSRF-TOKEN');
+  const csrf = (await page.context().cookies(origin)).find((cookie) => cookie.name === 'CAMBA-ADMIN-XSRF-TOKEN');
   expect(csrf).toBeDefined();
   return page.request.post(`/api/v1/admin/products/${id}/images/uploads`, {
     headers: { Origin: origin, 'X-XSRF-TOKEN': decodeURIComponent(csrf!.value), 'Idempotency-Key': key },

@@ -2,11 +2,15 @@
 
 namespace App\Providers;
 
+use App\Auth\AdminSessionManager;
 use App\Mail\RedactedResendTransport;
 use App\Models\User;
+use Illuminate\Auth\EloquentUserProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Mail;
@@ -24,7 +28,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(AdminSessionManager::class);
     }
 
     /**
@@ -42,7 +46,23 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Sanctum::getAccessTokenFromRequestUsing(static fn () => null);
-        Gate::define('camba-admin', fn (User $user): bool => $user->role === 'admin' && $user->hasVerifiedEmail());
+        Auth::provider('buyers', static fn ($app, array $config) => (new EloquentUserProvider($app['hash'], $config['model']))
+            ->withQuery(static fn ($query) => $query->buyers()));
+        Auth::extend('admin-session', static function ($app, string $name, array $config): SessionGuard {
+            $guard = new SessionGuard(
+                $name,
+                $app['auth']->createUserProvider($config['provider']),
+                $app->make(AdminSessionManager::class)->driver(),
+                rehashOnLogin: config('hashing.rehash_on_login', true),
+                timeboxDuration: config('auth.timebox_duration', 200000),
+                hashKey: config('app.key'),
+            );
+            $guard->setCookieJar($app['cookie']);
+            $guard->setDispatcher($app['events']);
+            $guard->setRequest($app->refresh('request', $guard, 'setRequest'));
+
+            return $guard;
+        });
         Gate::define('camba-buyer', fn (User $user): bool => $user->role === 'buyer');
         ResetPassword::createUrlUsing(function (User $user, string $token): string {
             $context = Crypt::encryptString(json_encode([
@@ -68,14 +88,17 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('password-reset', fn (Request $request) => Limit::perMinute(10)->by($request->ip()));
         RateLimiter::for('account-password', fn (Request $request) => Limit::perMinute(10)->by($request->user('web')->getAuthIdentifier()));
         RateLimiter::for('verification-notification', fn (Request $request) => Limit::perMinute(3)->by($request->user()->getAuthIdentifier()));
-        RateLimiter::for('login', function (Request $request): array {
+        $loginLimits = static function (Request $request, bool $failedOnly = false): array {
             $email = $request->input('email');
             $email = is_string($email) ? Str::lower(trim($email)) : '';
+            $credential = Limit::perMinute(5)->by('account-ip:'.hash('sha256', $email.'|'.$request->ip()));
 
             return [
                 Limit::perMinute(30)->by('ip:'.$request->ip()),
-                Limit::perMinute(5)->by('account-ip:'.hash('sha256', $email.'|'.$request->ip())),
+                $failedOnly ? $credential->after(static fn ($response) => $response->getStatusCode() === 422) : $credential,
             ];
-        });
+        };
+        RateLimiter::for('login', $loginLimits);
+        RateLimiter::for('admin-login', static fn (Request $request) => $loginLimits($request, failedOnly: true));
     }
 }

@@ -87,10 +87,10 @@ class OrderCheckoutTest extends TestCase
         $this->postJson(self::ORDERS.'/'.$reference.'/payments')->assertUnauthorized();
         $this->postJson('/api/v1/cart/checkout/'.$reference.'/resume')->assertUnauthorized();
 
-        $this->login(User::factory()->create(['role' => 'admin']));
-        $this->place($payload, (string) Str::uuid())->assertForbidden();
-        $this->postJson(self::ORDERS.'/'.$reference.'/payments')->assertForbidden();
-        $this->postJson('/api/v1/cart/checkout/'.$reference.'/resume')->assertForbidden();
+        $this->actingAs($this->adminIdentity(), 'admin');
+        $this->place($payload, (string) Str::uuid())->assertUnauthorized();
+        $this->postJson(self::ORDERS.'/'.$reference.'/payments')->assertUnauthorized();
+        $this->postJson('/api/v1/cart/checkout/'.$reference.'/resume')->assertUnauthorized();
 
         $this->assertDatabaseCount('orders', 0);
         $this->assertDatabaseCount('payment_attempts', 0);
@@ -272,7 +272,7 @@ class OrderCheckoutTest extends TestCase
     {
         Queue::fake();
         config(['app.admin_url' => 'https://admin.camba.test', 'mail.default' => 'array']);
-        $owner = User::factory()->create(['role' => 'admin']);
+        $owner = $this->adminIdentity();
         $items = $this->items($this->product());
         $payload = $this->payload($items, 'pickup', $this->quote($items, 'pickup'));
         $key = (string) Str::uuid();
@@ -297,10 +297,10 @@ class OrderCheckoutTest extends TestCase
         $this->assertStringContainsString('Ver pedido', $mail->getHtmlBody());
     }
 
-    public function test_admin_mail_cannot_follow_an_address_change_or_an_ambiguous_admin(): void
+    public function test_admin_mail_cannot_follow_an_address_change_or_fall_back_to_legacy_users(): void
     {
         config(['app.admin_url' => 'https://admin.camba.test', 'mail.default' => 'array']);
-        $admin = User::factory()->create(['role' => 'admin']);
+        $admin = $this->adminIdentity();
         $items = $this->items($this->product());
         $payload = $this->payload($items, 'pickup', $this->quote($items, 'pickup'));
         $this->place($payload)->assertCreated();
@@ -309,12 +309,12 @@ class OrderCheckoutTest extends TestCase
         $this->app->call([new SendCommerceNotice($bound->id), 'handle']);
         $this->assertDatabaseHas('commerce_notices', ['id' => $bound->id, 'state' => 'cancelled', 'attempts' => 0]);
 
-        $other = User::factory()->unverified()->create(['role' => 'admin']);
+        $admin->delete();
+        User::factory()->create(['role' => 'admin']);
         $this->place($payload)->assertCreated();
-        $ambiguous = CommerceNotice::where('kind', 'admin_order_created')->latest('id')->firstOrFail();
-        $this->assertDatabaseHas('commerce_notices', ['id' => $ambiguous->id, 'state' => 'cancelled', 'error_code' => 'no_eligible_admin']);
-        $other->delete();
-        $this->app->call([new SendCommerceNotice($ambiguous->id), 'handle']);
+        $unbound = CommerceNotice::where('kind', 'admin_order_created')->latest('id')->firstOrFail();
+        $this->assertDatabaseHas('commerce_notices', ['id' => $unbound->id, 'state' => 'cancelled', 'error_code' => 'no_eligible_admin']);
+        $this->app->call([new SendCommerceNotice($unbound->id), 'handle']);
         $this->assertCount(0, Mail::mailer('array')->getSymfonyTransport()->messages());
     }
 
@@ -440,7 +440,7 @@ class OrderCheckoutTest extends TestCase
         $receipt = $this->postJson('/api/v1/withdrawals', [
             'order_reference' => $reference, 'email' => User::findOrFail($order->user_id)->email,
         ])->assertCreated()->json('data.reference');
-        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $this->actingAs($this->adminIdentity(), 'admin');
         $this->getJson('/api/v1/admin/withdrawals')->assertOk()->assertJsonPath('data.0.order_matched', true);
         $path = '/api/v1/admin/withdrawals/'.$receipt;
         $this->patchJson($path, ['action' => 'confirm_refund'])->assertConflict();
@@ -648,10 +648,10 @@ class OrderCheckoutTest extends TestCase
         $ref = $this->place($this->payload($items, 'pickup', $this->quote($items, 'pickup')))
             ->assertCreated()->json('data.reference');
         $base = '/api/v1/admin/orders/'.$ref;
-        $this->getJson($base)->assertForbidden();
+        $this->getJson($base)->assertUnauthorized();
 
-        $admin = User::factory()->create(['role' => 'admin']);
-        $this->login($admin);
+        $admin = $this->adminIdentity();
+        $this->actingAs($admin, 'admin');
         $this->getJson('/api/v1/admin/orders')->assertOk()->assertJsonPath('data.0.reference', $ref);
         $this->patchJson("$base/fulfilment", ['status' => 'preparing'])->assertConflict();
         $this->assertDatabaseEmpty('order_fulfilment_events');
@@ -665,7 +665,7 @@ class OrderCheckoutTest extends TestCase
         $this->getJson($base)->assertOk()->assertJsonPath('data.status', 'paid')
             ->assertJsonPath('data.fulfilment_status', 'completed')
             ->assertJsonPath('events.2.note', 'Package inspected')
-            ->assertJsonPath('events.2.actor_id', $admin->id);
+            ->assertJsonPath('events.2.actor_admin_id', $admin->id);
         $this->assertDatabaseCount('order_fulfilment_events', 3);
 
         $this->login($buyer);
@@ -679,7 +679,7 @@ class OrderCheckoutTest extends TestCase
         $ref = $this->place($this->payload($items, 'pickup', $this->quote($items, 'pickup')))
             ->assertCreated()->json('data.reference');
 
-        $this->login(User::factory()->create(['role' => 'admin']));
+        $this->actingAs($this->adminIdentity(), 'admin');
         $this->getJson('/api/v1/admin/orders/'.$ref)->assertOk()
             ->assertJsonStructure(['payment' => ['attempt', 'observations']])
             ->assertJsonPath('payment.attempt', null)
@@ -713,9 +713,9 @@ class OrderCheckoutTest extends TestCase
             ]);
         }
 
-        $this->getJson($adminUrl)->assertForbidden();
+        $this->getJson($adminUrl)->assertUnauthorized();
         $this->getJson(self::ORDERS.'/'.$ref)->assertOk()->assertJsonMissingPath('payment');
-        $this->login(User::factory()->create(['role' => 'admin']));
+        $this->actingAs($this->adminIdentity(), 'admin');
         $this->getJson('/api/v1/admin/orders')->assertOk()->assertJsonMissingPath('data.0.payment');
         $this->getJson($adminUrl)->assertOk()
             ->assertJsonPath('payment.attempt.status', 'ready')

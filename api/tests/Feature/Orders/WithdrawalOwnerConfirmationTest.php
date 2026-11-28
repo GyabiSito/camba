@@ -37,7 +37,7 @@ class WithdrawalOwnerConfirmationTest extends TestCase
         app(DeliverCommerceNotice::class)->execute($copy->id);
         Mail::assertSent(CommerceNoticeMail::class, fn ($mail) => $mail->hasTo($owner->email));
         Mail::assertNotSent(CommerceNoticeMail::class, fn ($mail) => $mail->hasTo($other->email));
-        $this->actingAs($admin)->patchJson($this->adminPath($wrong), ['action' => 'link_order'])->assertConflict();
+        $this->actingAs($admin, 'admin')->patchJson($this->adminPath($wrong), ['action' => 'link_order'])->assertConflict();
     }
 
     public function test_owner_must_post_an_unused_link_and_actual_refund_evidence_is_still_required(): void
@@ -46,7 +46,7 @@ class WithdrawalOwnerConfirmationTest extends TestCase
         $receipt = $this->submit($order, $other->email);
         $path = $this->adminPath($receipt);
         $this->patchJson($path, ['action' => 'request_confirmation'])->assertUnauthorized();
-        $this->actingAs($admin)->patchJson($path, ['action' => 'review'])->assertOk()
+        $this->actingAs($admin, 'admin')->patchJson($path, ['action' => 'review'])->assertOk()
             ->assertJsonPath('data.can_request_confirmation', true);
         $this->patchJson($path, ['action' => 'request_confirmation'])->assertOk()->assertJsonPath('data.order_matched', false);
         $this->patchJson($path, ['action' => 'request_confirmation'])->assertOk();
@@ -73,10 +73,10 @@ class WithdrawalOwnerConfirmationTest extends TestCase
         $case = $this->loadCase($receipt);
         $this->assertSame($order->getKey(), $case->order_id);
         $this->assertSame($other->email, $case->email);
-        $this->assertSame($admin->getKey(), $case->confirmation_requested_by);
+        $this->assertSame($admin->getKey(), $case->confirmation_requested_by_admin_id);
         $this->assertNotNull($case->confirmation_confirmed_at);
         $this->assertNull($case->refund_confirmed_at);
-        $this->actingAs($admin)->patchJson($path, ['action' => 'confirm_refund'])->assertConflict();
+        $this->actingAs($admin, 'admin')->patchJson($path, ['action' => 'confirm_refund'])->assertConflict();
         app(ApplyPaymentEvidence::class)->execute($order->reference, [[
             'id' => '12345678902', 'reference' => $order->reference, 'status' => 'refunded',
             'amount_cents' => $order->total_cents, 'refunded_cents' => $order->total_cents,
@@ -91,7 +91,7 @@ class WithdrawalOwnerConfirmationTest extends TestCase
         $owner->forceFill(['email_verified_at' => null])->save();
         $case = $this->submit($order, $other->email);
         $this->assertNull($this->loadCase($case)->order_id);
-        $this->actingAs($admin)->patchJson($this->adminPath($case), ['action' => 'review'])->assertOk()
+        $this->actingAs($admin, 'admin')->patchJson($this->adminPath($case), ['action' => 'review'])->assertOk()
             ->assertJsonPath('data.can_request_confirmation', false);
         $this->patchJson($this->adminPath($case), ['action' => 'request_confirmation'])->assertConflict();
         $order->forceFill(['user_id' => null])->save();
@@ -107,7 +107,7 @@ class WithdrawalOwnerConfirmationTest extends TestCase
         $receipt = $this->submit($order, $other->email);
         $path = $this->adminPath($receipt);
         $confirm = '/api/v1/withdrawals/'.$receipt['reference'].'/confirmation';
-        $this->actingAs($admin)->patchJson($path, ['action' => 'review'])->assertOk();
+        $this->actingAs($admin, 'admin')->patchJson($path, ['action' => 'review'])->assertOk();
         $this->patchJson($path, ['action' => 'request_confirmation'])->assertOk();
         $first = $this->loadCase($receipt)->confirmation_token;
         $this->travel(31)->minutes();
@@ -131,7 +131,7 @@ class WithdrawalOwnerConfirmationTest extends TestCase
         $receipt = $this->submit($order, $other->email);
         $path = $this->adminPath($receipt);
         $previousEmail = $owner->email;
-        $this->actingAs($admin)->patchJson($path, ['action' => 'review'])->assertOk();
+        $this->actingAs($admin, 'admin')->patchJson($path, ['action' => 'review'])->assertOk();
         $this->patchJson($path, ['action' => 'request_confirmation'])->assertOk();
         $notice = CommerceNotice::where('kind', CommerceNotice::WITHDRAWAL_OWNER_CONFIRMATION)->sole();
         $previousToken = $this->loadCase($receipt)->confirmation_token;
@@ -168,7 +168,7 @@ class WithdrawalOwnerConfirmationTest extends TestCase
         $this->beforeApplicationDestroyed(fn () => File::deleteDirectory($path));
         $owner = User::factory()->create(['role' => 'buyer']);
         $other = User::factory()->create(['role' => 'buyer']);
-        $admin = User::factory()->create(['role' => 'admin']);
+        $admin = $this->adminIdentity();
         $order = Order::forceCreate([
             'user_id' => $owner->id, 'owner_key' => Order::ownerKey($owner->id, ''),
             'reference' => (string) Str::uuid(), 'idempotency_key' => (string) Str::uuid(), 'request_hash' => hash('sha256', 'owner-confirmation'),

@@ -25,7 +25,7 @@ class WithdrawalTest extends TestCase
         config(['app.admin_url' => 'https://admin.camba.test']);
         $this->travelTo(Carbon::parse('2026-11-27 01:07:00 UTC'));
         Mail::fake();
-        $admin = User::factory()->create(['role' => 'admin']);
+        $admin = $this->adminIdentity();
         $linked = $this->orderForReceipt('comprador@camba.test');
         $input = ['order_reference' => $linked->reference, 'email' => 'no-coincide@camba.test'];
 
@@ -61,8 +61,8 @@ class WithdrawalTest extends TestCase
 
         $path = '/api/v1/admin/withdrawals?reference='.$reference;
         $this->getJson($path)->assertUnauthorized();
-        $this->actingAs(User::factory()->create(['role' => 'buyer']))->getJson($path)->assertForbidden();
-        $this->actingAs($admin)->getJson($path)->assertOk()->assertJsonCount(1, 'data')
+        $this->actingAs(User::factory()->create(['role' => 'buyer']))->getJson($path)->assertUnauthorized();
+        $this->actingAs($admin, 'admin')->getJson($path)->assertOk()->assertJsonCount(1, 'data')
             ->assertJsonPath('data.0.reference', $reference)->assertJsonPath('data.0.order_matched', false);
         $casePath = '/api/v1/admin/withdrawals/'.$reference;
         $this->patchJson($casePath, ['action' => 'review'])->assertOk();
@@ -89,7 +89,7 @@ class WithdrawalTest extends TestCase
     {
         config(['app.admin_url' => 'https://admin.camba.test']);
         Mail::fake();
-        $admin = User::factory()->create(['role' => 'admin']);
+        $admin = $this->adminIdentity();
         $order = $this->orderForReceipt('probe-buyer@camba.test');
         $this->postJson('/api/v1/withdrawals', [
             'order_reference' => $order->reference,
@@ -131,8 +131,8 @@ class WithdrawalTest extends TestCase
         Mail::assertNothingSent();
 
         $this->getJson('/api/v1/admin/withdrawals')->assertUnauthorized();
-        $admin = User::factory()->create(['role' => 'admin']);
-        $this->actingAs($admin)->getJson('/api/v1/admin/withdrawals')->assertOk()
+        $admin = $this->adminIdentity();
+        $this->actingAs($admin, 'admin')->getJson('/api/v1/admin/withdrawals')->assertOk()
             ->assertJsonPath('data.0.reference', $first->json('data.reference'))
             ->assertJsonPath('data.0.order_matched', false);
         $path = '/api/v1/admin/withdrawals/'.$first->json('data.reference');

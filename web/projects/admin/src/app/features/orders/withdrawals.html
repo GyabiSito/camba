@@ -79,7 +79,7 @@
           </div>
           <div><dt>Correo de la solicitud</dt><dd>{{ item.email }}</dd></div>
           @if (item.confirmation_requested_at) {
-            <div><dt>Confirmación solicitada</dt><dd>{{ date(item.confirmation_requested_at) }} · Admin #{{ item.confirmation_requested_by }}</dd></div>
+            <div><dt>Confirmación solicitada</dt><dd>{{ date(item.confirmation_requested_at) }} · {{ item.confirmation_requested_by_admin_id ? 'Admin #' + item.confirmation_requested_by_admin_id : 'Usuario #' + item.confirmation_requested_by }}</dd></div>
           }
           @if (item.confirmation_confirmed_at) {
             <div><dt>Titular confirmó</dt><dd>{{ date(item.confirmation_confirmed_at) }} (Uruguay)</dd></div>

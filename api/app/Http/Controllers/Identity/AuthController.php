@@ -34,7 +34,7 @@ class AuthController
 
         // Laravel checks credentials before the callback and rotates the session afterwards.
         if (! $guard->attemptWhen($request->validated(), function (User $user) use ($mergeCart, $guestSessionId): bool {
-            if ($guestSessionId !== null && $user->role === 'buyer') {
+            if ($guestSessionId !== null) {
                 $mergeCart->execute($guestSessionId, $user->id);
             }
 

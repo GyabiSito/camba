@@ -50,9 +50,9 @@ class SaveProductAction
         return DB::connection()->getDriverName() === 'pgsql' ? DB::transaction($persist) : $persist();
     }
 
-    public function update(string $productId, array $input, ?ProductStatus $transition = null, ?int $actorId = null): Product
+    public function update(string $productId, array $input, ?ProductStatus $transition = null, ?int $actorId = null, ?int $adminId = null): Product
     {
-        return DB::transaction(function () use ($productId, $input, $transition, $actorId): Product {
+        return DB::transaction(function () use ($productId, $input, $transition, $actorId, $adminId): Product {
             $current = Product::query()->lockForUpdate()->findOrFail($productId);
             $current->fill($input);
 
@@ -69,6 +69,7 @@ class SaveProductAction
                 DB::table('product_adjustments')->insert([
                     'product_id' => $current->id,
                     'actor_id' => $actorId,
+                    'actor_admin_id' => $adminId,
                     'old_price_cents' => $current->getOriginal('price_cents'),
                     'price_cents' => $current->price_cents,
                     'old_stock' => $current->getOriginal('stock'),

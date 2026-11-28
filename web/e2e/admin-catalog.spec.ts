@@ -8,7 +8,7 @@ async function signIn(page: Page) {
   if (sessionCookies) await page.context().addCookies(sessionCookies);
   await page.goto('/productos');
   if (!sessionCookies) {
-    await page.getByLabel('Correo electrónico').fill('catalog-admin@camba.test');
+    await page.getByLabel('Correo electrónico').fill('a11y-admin@camba.test');
     await page.getByLabel('Contraseña', { exact: true }).fill('Camba-test-only-2026');
     await page.getByRole('button', { name: 'Ingresar' }).click();
   }
@@ -514,7 +514,7 @@ test('crea, asigna, edita y desactiva una marca opcional', async ({ page }) => {
 test('filtra categorías y marcas antes de paginar y conserva la URL', async ({ page }, testInfo) => {
   test.setTimeout(90_000);
   await signIn(page);
-  const token = (await page.context().cookies()).find((cookie) => cookie.name === 'XSRF-TOKEN');
+  const token = (await page.context().cookies()).find((cookie) => cookie.name === 'CAMBA-ADMIN-XSRF-TOKEN');
   expect(token).toBeDefined();
   const headers = { Referer: page.url(), 'X-XSRF-TOKEN': decodeURIComponent(token!.value) };
 

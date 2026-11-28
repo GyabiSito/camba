@@ -27,7 +27,7 @@ async function mockApi(page: Page, perPage = 2) {
   let refundAmount: number | null = null;
   const refreshes: number[] = [];
   await page.route('**/api/**', route => route.fulfill({ status: 503, json: {} }));
-  await page.route('**/sanctum/csrf-cookie', route => route.fulfill({ status: 204 }));
+  await page.route('**/api/v1/admin/auth/csrf-cookie', route => route.fulfill({ status: 204 }));
   await page.route('**/api/v1/admin/session', route => route.fulfill({
     json: { data: { name: 'Camba Demo', email: 'admin@example.test' } },
   }));

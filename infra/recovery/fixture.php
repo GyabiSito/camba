@@ -2,6 +2,7 @@
 
 use App\Actions\Imports\ConfirmCatalogImport;
 use App\Actions\Imports\PreviewCatalogImport;
+use App\Models\Admin;
 use App\Models\CatalogImport;
 use App\Models\Category;
 use App\Models\CommerceNotice;
@@ -74,9 +75,8 @@ switch ($phase) {
         ]);
         webhook();
         check(PaymentWebhookEvent::sole()->attempts === 0 && Payment::count() === 0, 'acknowledged inbox before payment processing');
-        $admin = User::forceCreate([
-            'name' => 'Recovery Operator', 'email' => 'operator@example.test', 'role' => 'admin',
-            'email_verified_at' => now(), 'password' => Str::random(32),
+        $admin = Admin::create([
+            'name' => 'Recovery Operator', 'email' => 'operator@example.test', 'password' => Str::random(32),
         ]);
         $csv = "codigo,nombre,precio_uyu,stock,categoria,marca,descripcion,fotos\nDRILL-IMPORT,Recovered draft,2.50,5,synthetic,,,\n";
         $import = app(PreviewCatalogImport::class)->execute(UploadedFile::fake()->createWithContent('drill.csv', $csv), $admin->id);
@@ -184,7 +184,7 @@ function command(string $name): void
 
 function confirmImport(CatalogImport $import): void
 {
-    app(ConfirmCatalogImport::class)->execute((string) $import->id, $import->confirmed_by ?? User::sole()->id);
+    app(ConfirmCatalogImport::class)->execute((string) $import->id, $import->confirmed_by_admin_id ?? Admin::sole()->id);
 }
 
 function digest(string $disk, string $path): string

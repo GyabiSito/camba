@@ -18,8 +18,6 @@ Route::prefix('v1/auth')->group(function (): void {
     });
 });
 
-Route::get('v1/admin/session', [AuthController::class, 'me'])->middleware(['auth:sanctum', 'can:camba-admin']);
-
 require __DIR__.'/account.php';
 require __DIR__.'/geography.php';
 require __DIR__.'/catalog.php';
@@ -29,5 +27,4 @@ require __DIR__.'/payments.php';
 require __DIR__.'/settings.php';
 require __DIR__.'/notices.php';
 require __DIR__.'/homepage.php';
-require __DIR__.'/dashboard.php';
-require __DIR__.'/customers.php';
+require __DIR__.'/admin.php';

@@ -3,6 +3,7 @@
 namespace Tests\Feature\Demo;
 
 use App\Enums\OrderStatus;
+use App\Models\Admin;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Product;
@@ -107,10 +108,9 @@ class LocalDemoSeederTest extends TestCase
         $this->assertSame(2, DB::table('cart_items')->where('cart_id', $cartId)->count());
 
         $buyer = User::query()->where('email', 'cliente.diseno@camba.test')->firstOrFail();
-        $admin = User::query()->where('email', 'admin.diseno@camba.test')->firstOrFail();
+        $admin = Admin::query()->where('email', 'admin.diseno@camba.test')->firstOrFail();
         $this->assertSame('Lucía Rodríguez', $buyer->name);
         $this->assertSame('buyer', $buyer->role);
-        $this->assertSame('admin', $admin->role);
         $this->assertTrue(Hash::check('CambaDemo2026!', $buyer->password));
         $this->assertTrue(Hash::check('CambaDemo2026!', $admin->password));
         $this->assertSame(2, DB::table('addresses')->where('user_id', $buyer->id)->count());

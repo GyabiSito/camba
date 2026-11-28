@@ -9,7 +9,5 @@ Route::post('v1/orders/{reference}/payments', [OrderPaymentController::class, 's
     ->middleware(['auth:web', 'can:camba-buyer']);
 Route::post('v1/orders/{reference}/payments/refresh', [OrderPaymentController::class, 'refresh'])->whereUuid('reference');
 Route::post('v1/orders/{reference}/payments/cancel', [OrderPaymentController::class, 'cancel'])->whereUuid('reference');
-Route::post('v1/admin/orders/{reference}/payments/refresh', [OrderPaymentController::class, 'refreshAsAdmin'])->whereUuid('reference')
-    ->middleware(['auth:sanctum', 'can:camba-admin']);
 Route::post('v1/webhooks/mercadopago', [PaymentWebhookController::class, 'store'])
     ->withoutMiddleware(EnsureFrontendRequestsAreStateful::class);

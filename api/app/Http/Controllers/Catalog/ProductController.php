@@ -76,7 +76,7 @@ class ProductController
 
     public function update(SaveProductRequest $request, string $product, SaveProductAction $save): ProductResource
     {
-        return new ProductResource($save->update($product, $request->validated(), actorId: $request->user()->id)->load(self::RELATIONS));
+        return new ProductResource($save->update($product, $request->validated(), adminId: $request->user('admin')->id)->load(self::RELATIONS));
     }
 
     public function history(string $product): JsonResponse

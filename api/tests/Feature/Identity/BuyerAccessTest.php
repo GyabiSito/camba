@@ -63,23 +63,14 @@ class BuyerAccessTest extends TestCase
         $this->assertDatabaseCount('users', 0);
     }
 
-    public function test_only_a_verified_account_granted_admin_locally_can_use_admin_session(): void
+    public function test_store_sessions_never_grant_administrative_access(): void
     {
-        $unverified = User::factory()->unverified()->create();
-        $owner = User::factory()->create(['email' => 'owner@example.test']);
         $this->withHeader('Origin', 'http://localhost');
-
         $this->getJson('/api/v1/admin/session')->assertUnauthorized();
-        $this->actingAs($owner, 'web')->getJson('/api/v1/admin/session')->assertForbidden();
-        $this->artisan('camba:grant-admin', ['email' => $unverified->email])->assertFailed();
-        $this->assertSame('buyer', $unverified->fresh()->role);
-        $unverified->forceFill(['role' => 'admin'])->save();
-        $this->app['auth']->forgetGuards();
-        $this->actingAs($unverified, 'web')->getJson('/api/v1/admin/session')->assertForbidden();
-        $this->artisan('camba:grant-admin', ['email' => ' OWNER@Example.Test '])->assertSuccessful();
-        $this->assertSame('admin', $owner->fresh()->role);
-        $this->app['auth']->forgetGuards();
-        $this->actingAs($owner->fresh(), 'web')->getJson('/api/v1/admin/session')->assertOk()->assertJsonPath('data.role', 'admin');
+        foreach (['buyer', 'admin'] as $role) {
+            $this->actingAs(User::factory()->create(['role' => $role]), 'web')
+                ->getJson('/api/v1/admin/session')->assertUnauthorized();
+        }
     }
 
     public function test_a_buyer_can_retry_verification_after_a_queue_outage(): void

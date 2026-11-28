@@ -1,4 +1,6 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXsrfConfiguration } from '@angular/common/http';
 
 export const demoMode: boolean = false;
-export const provideCambaHttp = (_app: 'admin' | 'store') => provideHttpClient();
+export const provideCambaHttp = (app: 'admin' | 'store') => app === 'admin'
+  ? provideHttpClient(withXsrfConfiguration({ cookieName: 'CAMBA-ADMIN-XSRF-TOKEN' }))
+  : provideHttpClient();

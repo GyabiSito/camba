@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test('verified admin reaches the catalog and can sign out', async ({ page }, info) => {
   await page.goto('/productos');
   await expect(page).toHaveURL(/\/ingresar/);
-  await page.getByLabel('Correo electrónico').fill('admin@camba.test');
+  await page.getByLabel('Correo electrónico').fill('a11y-admin@camba.test');
   await page.getByLabel('Contraseña').fill('Camba-test-only-2026');
   await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Productos', exact: true })).toBeVisible();
@@ -80,7 +80,7 @@ test('admin login opens Dashboard by default and restores a protected deep link'
       const page = await context.newPage();
       const base = test.info().project.use.baseURL!;
       await page.goto(base + entry);
-      await page.getByLabel('Correo electrónico').fill('admin@camba.test');
+      await page.getByLabel('Correo electrónico').fill('a11y-admin@camba.test');
       await page.getByLabel('Contraseña').fill('Camba-test-only-2026');
       await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
       await expect(page).toHaveURL(base + expected);
@@ -101,10 +101,10 @@ test('a verified buyer cannot enter administration', async ({ page }) => {
   await page.getByLabel('Correo electrónico').fill('buyer-admin-denied@camba.test');
   await page.getByLabel('Contraseña').fill('Camba-test-only-2026');
   const denied = page.waitForResponse((response) =>
-    response.url().endsWith('/api/v1/admin/session'),
+    response.url().endsWith('/api/v1/admin/auth/login'),
   );
   await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
-  expect((await denied).status()).toBe(403);
-  await expect(page.getByRole('alert')).toContainText('no tiene acceso administrativo');
+  expect((await denied).status()).toBe(422);
+  await expect(page.getByRole('alert')).toContainText(/correo o la contraseña no son correctos/i);
   await expect(page.getByRole('navigation', { name: 'Administración' })).toHaveCount(0);
 });

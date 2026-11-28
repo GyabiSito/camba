@@ -19,8 +19,8 @@ test('uses section routes, saved drafts, navigation guards and stale protection'
   let holdSave = false;
   let releaseSave: (() => void) | undefined;
   let publishes = 0;
-  await page.route('**/sanctum/csrf-cookie', route => route.fulfill({ status: 204 }));
-  await page.route('**/api/v1/admin/session', route => route.fulfill({ json: { data: { name: 'Admin', email: 'admin@camba.test' } } }));
+  await page.route('**/api/v1/admin/auth/csrf-cookie', route => route.fulfill({ status: 204 }));
+  await page.route('**/api/v1/admin/session', route => route.fulfill({ json: { data: { name: 'Admin', email: 'a11y-admin@camba.test' } } }));
   await page.route('**/api/v1/admin/categories', route => route.fulfill({ json: { data: [{ id: 1, slug: 'ropa', name: 'Ropa', active: true }] } }));
   await page.route('**/api/v1/admin/products?*', route => route.fulfill({ json: { data: [1, 2].map(id => ({ id, name: `Prenda ${id}`, sku: `P${id}`, slug: `prenda-${id}`, price_cents: 45000, stock: 2, category: { id: 1, name: 'Ropa' }, status: 'published', images: [] })), meta: { current_page: 1, last_page: 1, total: 2 } } }));
   await page.route('**/api/v1/admin/homepage**', async route => {

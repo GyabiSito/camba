@@ -15,7 +15,7 @@ class PasswordController
     public function requestLink(RequestPasswordReset $request): Response
     {
         try {
-            Password::sendResetLink($request->validated());
+            Password::broker('users')->sendResetLink($request->validated());
         } catch (Throwable $exception) {
             Log::warning('Password reset dispatch failed.', ['exception_type' => $exception::class]);
         }

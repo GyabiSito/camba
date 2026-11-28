@@ -104,12 +104,12 @@ class AdminOrderFiltersTest extends TestCase
         $url = self::URL.'?q=guest%40example.test';
         $this->getJson($url)->assertUnauthorized()->assertJsonMissingPath('data');
         $this->withHeader('Origin', 'http://localhost')->actingAs(User::factory()->create(['role' => 'buyer']), 'web');
-        $this->getJson($url)->assertForbidden()->assertJsonMissingPath('data');
+        $this->getJson($url)->assertUnauthorized()->assertJsonMissingPath('data');
     }
 
     private function admin(): void
     {
-        $this->withHeader('Origin', 'http://localhost')->actingAs(User::factory()->create(['role' => 'admin']), 'web');
+        $this->withHeader('Origin', 'http://localhost')->actingAs($this->adminIdentity(), 'admin');
     }
 
     private function order(array $attributes = []): Order

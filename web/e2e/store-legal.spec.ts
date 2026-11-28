@@ -89,7 +89,7 @@ test('public withdrawal provides a neutral receipt and reaches Admin from the or
   const admin = await browser.newPage();
   try {
     await admin.goto(`http://127.0.0.1:${process.env['CAMBA_E2E_ADMIN_PORT'] ?? '43820'}/ingresar`);
-    await admin.getByLabel('Correo electrónico').fill('legal-admin@camba.test');
+    await admin.getByLabel('Correo electrónico').fill('a11y-admin@camba.test');
     await admin.getByLabel('Contraseña').fill('Camba-test-only-2026');
     const signedIn = admin.waitForResponse(response => response.url().endsWith('/api/v1/admin/session') && response.ok());
     await admin.getByRole('button', { name: 'Ingresar' }).click();

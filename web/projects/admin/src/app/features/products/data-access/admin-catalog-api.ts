@@ -5,7 +5,7 @@ import type { Collection, Data, Page, Product, Classification } from './catalog-
 
 export type ProductDetail = Data<Product> & { store_url?: string };
 export type ProductHistory = {
-  data: { id: number; actor_id: number | null; old_price_cents: number | null; price_cents: number | null; old_stock: number; stock: number; created_at: string }[];
+  data: { id: number; actor_id: number | null; actor_admin_id?: number | null; old_price_cents: number | null; price_cents: number | null; old_stock: number; stock: number; created_at: string }[];
   current_page: number; last_page: number;
 };
 export type RowStatus = 'ready' | 'invalid' | 'applied' | 'failed';

@@ -60,9 +60,9 @@ class CartTest extends TestCase
     public function test_cart_requires_the_buyer_role(): void
     {
         $product = $this->product();
-        $this->login(User::factory()->create(['role' => 'admin']));
-        $this->getJson(self::CART)->assertForbidden();
-        $this->postJson($this->item($product))->assertForbidden();
+        $this->actingAs($this->adminIdentity(), 'admin');
+        $this->getJson(self::CART)->assertUnauthorized();
+        $this->postJson($this->item($product))->assertUnauthorized();
         $this->assertDatabaseCount('carts', 0);
         $this->assertDatabaseCount('cart_items', 0);
     }

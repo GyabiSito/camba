@@ -17,18 +17,18 @@ class StoreSettingsTest extends TestCase
         TestDatabase::assertIsolated($this);
     }
 
-    public function test_only_verified_admin_changes_settings_and_the_change_is_audited(): void
+    public function test_only_dedicated_admin_changes_settings_and_the_change_is_audited(): void
     {
         config(['checkout.delivery_cents' => 14500, 'checkout.pickup_address' => 'Pickup depot']);
         config(['store.public_contact.email' => null]);
-        $admin = User::factory()->create(['role' => 'admin']);
+        $admin = $this->adminIdentity();
         $url = '/api/v1/admin/settings';
         $this->withHeader('Origin', 'http://localhost')
             ->patchJson($url, ['delivery_cents' => null])->assertUnauthorized();
         $this->actingAs(User::factory()->create(), 'web')
-            ->patchJson($url, ['delivery_cents' => null])->assertForbidden();
+            ->patchJson($url, ['delivery_cents' => null])->assertUnauthorized();
         $this->app['auth']->forgetGuards();
-        $this->actingAs($admin, 'web')->getJson($url)
+        $this->actingAs($admin, 'admin')->getJson($url)
             ->assertOk()->assertJsonPath('data.delivery_cents', 14500);
         $patch = ['delivery_cents' => null, 'support_email' => 'contact@example.test', 'remind_cart' => true];
         $this->patchJson($url, $patch + ['mailer_password' => 'invalid'])
@@ -38,7 +38,7 @@ class StoreSettingsTest extends TestCase
             ->assertJsonPath('data.delivery_cents', null)->assertJsonPath('data.remind_cart', true);
         $this->patchJson($url, $patch)->assertOk();
         $this->getJson("$url/history")->assertOk()->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.actor_id', $admin->id)
+            ->assertJsonPath('data.0.actor_admin_id', $admin->id)
             ->assertJsonPath('data.0.before.delivery_cents', 14500)
             ->assertJsonPath('data.0.after.delivery_cents', null);
         $this->getJson('/api/v1/store-info')->assertOk()
@@ -53,9 +53,9 @@ class StoreSettingsTest extends TestCase
         $url = '/api/v1/admin/settings';
         $enabled = ['free_delivery_enabled' => true];
         $this->withHeader('Origin', 'http://localhost')->actingAs(User::factory()->create(), 'web')
-            ->patchJson($url, $enabled + ['free_delivery_minimum_cents' => 250000])->assertForbidden();
+            ->patchJson($url, $enabled + ['free_delivery_minimum_cents' => 250000])->assertUnauthorized();
         $this->app['auth']->forgetGuards();
-        $this->actingAs(User::factory()->create(['role' => 'admin']), 'web')->getJson($url)->assertOk()
+        $this->actingAs($this->adminIdentity(), 'admin')->getJson($url)->assertOk()
             ->assertJsonPath('data.free_delivery_enabled', false)->assertJsonPath('data.free_delivery_minimum_cents', null);
 
         $this->patchJson($url, $enabled + ['business_name' => 'Do not save'])->assertUnprocessable()
@@ -135,7 +135,7 @@ class StoreSettingsTest extends TestCase
         $this->getJson('/api/v1/store-info')->assertOk()
             ->assertJsonPath('data.fiscalName', 'Empresa de prueba S.A.')
             ->assertJsonMissingPath('data.fiscal_name')->assertJsonMissingPath('data.store');
-        $this->actingAs(User::factory()->create(['role' => 'admin']))
+        $this->actingAs($this->adminIdentity(), 'admin')
             ->patchJson('/api/v1/admin/settings', ['fiscalName' => 'Override'])
             ->assertUnprocessable();
         $this->getJson('/api/v1/admin/settings')->assertJsonMissingPath('data.fiscalName');

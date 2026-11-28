@@ -27,7 +27,7 @@ class AdminCustomerTest extends TestCase
         $this->assertSame(':memory:', config('database.connections.sqlite.database'));
     }
 
-    public function test_directory_account_and_history_require_a_verified_administrator(): void
+    public function test_directory_account_and_history_require_the_admin_guard(): void
     {
         $buyer = User::factory()->create(['role' => 'buyer']);
         $urls = [self::URL, self::URL.'/'.$buyer->id, self::URL.'/'.$buyer->id.'/orders'];
@@ -36,17 +36,17 @@ class AdminCustomerTest extends TestCase
         }
         $this->actingAs($buyer);
         foreach ($urls as $url) {
-            $this->getJson($url)->assertForbidden();
+            $this->getJson($url)->assertUnauthorized();
         }
         $this->actingAs(User::factory()->unverified()->create(['role' => 'admin']));
         foreach ($urls as $url) {
-            $this->getJson($url)->assertForbidden();
+            $this->getJson($url)->assertUnauthorized();
         }
     }
 
     public function test_summary_and_paginated_search_count_only_buyers_and_do_not_expose_addresses(): void
     {
-        $this->actingAs(User::factory()->create(['role' => 'admin', 'name' => 'Lina Staff']));
+        $this->actingAs($this->adminIdentity(['name' => 'Lina Staff']), 'admin');
         $this->getJson('/api/v1/admin/dashboard')->assertOk()->assertJsonPath('data.priorities.registered_buyers', 0);
         $first = User::factory()->unverified()->create([
             'role' => 'buyer', 'name' => 'Lina Older', 'email' => 'distinct@example.test', 'created_at' => '2026-11-20 12:00:00',
@@ -75,7 +75,7 @@ class AdminCustomerTest extends TestCase
 
     public function test_search_matches_accented_names_regardless_of_case_without_removing_accents(): void
     {
-        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $this->actingAs($this->adminIdentity(), 'admin');
         $buyer = User::factory()->create([
             'role' => 'buyer', 'name' => 'Álvaro', 'email' => 'distinct@example.test',
         ]);
@@ -96,7 +96,7 @@ class AdminCustomerTest extends TestCase
 
     public function test_search_treats_wildcards_and_escape_character_literally(): void
     {
-        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $this->actingAs($this->adminIdentity(), 'admin');
         $buyer = User::factory()->create([
             'role' => 'buyer', 'name' => 'Literal_!% customer', 'email' => 'literal@example.test',
         ]);
@@ -110,13 +110,14 @@ class AdminCustomerTest extends TestCase
 
     public function test_current_addresses_are_separate_from_order_snapshots_and_history_uses_account_id(): void
     {
-        $admin = User::factory()->create(['role' => 'admin']);
+        $admin = $this->adminIdentity();
         $buyer = User::factory()->create(['role' => 'buyer']);
         $other = User::factory()->create(['role' => 'buyer']);
         $base = self::URL.'/'.$buyer->id;
-        $this->actingAs($admin);
-        $this->getJson(self::URL.'/'.$admin->id)->assertNotFound();
-        $this->getJson(self::URL.'/'.$admin->id.'/orders')->assertNotFound();
+        $this->actingAs($admin, 'admin');
+        $legacy = User::factory()->create(['role' => 'admin']);
+        $this->getJson(self::URL.'/'.$legacy->id)->assertNotFound();
+        $this->getJson(self::URL.'/'.$legacy->id.'/orders')->assertNotFound();
         $this->getJson($base)->assertOk()->assertJsonPath('data.addresses', []);
         $this->getJson($base.'/orders')->assertOk()->assertJsonPath('meta.total', 0);
         Address::query()->forceCreate(['user_id' => $buyer->id, 'recipient' => 'Cliente', 'department' => 'Montevideo',

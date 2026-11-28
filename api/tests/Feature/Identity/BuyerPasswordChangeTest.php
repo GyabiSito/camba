@@ -52,9 +52,9 @@ class BuyerPasswordChangeTest extends TestCase
         $this->patchJson(self::PATH, $this->payload())->assertUnauthorized();
 
         $this->app->instance('env', 'testing');
-        $admin = User::factory()->create(['role' => 'admin', 'password' => self::OLD]);
-        $this->keepSession($this->login($admin, self::OLD)->assertNoContent());
-        $this->patchJson(self::PATH, $this->payload())->assertForbidden();
+        $admin = $this->adminIdentity(['password' => self::OLD]);
+        $this->actingAs($admin, 'admin');
+        $this->patchJson(self::PATH, $this->payload())->assertUnauthorized();
         $this->assertTrue(Hash::check(self::OLD, $admin->fresh()->password));
         $this->assertDatabaseMissing('commerce_notices', ['kind' => 'buyer_password_changed']);
     }

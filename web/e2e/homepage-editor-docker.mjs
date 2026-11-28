@@ -63,12 +63,12 @@ async function editorOperation(method, endpoint, action) {
 
 async function restoreCall(method, endpoint, payload) {
   const res = await admin.evaluate(async ({ url, method, payload }) => {
-    await fetch('/sanctum/csrf-cookie', { cache: 'no-store' });
-    const token = document.cookie.split('; ').find(cookie => cookie.startsWith('XSRF-TOKEN='));
+    await fetch('/api/v1/admin/auth/csrf-cookie', { cache: 'no-store' });
+    const token = document.cookie.split('; ').find(cookie => cookie.startsWith('CAMBA-ADMIN-XSRF-TOKEN='));
     if (!token) throw new Error('No Admin CSRF cookie for fixture cleanup.');
     const response = await fetch(url, { method, credentials: 'same-origin', headers: {
       'Content-Type': 'application/json', Accept: 'application/json',
-      'X-XSRF-TOKEN': decodeURIComponent(token.slice('XSRF-TOKEN='.length)),
+      'X-XSRF-TOKEN': decodeURIComponent(token.slice('CAMBA-ADMIN-XSRF-TOKEN='.length)),
     }, body: JSON.stringify(payload) });
     return { status: response.status, payload: await response.json() };
   }, { url: editor + endpoint, method, payload });

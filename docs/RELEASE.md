@@ -23,6 +23,10 @@ The release account needs Docker Compose with `up --wait`, Bash, and `flock`. St
 
 The check in `infra/release/apply.test.sh` uses a fake Docker CLI in a temporary directory. It verifies rejection of a new release with no project before any Docker call, the legacy fallback, and the same project and overlay on release and rollback. It also covers exact service selection, a stale release, migration behavior and validation of immutable references. It does not demonstrate a real edge deployment, backup/restore, or a healthy all-service Compose release.
 
+## First Admin access
+
+Ship the API and Admin image together for the authentication cutover. Set `CAMBA_ADMIN_URL` to the real HTTPS Admin origin and preserve its Host through the proxy. After migrations, use the approved Compose project and runtime environment to run `php artisan camba:admin admin@example.test --name="Camba"` in the API container from a trusted interactive shell. For an existing installation, use the exact verified legacy address with `--from-legacy` instead; no legacy user is selected automatically. No credentials should be passed in flags. See [provisioning and recovery](../api/README.md#provision-admin-after-migrations).
+
 ## GitHub and edge prerequisites
 
 `.github/workflows/checks.yml` validates the selected components and always resolves the required aggregate. On a successful main push, repository variable `CAMBA_RELEASE_ENABLED=true` opts into GHCR publication and wire-up; leave it unset until UI and deployment acceptance are complete. The publish job validates each affected local image before pushing its SHA tag, then hands the resulting digest to the deploy job. No image is rebuilt on the server.

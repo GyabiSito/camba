@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Models\Admin;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\StoreSettings;
@@ -37,16 +38,20 @@ if (getenv('CAMBA_PG_FIXTURE_PHASE') === 'seed') {
     $localities = DB::table('localities')->count();
     check($migrations === count(glob(database_path('migrations/*.php'))) && $departments === 19 && $localities > 19,
         'Apply every migration and load reference geography before the fixture');
-    foreach (['users', 'products', 'orders'] as $table) {
+    foreach (['admins', 'users', 'products', 'orders'] as $table) {
         check(DB::table($table)->doesntExist(), "The reference-only candidate unexpectedly contains {$table}");
     }
 
     $password = getenv('CAMBA_PG_FIXTURE_PASSWORD');
     check(is_string($password) && preg_match('/^[a-f0-9]{32}$/D', $password) === 1, 'Missing synthetic password');
     DB::transaction(function () use ($password): void {
-        User::query()->forceCreate([
+        Admin::query()->create([
             'name' => 'PostgreSQL QA', 'email' => 'postgres-admin@camba.test',
-            'password' => $password, 'role' => 'admin', 'email_verified_at' => now(),
+            'password' => $password,
+        ]);
+        User::query()->forceCreate([
+            'name' => 'Persona PostgreSQL QA', 'email' => 'postgres-buyer@camba.test',
+            'password' => $password, 'role' => 'buyer', 'email_verified_at' => now(),
         ]);
         $category = Category::query()->forceCreate(['name' => 'PostgreSQL QA', 'slug' => 'postgres-qa']);
         Product::query()->forceCreate([

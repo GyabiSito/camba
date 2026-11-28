@@ -63,7 +63,7 @@ for (const mobile of [false, true]) {
       await expect(gallery.getByLabel('Agregar fotos')).toBeDisabled();
 
       const url = new URL(page.url());
-      const csrf = (await page.context().cookies(url.origin)).find(cookie => cookie.name === 'XSRF-TOKEN');
+      const csrf = (await page.context().cookies(url.origin)).find(cookie => cookie.name === 'CAMBA-ADMIN-XSRF-TOKEN');
       const sixth = await page.request.post(`/api/v1/admin${url.pathname.replace('/productos', '/products')}/images`, {
         headers: { Origin: url.origin, 'X-XSRF-TOKEN': decodeURIComponent(csrf!.value) },
         multipart: { 'photos[]': { name: 'sixth.webp', mimeType: 'image/webp', buffer: readFileSync(image('image-twill')) } },

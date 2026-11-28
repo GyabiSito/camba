@@ -1,6 +1,6 @@
 # Camba API
 
-The first local delivery provides Laravel 13 with buyer registration, queued email verification, and a Sanctum cookie session. See [OpenAPI](openapi.yaml) for the current endpoint contract.
+The API uses independent cookie sessions for buyers and the single administrator. See [OpenAPI](openapi.yaml) for the endpoint contracts.
 
 ## Run locally
 
@@ -17,6 +17,18 @@ Registration returns `201` even if notification enqueue fails, with `meta.verifi
 
 Run `composer validate --strict --no-check-publish`, `php vendor/bin/pint --test`, and `php vendor/bin/phpunit`. With PDO SQLite available the tests default to `:memory:`. To verify on MySQL, set `DB_CONNECTION=mysql` and point `DB_HOST`, `DB_PORT`, `DB_USERNAME` and `DB_PASSWORD` to a dedicated test server with `DB_DATABASE=camba_test`. The identity suite resets schema in that test database; use a dedicated instance.
 
-The password recovery endpoints require first-party CSRF. Reset emails point to the configured `APP_URL` at `/cuenta/restablecer#token=…`; the store must read the fragment and collect email before submitting the reset. The token is short-lived and single-use.
+Buyer password recovery requires first-party CSRF and uses only buyer accounts. The reset link contains a short-lived, single-use opaque context. Admin has no public registration or password reset.
 
-There is no default administrator. On the intended Camba v2 instance, an authorized operator can run `php artisan camba:grant-admin verified@example.test` for an existing account whose email has already been verified. Confirm the instance and the target owner before executing; public registration cannot grant this role. `GET /api/v1/admin/session` verifies server-side access.
+## Provision Admin after migrations
+
+On the intended API instance, use a trusted interactive shell:
+
+| Situation | Command |
+| --- | --- |
+| First access on a fresh installation | `php artisan camba:admin admin@example.test --name="Camba"` |
+| Adopt an existing verified administrator | `php artisan camba:admin admin@example.test --from-legacy` |
+| Recover access to the provisioned account | `php artisan camba:admin admin@example.test` |
+
+Replace the example with the exact authorized email. Legacy adoption never chooses an account automatically, even if there is only one. It copies the selected credential and leaves every legacy user and historical reference in place. Fresh provisioning and recovery prompt for the password without echoing it; recovery invalidates existing Admin logins without ending buyer sessions.
+
+Set `CAMBA_ADMIN_URL` (Laravel `ADMIN_URL`) to the actual HTTPS Admin origin in production. The reverse proxy must preserve its Host. Admin endpoints fail closed on other hosts or if the origin is absent. The Admin browser obtains CSRF at `/api/v1/admin/auth/csrf-cookie`, sends decoded `CAMBA-ADMIN-XSRF-TOKEN` as `X-XSRF-TOKEN`, and uses `/api/v1/admin/auth/login`, `/api/v1/admin/session` and `/api/v1/admin/auth/logout`. Store auth continues to use `/sanctum/csrf-cookie` and `/api/v1/auth/*`.

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature\Catalog;
 
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -24,7 +23,7 @@ class ClassificationFiltersTest extends TestCase
 
     public function test_classification_filters_apply_before_pagination_without_changing_selectors(): void
     {
-        $this->withHeader('Origin', 'http://localhost')->actingAs(User::factory()->create(['role' => 'admin']), 'web');
+        $this->withHeader('Origin', 'http://localhost')->actingAs($this->adminIdentity(), 'admin');
 
         foreach (['categories', 'brands'] as $kind) {
             $path = "/api/v1/admin/$kind";
@@ -62,7 +61,7 @@ class ClassificationFiltersTest extends TestCase
                 ->assertJsonCount(29, 'data')->assertJsonMissingPath('meta');
             $this->app['auth']->forgetGuards();
             $this->getJson("/api/v1/$kind?q=missing&status=inactive")->assertOk()->assertJsonCount(16, 'data');
-            $this->actingAs(User::query()->where('role', 'admin')->firstOrFail(), 'web');
+            $this->actingAs($this->adminIdentity(), 'admin');
         }
     }
 }

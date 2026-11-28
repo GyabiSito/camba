@@ -47,7 +47,7 @@ class WithdrawalOwnerConfirmation
             'confirmation_token' => bin2hex(random_bytes(32)),
             'confirmation_owner_hash' => self::fingerprint($order, $buyer),
             'confirmation_buyer_id' => $buyer->id,
-            'confirmation_requested_by' => $administratorId, 'confirmation_requested_at' => $now,
+            'confirmation_requested_by_admin_id' => $administratorId, 'confirmation_requested_at' => $now,
             'confirmation_expires_at' => $now->copy()->addMinutes(30), 'confirmation_confirmed_at' => null,
         ])->save();
         CommerceNotice::query()->createOrFirst(['dedup_key' => self::noticeKey($case)], [

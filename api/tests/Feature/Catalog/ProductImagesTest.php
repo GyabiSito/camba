@@ -5,7 +5,6 @@ namespace Tests\Feature\Catalog;
 use App\Actions\Catalog\SaveProductAction;
 use App\Models\Product;
 use App\Models\ProductImage;
-use App\Models\User;
 use Illuminate\Database\Events\TransactionCommitted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -330,8 +329,8 @@ class ProductImagesTest extends TestCase
 
     private function admin(): void
     {
-        $user = User::factory()->create(['role' => 'admin']);
-        $this->actingAs($user, 'web')->withHeaders(['Origin' => 'http://localhost', 'Accept' => 'application/json']);
+        $user = $this->adminIdentity();
+        $this->actingAs($user, 'admin')->withHeaders(['Origin' => 'http://localhost', 'Accept' => 'application/json']);
     }
 
     private function product(): Product

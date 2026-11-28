@@ -95,7 +95,7 @@
                   @for (entry of page.data; track entry.id) {
                     <tr>
                       <td>{{ formatDate(entry.created_at) }}</td>
-                      <td>{{ entry.actor_id ? '#' + entry.actor_id : 'Sistema' }}</td>
+                      <td>{{ entry.actor_admin_id ? 'Admin #' + entry.actor_admin_id : entry.actor_id ? 'Usuario #' + entry.actor_id : 'Sistema' }}</td>
                       <td>{{ entry.old_price_cents == null ? 'Sin precio' : formatMoney(entry.old_price_cents) }} / {{ entry.price_cents == null ? 'Sin precio' : formatMoney(entry.price_cents) }}</td>
                       <td>{{ entry.old_stock }} / {{ entry.stock }}</td>
                     </tr>

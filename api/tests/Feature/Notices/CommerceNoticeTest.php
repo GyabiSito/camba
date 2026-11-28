@@ -4,6 +4,7 @@ namespace Tests\Feature\Notices;
 
 use App\Jobs\SendCommerceNotice;
 use App\Mail\CommerceNoticeMail;
+use App\Models\Admin;
 use App\Models\Cart;
 use App\Models\CatalogImport;
 use App\Models\Category;
@@ -48,7 +49,7 @@ class CommerceNoticeTest extends TestCase
             ->assertJsonPath('data.cart_reminders', true)->assertJsonPath('data.payment_reminders', false);
         $this->signIn(User::factory()->create());
         $this->getJson(self::PREFERENCES)->assertOk()->assertJsonPath('data.cart_reminders', false);
-        $this->getJson(self::ADMIN)->assertForbidden();
+        $this->getJson(self::ADMIN)->assertUnauthorized();
     }
 
     public function test_admin_commerce_feed_does_not_expose_welcome_records(): void
@@ -62,13 +63,13 @@ class CommerceNoticeTest extends TestCase
             'subject_id' => $buyer->id,
             'state' => 'uncertain',
         ]);
-        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->signIn($this->adminIdentity());
         $this->getJson(self::ADMIN.'?state=uncertain')->assertOk()->assertJsonCount(0, 'data');
     }
 
     public function test_admin_filters_the_entire_notice_table_before_paginating(): void
     {
-        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->signIn($this->adminIdentity());
         $order = $this->order(null);
         $target = CommerceNotice::create([
             'dedup_key' => 'notice-table:target', 'channel' => 'panel', 'kind' => 'order_created',
@@ -104,14 +105,14 @@ class CommerceNoticeTest extends TestCase
     {
         Queue::fake();
         Mail::fake();
-        $admin = User::factory()->create(['role' => 'admin']);
+        $admin = $this->adminIdentity();
         $buyer = User::factory()->create(['email' => 'verified-buyer@example.test']);
         $order = $this->order($buyer, [
             'status' => 'paid', 'paid_at' => now()->subDays(2),
             'payment_issues' => ['multiple_approved_payments', 'provider_evidence_mismatch', 'late_approval_without_stock'],
         ]);
         $product = $this->product(1);
-        CatalogImport::create(['sha256' => str_repeat('a', 64), 'uploaded_by' => $admin->id, 'completed_at' => now()]);
+        CatalogImport::create(['sha256' => str_repeat('a', 64), 'uploaded_by_admin_id' => $admin->id, 'completed_at' => now()]);
         $this->project();
         $this->project();
 
@@ -255,7 +256,7 @@ class CommerceNoticeTest extends TestCase
         $this->assertDatabaseHas('commerce_notices', ['id' => $stale, 'state' => 'cancelled']);
 
         $shipped = $this->order(null, ['status' => 'paid', 'paid_at' => now(), 'shipping_method' => 'delivery', 'fulfilment_status' => 'preparing']);
-        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->signIn($this->adminIdentity());
         $this->patchJson('/api/v1/admin/orders/'.$shipped->reference.'/fulfilment', [
             'status' => 'shipped', 'note' => 'Operator-only delivery note',
         ])->assertOk();
@@ -282,7 +283,7 @@ class CommerceNoticeTest extends TestCase
         Queue::fake();
         config(['mail.default' => 'array']);
         $buyer = User::factory()->create(['role' => 'buyer']);
-        $admin = User::factory()->create(['role' => 'admin']);
+        $admin = $this->adminIdentity();
         $order = $this->order($buyer, ['status' => 'paid', 'paid_at' => now(), 'shipping_method' => 'delivery', 'fulfilment_status' => 'preparing']);
         $older = $this->order($buyer, ['status' => 'paid', 'paid_at' => now(), 'shipping_method' => 'delivery', 'fulfilment_status' => 'completed']);
         DB::table('order_fulfilment_events')->insert([
@@ -321,7 +322,7 @@ class CommerceNoticeTest extends TestCase
 
     public function test_fulfilment_does_not_commit_without_its_mail_notice(): void
     {
-        $admin = User::factory()->create(['role' => 'admin']);
+        $admin = $this->adminIdentity();
         $order = $this->order(null, ['status' => 'paid', 'shipping_method' => 'delivery', 'fulfilment_status' => 'preparing']);
         $this->signIn($admin);
         $event = 'eloquent.creating: '.CommerceNotice::class;
@@ -339,10 +340,10 @@ class CommerceNoticeTest extends TestCase
         $this->assertDatabaseMissing('commerce_notices', ['subject_id' => $order->id]);
     }
 
-    private function signIn(User $user): void
+    private function signIn(User|Admin $user): void
     {
         $this->app['auth']->forgetGuards();
-        $this->withHeader('Origin', 'http://localhost')->actingAs($user->fresh(), 'web');
+        $this->withHeader('Origin', 'http://localhost')->actingAs($user->fresh(), $user instanceof Admin ? 'admin' : 'web');
     }
 
     private function settings(array $values): void

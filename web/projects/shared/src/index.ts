@@ -13,6 +13,10 @@ export const CAMBA_API_ORIGIN = new InjectionToken<string>('Internal Camba API o
 
 export const CAMBA_DEV_NGROK_ORIGIN = makeStateKey<string>('camba:dev-ngrok-origin');
 
+export const CAMBA_CSRF_PATH = new InjectionToken<string>('Camba browser CSRF endpoint', {
+  factory: () => '/sanctum/csrf-cookie',
+});
+
 export const CART_CHANGED = 'camba:cart-changed';
 
 type Query = Record<string, string | number | boolean | null | undefined>;
@@ -24,6 +28,7 @@ export class ApiClient {
   private readonly http = inject(HttpClient);
   private readonly state = inject(TransferState);
   private readonly origin = inject(CAMBA_API_ORIGIN);
+  private readonly csrfPath = inject(CAMBA_CSRF_PATH);
   private readonly server = isPlatformServer(inject(PLATFORM_ID));
   private csrfReady = false;
   private csrfRequest?: Observable<unknown>;
@@ -112,7 +117,7 @@ export class ApiClient {
 
   private csrf(): Observable<unknown> {
     if (this.csrfReady) return of(null);
-    this.csrfRequest ??= this.http.get('/sanctum/csrf-cookie', {
+    this.csrfRequest ??= this.http.get(this.csrfPath, {
       headers: this.headers(),
       transferCache: false,
       responseType: 'text',

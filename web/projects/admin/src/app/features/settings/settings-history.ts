@@ -35,7 +35,7 @@ import { AuditEntry, SettingsApi } from './data-access/settings-api';
               <details>
                 <summary>
                   <strong>{{ date(entry.created_at) }}</strong><span class="muted"
-                    >Usuario {{ entry.actor_id }}</span
+                    >{{ entry.actor_admin_id ? 'Admin ' + entry.actor_admin_id : 'Usuario ' + entry.actor_id }}</span
                   >
                 </summary>
                 <dl class="history-fields">

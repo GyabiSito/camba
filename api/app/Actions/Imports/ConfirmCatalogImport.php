@@ -9,13 +9,13 @@ use Throwable;
 
 class ConfirmCatalogImport
 {
-    public function execute(string $id, int $actorId): CatalogImport
+    public function execute(string $id, int $adminId): CatalogImport
     {
-        $import = DB::transaction(function () use ($id, $actorId): CatalogImport {
+        $import = DB::transaction(function () use ($id, $adminId): CatalogImport {
             $import = CatalogImport::query()->lockForUpdate()->findOrFail($id);
             if ($import->confirmed_at === null) {
                 abort_unless($import->rows()->where('status', 'ready')->exists(), 409, 'There are no valid rows to confirm.');
-                $import->update(['confirmed_by' => $actorId, 'confirmed_at' => now()]);
+                $import->update(['confirmed_by_admin_id' => $adminId, 'confirmed_at' => now()]);
             }
 
             return $import;

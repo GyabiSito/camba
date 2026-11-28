@@ -3,6 +3,7 @@
 namespace Tests\Feature\Imports;
 
 use App\Jobs\ApplyCatalogImport;
+use App\Models\Admin;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\User;
@@ -31,14 +32,14 @@ class CatalogImportTest extends TestCase
         TestDatabase::assertIsolated($this);
     }
 
-    public function test_template_and_imports_require_the_verified_admin_gate(): void
+    public function test_template_and_imports_require_the_admin_guard(): void
     {
         $this->get(self::BASE.'/template')->assertUnauthorized();
         $this->signIn(User::factory()->create());
-        $this->getJson(self::BASE.'/123')->assertForbidden();
+        $this->getJson(self::BASE.'/123')->assertUnauthorized();
         $this->signIn(User::factory()->unverified()->create(['role' => 'admin']));
-        $this->postJson(self::BASE.'/123/confirm')->assertForbidden();
-        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->postJson(self::BASE.'/123/confirm')->assertUnauthorized();
+        $this->signIn($this->adminIdentity());
 
         $response = $this->getJson(self::BASE.'/template')->assertOk()->assertDownload('catalog-import.csv');
         $this->assertStringContainsString(self::HEADER, $response->streamedContent());
@@ -47,7 +48,7 @@ class CatalogImportTest extends TestCase
     public function test_preview_deduplicates_files_reports_invalid_rows_and_applies_only_valid_skus(): void
     {
         Queue::fake();
-        $admin = User::factory()->create(['role' => 'admin']);
+        $admin = $this->adminIdentity();
         $this->signIn($admin);
         $category = Category::create(['name' => 'Home', 'slug' => 'home', 'active' => true]);
         $product = Product::forceCreate([
@@ -65,9 +66,9 @@ class CatalogImportTest extends TestCase
         $this->assertDatabaseCount('products', 1);
         $this->assertSame(100, $product->fresh()->price_cents);
 
-        $this->postJson("$path/confirm")->assertAccepted()->assertJsonPath('data.status', 'queued')->assertJsonPath('data.confirmed_by', $admin->id);
-        $this->signIn(User::factory()->create(['role' => 'admin']));
-        $this->postJson("$path/confirm")->assertAccepted()->assertJsonPath('data.confirmed_by', $admin->id);
+        $this->postJson("$path/confirm")->assertAccepted()->assertJsonPath('data.status', 'queued')->assertJsonPath('data.confirmed_by_admin_id', $admin->id);
+        $this->signIn($this->adminIdentity());
+        $this->postJson("$path/confirm")->assertAccepted()->assertJsonPath('data.confirmed_by_admin_id', $admin->id);
         Queue::assertPushed(ApplyCatalogImport::class);
         $this->runJob($preview['id']);
         $this->runJob($preview['id']);
@@ -80,13 +81,13 @@ class CatalogImportTest extends TestCase
         $this->assertDatabaseHas('products', ['sku' => 'NEW', 'price_cents' => 2399, 'status' => 'draft']);
         $this->assertDatabaseCount('products', 2);
         $this->assertDatabaseCount('product_adjustments', 1);
-        $this->assertDatabaseHas('product_adjustments', ['product_id' => $product->id, 'actor_id' => $admin->id, 'price_cents' => 1234]);
+        $this->assertDatabaseHas('product_adjustments', ['product_id' => $product->id, 'actor_admin_id' => $admin->id, 'price_cents' => 1234]);
     }
 
     public function test_interrupted_worker_resumes_preexisting_progress_and_reports_changes_after_preview(): void
     {
         Queue::fake();
-        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->signIn($this->adminIdentity());
         Category::create(['name' => 'Home', 'slug' => 'home', 'active' => true]);
         $product = Product::forceCreate(['sku' => 'OLD', 'slug' => 'old', 'name' => 'Previous']);
         $preview = $this->preview(self::HEADER."ONE,Mug,1,1,home,,,\nTWO,Cup,2,1,home,,,\nOLD,Preview name,,,,,,\n")
@@ -121,7 +122,7 @@ class CatalogImportTest extends TestCase
 
     public function test_confirmation_survives_a_queue_outage_and_can_be_dispatched_again(): void
     {
-        $admin = User::factory()->create(['role' => 'admin']);
+        $admin = $this->adminIdentity();
         $this->signIn($admin);
         Category::create(['name' => 'Home', 'slug' => 'home', 'active' => true]);
         $row = $this->preview(self::HEADER."NEW,Mug,1,1,home,,,\n")->assertCreated()->json('data');
@@ -135,15 +136,15 @@ class CatalogImportTest extends TestCase
             Bus::swap($originalBus);
         }
 
-        $this->getJson($path)->assertJsonPath('data.status', 'queued')->assertJsonPath('data.confirmed_by', $admin->id);
+        $this->getJson($path)->assertJsonPath('data.status', 'queued')->assertJsonPath('data.confirmed_by_admin_id', $admin->id);
         Queue::fake();
-        $this->postJson("$path/confirm")->assertAccepted()->assertJsonPath('data.confirmed_by', $admin->id);
+        $this->postJson("$path/confirm")->assertAccepted()->assertJsonPath('data.confirmed_by_admin_id', $admin->id);
         Queue::assertPushed(ApplyCatalogImport::class, 1);
     }
 
     public function test_xlsx_accepts_values_but_never_consumes_cached_formula_results(): void
     {
-        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->signIn($this->adminIdentity());
         Category::create(['name' => 'Home', 'slug' => 'home', 'active' => true]);
         $namespace = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
         $header = '<row r="1">'.implode('', array_map(fn ($col, $name) => "<c r=\"{$col}1\" t=\"inlineStr\"><is><t>$name</t></is></c>", range('A', 'H'), explode(',', trim(self::HEADER)))).'</row>';
@@ -159,7 +160,7 @@ class CatalogImportTest extends TestCase
 
     public function test_unsafe_zip_entries_and_excessive_csv_rows_never_create_a_preview(): void
     {
-        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->signIn($this->adminIdentity());
         $archive = $this->xlsx('<worksheet/>', ['../outside.xml' => '<outside/>']);
 
         $this->postJson(self::BASE, ['file' => UploadedFile::fake()->createWithContent('bad.xlsx', $archive)])
@@ -172,7 +173,7 @@ class CatalogImportTest extends TestCase
     public function test_photo_references_must_belong_to_the_sku_and_still_exist_when_applied(): void
     {
         Queue::fake();
-        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->signIn($this->adminIdentity());
         $category = Category::create(['name' => 'Home', 'slug' => 'home', 'active' => true]);
         $owner = Product::forceCreate(['sku' => 'OWNER', 'slug' => 'owner', 'name' => 'Before']);
         Product::forceCreate(['sku' => 'OTHER', 'slug' => 'other', 'name' => 'Other']);
@@ -205,10 +206,10 @@ class CatalogImportTest extends TestCase
         return $this->postJson(self::BASE, ['file' => UploadedFile::fake()->createWithContent('example.csv', $csv)]);
     }
 
-    private function signIn(User $user): void
+    private function signIn(User|Admin $user): void
     {
         $this->app['auth']->forgetGuards();
-        $this->withHeader('Origin', 'http://localhost')->actingAs($user, 'web');
+        $this->withHeader('Origin', 'http://localhost')->actingAs($user, $user instanceof Admin ? 'admin' : 'web');
     }
 
     private function runJob(int $id): void

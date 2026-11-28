@@ -49,7 +49,7 @@ class BuyerPaymentStateTest extends TestCase
 
         $this->actingAs(User::factory()->create(), 'web')
             ->getJson('/api/v1/orders/'.$order->reference)->assertNotFound();
-        $this->actingAs(User::factory()->create(['role' => 'admin']), 'web')
+        $this->actingAs($this->adminIdentity(), 'admin')
             ->getJson('/api/v1/admin/orders/'.$order->reference)->assertOk()
             ->assertJsonPath('data.status', 'paid')
             ->assertJsonPath('payment.observations.0.status', 'approved');

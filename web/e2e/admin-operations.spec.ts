@@ -67,7 +67,7 @@ async function authorize(page: Page) {
       },
     }),
   );
-  await page.route('**/sanctum/csrf-cookie', (route) => route.fulfill({ status: 204 }));
+  await page.route('**/api/v1/admin/auth/csrf-cookie', (route) => route.fulfill({ status: 204 }));
 }
 
 test('filters and pages orders, retains notes on conflict, then completes a pickup', async ({
@@ -316,7 +316,7 @@ test('a verified administrator can record settings and pickup progress through L
 }) => {
   await page.goto('/configuracion');
   await expect(page.getByRole('heading', { name: 'Ingresar a administración' })).toBeVisible();
-  await page.getByLabel('Correo electrónico').fill('ops-admin@camba.test');
+  await page.getByLabel('Correo electrónico').fill('a11y-admin@camba.test');
   await page.getByLabel('Contraseña').fill('Camba-test-only-2026');
   const session = page.waitForResponse(
     (response) => response.url().endsWith('/api/v1/admin/session') && response.ok(),

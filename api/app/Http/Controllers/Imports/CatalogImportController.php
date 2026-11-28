@@ -23,7 +23,7 @@ class CatalogImportController
 
     public function store(PreviewCatalogImportRequest $request, PreviewCatalogImport $preview): JsonResponse
     {
-        $import = $preview->execute($request->file('file'), $request->user()->id);
+        $import = $preview->execute($request->file('file'), $request->user('admin')->id);
 
         return $this->resource($import)->response()->setStatusCode($import->wasRecentlyCreated ? 201 : 200);
     }
@@ -35,7 +35,7 @@ class CatalogImportController
 
     public function confirm(Request $request, string $id, ConfirmCatalogImport $confirm): JsonResponse
     {
-        return $this->resource($confirm->execute($id, $request->user()->id))->response()->setStatusCode(202);
+        return $this->resource($confirm->execute($id, $request->user('admin')->id))->response()->setStatusCode(202);
     }
 
     private function resource(CatalogImport $import): CatalogImportResource

@@ -1,6 +1,7 @@
 <?php
 
 use App\Actions\Notices\RecordOrderMail;
+use App\Models\Admin;
 use App\Models\Brand;
 use App\Models\BuyerReminderPreference;
 use App\Models\Cart;
@@ -32,15 +33,10 @@ $account = fn (string $name, string $email, string $role) => User::query()->forc
     'email_verified_at' => now(),
     'role' => $role,
 ]);
-$account('Camba Mesa', 'admin@camba.test', 'admin');
-$account('Operaciones Camba', 'ops-admin@camba.test', 'admin');
+Admin::query()->create(['name' => 'Camba Mesa', 'email' => 'a11y-admin@camba.test', 'password' => 'Camba-test-only-2026']);
 $buyer = $account('Cliente Camba', 'buyer@camba.test', 'buyer');
-$account('Accesibilidad Camba', 'a11y-admin@camba.test', 'admin');
 foreach (['cart', 'tabs', 'stock', 'profile', 'sync', 'delivery', 'payment-retry', 'payment-expired', 'payment-approved', 'payment-abandoned', 'admin-denied'] as $scenario) {
     $account('Comprador de prueba', "buyer-$scenario@camba.test", 'buyer');
-}
-foreach (['catalog', 'upload', 'fixture', 'legal'] as $scenario) {
-    $account('Camba Mesa', "$scenario-admin@camba.test", 'admin');
 }
 $brand = Brand::create(['name' => 'Taller', 'slug' => 'taller', 'active' => true]);
 $categories = collect([

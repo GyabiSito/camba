@@ -14,7 +14,7 @@ class PreviewCatalogImport
 {
     public function __construct(private ReadCatalogSpreadsheet $reader, private CheckImportPhotos $photos) {}
 
-    public function execute(UploadedFile $file, int $actorId): CatalogImport
+    public function execute(UploadedFile $file, int $adminId): CatalogImport
     {
         $hash = hash_file('sha256', $file->getRealPath());
         if ($existing = CatalogImport::query()->where('sha256', $hash)->first()) {
@@ -51,8 +51,8 @@ class PreviewCatalogImport
             ];
         }
 
-        return DB::transaction(function () use ($hash, $actorId, $ledger): CatalogImport {
-            $import = CatalogImport::query()->createOrFirst(['sha256' => $hash], ['uploaded_by' => $actorId]);
+        return DB::transaction(function () use ($hash, $adminId, $ledger): CatalogImport {
+            $import = CatalogImport::query()->createOrFirst(['sha256' => $hash], ['uploaded_by_admin_id' => $adminId]);
             if ($import->wasRecentlyCreated) {
                 $import->rows()->createMany($ledger);
             }

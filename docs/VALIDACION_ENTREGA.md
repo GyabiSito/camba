@@ -28,7 +28,7 @@ docker @compose up -d --no-build --pull never --wait --wait-timeout 300
 
 Para un arranque con base **nueva**, levantá `api` y sus dependencias primero (`docker @compose up -d --no-build --pull never --wait api`), ejecutá `docker @compose exec -T api php artisan migrate --force --no-interaction` y recién luego levantá el resto. La tienda SSR necesita el esquema para responder, por lo que no conviene esperar que esté sana antes de migrar.
 
-Si necesitás otro administrador local: registralo en la tienda, abrí su enlace de verificación en Mailpit y recién entonces ejecutá `docker @compose exec -T api php artisan camba:grant-admin correo-verificado@camba.test` con ese correo. No existe usuario por defecto. El servidor de desarrollo no debe exponerse en Internet.
+Si la cuenta de Admin aún no existe, ejecutá `docker @compose exec api php artisan camba:admin admin@camba.test` y completá las preguntas de contraseña. Para adoptar una cuenta anterior verificada, indicá su correo exacto y agregá `--from-legacy`. Solo puede existir una cuenta administrativa; no se crea desde la Tienda. El servidor de desarrollo no debe exponerse en Internet.
 
 ## Validaciones que requieren otras capacidades
 

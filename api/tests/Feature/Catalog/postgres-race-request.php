@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Admin;
 use App\Models\User;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
@@ -7,7 +8,9 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-if (PHP_SAPI !== 'cli' || getenv('APP_ENV') !== 'testing' || ! getenv('CAMBA_CATALOG_TEST_ACTOR') || ! getenv('CAMBA_CATALOG_TEST_MEDIA')) {
+$realm = getenv('CAMBA_CATALOG_TEST_ACTOR_REALM');
+if (PHP_SAPI !== 'cli' || getenv('APP_ENV') !== 'testing' || ! getenv('CAMBA_CATALOG_TEST_ACTOR') || ! getenv('CAMBA_CATALOG_TEST_MEDIA')
+    || ! in_array($realm, ['admin', 'web'], true)) {
     exit(2);
 }
 
@@ -27,7 +30,7 @@ config(['filesystems.disks.public.root' => getenv('CAMBA_CATALOG_TEST_MEDIA')]);
 $files = ($body['photo'] ?? false) ? ['photos' => [UploadedFile::fake()->image('phone.png', 60, 40)]] : [];
 DB::selectOne("SELECT set_config('application_name', ?, false)", ['camba_catalog_contention_worker_'.getmypid()]);
 $connection = (int) DB::selectOne('SELECT pg_backend_pid() AS id')->id;
-$actor = User::findOrFail(getenv('CAMBA_CATALOG_TEST_ACTOR'));
+$actor = ($realm === 'admin' ? Admin::class : User::class)::findOrFail(getenv('CAMBA_CATALOG_TEST_ACTOR'));
 $gate = $argv[2] ?? '';
 if ($gate === '' || ! is_dir($gate) || file_put_contents($gate.'/ready-'.$connection, 'ready') === false) {
     exit(2);
@@ -50,7 +53,7 @@ $request = Request::create($uri, $method, [], [], $files, [
 ], $files || $body === [] ? null : json_encode($body, JSON_THROW_ON_ERROR));
 $request->headers->add($headers);
 $app->instance('request', $request);
-Auth::guard('web')->setUser($actor);
+Auth::guard($realm)->setUser($actor);
 $response = $kernel->handle($request);
 echo json_encode([
     'connection' => $connection,

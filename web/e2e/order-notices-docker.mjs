@@ -34,10 +34,11 @@ async function browserPage(origin) {
 
 async function mutate(page, path, body, method = 'POST', extra = {}) {
   const origin = new URL(page.url()).origin;
-  const csrf = await page.request.get(origin + '/sanctum/csrf-cookie', { headers: { Origin: origin } });
+  const isAdmin = path.startsWith('/api/v1/admin/');
+  const csrf = await page.request.get(origin + (isAdmin ? '/api/v1/admin/auth/csrf-cookie' : '/sanctum/csrf-cookie'), { headers: { Origin: origin } });
   assert.equal(csrf.status(), 204);
   const cookies = await page.context().cookies(origin);
-  const csrfToken = decodeURIComponent(cookies.find(cookie => cookie.name === 'XSRF-TOKEN').value);
+  const csrfToken = decodeURIComponent(cookies.find(cookie => cookie.name === (isAdmin ? 'CAMBA-ADMIN-XSRF-TOKEN' : 'XSRF-TOKEN')).value);
   return page.request.fetch(origin + path, {
     method, data: body, headers: { Origin: origin, Accept: 'application/json', 'X-XSRF-TOKEN': csrfToken, ...extra },
   });

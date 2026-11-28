@@ -69,12 +69,57 @@ paths:
   /api/v1/admin/session:
     get:
       operationId: getAdminSession
-      description: Returns the current user only when the server recognizes a verified administrator.
-      security: [{ sessionCookie: [] }]
+      description: Returns the administrator authenticated by the separate Admin guard.
+      security: [{ adminSessionCookie: [] }]
       responses:
-        '200': { $ref: '#/components/responses/UserEnvelope' }
+        '200':
+          description: Administrator name and email
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [name, email]
+                    properties:
+                      name: { type: string }
+                      email: { type: string, format: email }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
+  /api/v1/admin/auth/csrf-cookie:
+    get:
+      operationId: initializeAdminCsrfCookie
+      description: Obtain the dedicated Admin session and CAMBA-ADMIN-XSRF-TOKEN cookies.
+      responses:
+        '204': { description: Admin CSRF cookie initialized }
+        '404': { description: Admin is unavailable on this production host }
+  /api/v1/admin/auth/login:
+    post:
+      operationId: signInAdmin
+      description: Authenticates only credentials stored in admins. Send the decoded Admin CSRF token as X-XSRF-TOKEN.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, format: password, description: Maximum 72 UTF-8 bytes }
+      responses:
+        '204': { description: Admin authenticated with a regenerated session }
+        '419': { description: Missing or invalid Admin CSRF token }
+        '422': { description: Invalid fields or Admin credentials }
+        '429': { description: Too many requests }
+  /api/v1/admin/auth/logout:
+    post:
+      operationId: signOutAdmin
+      security: [{ adminSessionCookie: [] }]
+      responses:
+        '204': { description: Admin session ended; Store session unaffected }
+        '401': { description: No authenticated Admin session }
+        '419': { description: Missing or invalid Admin CSRF token }
   /api/v1/auth/forgot-password:
     post:
       operationId: requestPasswordReset
@@ -484,7 +529,7 @@ paths:
     get:
       operationId: getAdminDashboard
       description: Private operational priorities, five recent order summaries, and confirmed sales in the configured store timezone.
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       externalDocs: { url: docs/dashboard.md }
       responses:
         '200':
@@ -499,12 +544,11 @@ paths:
                 properties:
                   data: { $ref: '#/components/schemas/AdminDashboard' }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
   /api/v1/admin/users:
     get:
       operationId: listAdminCustomers
       description: Verified administrator only. Buyer accounts, newest registration first, without saved addresses.
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       parameters:
         - { name: q, in: query, description: Case-insensitive literal substring of name or email., schema: { type: string, maxLength: 120 } }
         - { name: page, in: query, schema: { type: integer, minimum: 1 } }
@@ -520,14 +564,13 @@ paths:
                   data: { type: array, items: { $ref: '#/components/schemas/AdminCustomerRow' } }
                   meta: { $ref: '#/components/schemas/AdminCustomerPage' }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '422': { description: Invalid search }
   /api/v1/admin/users/{customer}:
     parameters:
       - { name: customer, in: path, required: true, schema: { type: integer, minimum: 1 } }
     get:
       operationId: getAdminCustomer
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       responses:
         '200':
           description: Buyer account and its current saved addresses, not checkout snapshots. Private and not cacheable.
@@ -539,7 +582,6 @@ paths:
                 properties:
                   data: { $ref: '#/components/schemas/AdminCustomerDetail' }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '404': { description: No such buyer account }
   /api/v1/admin/users/{customer}/orders:
     parameters:
@@ -547,7 +589,7 @@ paths:
     get:
       operationId: listAdminCustomerOrders
       description: Orders linked by the recorded buyer account ID; contact email is not consulted.
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       parameters:
         - { name: page, in: query, schema: { type: integer, minimum: 1 } }
       responses:
@@ -562,12 +604,11 @@ paths:
                   data: { type: array, items: { $ref: '#/components/schemas/AdminCustomerOrder' } }
                   meta: { $ref: '#/components/schemas/AdminCustomerPage' }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '404': { description: No such buyer account }
   /api/v1/admin/orders:
     get:
       operationId: listAdminOrders
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       parameters:
         - { name: status, in: query, schema: { type: string, enum: [pending_payment, paid, payment_expired, payment_review, refunded, charged_back] } }
         - { name: fulfilment_status, in: query, description: '`needs_preparation` matches unstarted and preparing without changing payment status.', schema: { type: string, enum: [unstarted, preparing, ready_for_pickup, shipped, completed, needs_preparation] } }
@@ -579,14 +620,13 @@ paths:
       responses:
         '200': { description: Latest matching order summaries (25 per page) and the total after applying all filters }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '422': { description: Invalid filter values }
   /api/v1/admin/orders/{reference}:
     parameters:
       - { name: reference, in: path, required: true, schema: { type: string, format: uuid } }
     get:
       operationId: getAdminOrder
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       externalDocs: { url: docs/orders.md }
       responses:
         '200':
@@ -624,14 +664,13 @@ paths:
                             amount_cents: { type: integer }
                             updated_at: { type: string, format: date-time, description: The provider timestamp for the observed payment state }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '404': { description: Order not found }
   /api/v1/admin/orders/{reference}/fulfilment:
     parameters:
       - { name: reference, in: path, required: true, schema: { type: string, format: uuid } }
     patch:
       operationId: fulfilOrder
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       requestBody:
         required: true
         content:
@@ -646,7 +685,6 @@ paths:
       responses:
         '200': { description: Updated order and persisted fulfilment transition }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '404': { description: Order not found }
         '409': { description: Unavailable transition or order is not currently paid }
         '419': { description: Missing or invalid CSRF token }
@@ -656,11 +694,10 @@ paths:
       - { name: reference, in: path, required: true, schema: { type: string, format: uuid } }
     post:
       operationId: requestAdminPaymentRefresh
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       responses:
         '202': { description: A server-side lookup is scheduled or already pending }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '404': { description: Order not found }
         '409': { description: Mercado Pago is not configured or the order has no provider evidence }
         '419': { description: Missing or invalid CSRF token }
@@ -707,7 +744,7 @@ paths:
   /api/v1/admin/notices:
     get:
       operationId: listAdminNotices
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       externalDocs: { url: docs/notices.md }
       parameters:
         - { name: state, in: query, schema: { type: string, enum: [active, resolved, failed, uncertain] } }
@@ -734,7 +771,6 @@ paths:
                   kinds: { type: object, additionalProperties: { type: string }, description: Public labels keyed by operational notice kind }
                   links: { type: object }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
   /api/v1/homepage:
     get:
       operationId: getPublishedHomepage
@@ -753,15 +789,14 @@ paths:
   /api/v1/admin/homepage:
     get:
       operationId: getHomepageEditor
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       responses:
         '200': { $ref: '#/components/responses/HomepageEditor' }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
     put:
       operationId: saveHomepageDraft
       description: Replaces the draft, never the published document. Send the latest editor revision with the full document.
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       requestBody:
         required: true
         content:
@@ -775,7 +810,6 @@ paths:
       responses:
         '200': { $ref: '#/components/responses/HomepageEditor' }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '409': { description: The editor revision is stale; fetch the current state }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Invalid homepage configuration }
@@ -783,21 +817,19 @@ paths:
     get:
       operationId: previewHomepageDraft
       description: Returns the saved draft, or the published document when there is no draft. This response must not be cached or transferred into public SSR.
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       responses:
         '200': { $ref: '#/components/responses/HomepagePublication' }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
   /api/v1/admin/homepage/publish:
     post:
       operationId: publishHomepageDraft
       description: Atomically publishes the saved draft and makes its referenced image URLs public. Existing public renditions are kept.
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       requestBody: { $ref: '#/components/requestBodies/HomepageRevision' }
       responses:
         '200': { $ref: '#/components/responses/HomepageEditor' }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '409': { description: The editor revision is stale }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Invalid revision or no draft to publish }
@@ -805,12 +837,11 @@ paths:
     post:
       operationId: discardHomepageDraft
       description: Removes the draft without modifying the live publication or the image library.
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       requestBody: { $ref: '#/components/requestBodies/HomepageRevision' }
       responses:
         '200': { $ref: '#/components/responses/HomepageEditor' }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '409': { description: The editor revision is stale }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Invalid revision }
@@ -818,7 +849,7 @@ paths:
     post:
       operationId: uploadHomepageImage
       description: Normalize JPEG, PNG or WebP into WebP display and thumbnail renditions. Maximum 10 MiB and 4096 pixels per side. Uploaded media is private until referenced by a successful publication.
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       requestBody:
         required: true
         content:
@@ -843,20 +874,18 @@ paths:
                       key: { type: string, format: uuid }
                       asset: { $ref: '#/components/schemas/HomepageAsset' }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: 'Invalid file type, size, dimensions, or image data' }
   /api/v1/admin/homepage/media/{key}/{variant}:
     get:
       operationId: getHomepageLibraryImage
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       parameters:
         - $ref: '#/components/parameters/HomepageImageKey'
         - $ref: '#/components/parameters/HomepageImageVariant'
       responses:
         '200': { $ref: '#/components/responses/HomepageImage' }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '404': { description: Unknown image }
   /api/v1/store-info:
     get:
@@ -896,15 +925,14 @@ paths:
   /api/v1/admin/settings:
     get:
       operationId: getStoreSettings
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       externalDocs: { url: docs/settings.md }
       responses:
         '200': { description: Effective operational settings }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
     patch:
       operationId: updateStoreSettings
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       externalDocs: { url: docs/settings.md }
       requestBody:
         required: true
@@ -930,17 +958,15 @@ paths:
       responses:
         '200': { description: Effective settings after the committed update }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Invalid or unsupported setting }
   /api/v1/admin/settings/history:
     get:
       operationId: getStoreSettingsHistory
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       responses:
         '200': { description: Latest changes with before/after values and administrator ID }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
   /api/v1/products:
     get:
       operationId: browseProducts
@@ -978,7 +1004,7 @@ paths:
   /api/v1/admin/products:
     get:
       operationId: listAdminProducts
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       externalDocs: { url: docs/catalog.md }
       parameters:
         - { name: status, in: query, schema: { type: string, enum: [draft, published, archived] } }
@@ -986,16 +1012,14 @@ paths:
       responses:
         '200': { description: Product page with lifecycle state }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
     post:
       operationId: createProductDraft
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       externalDocs: { url: docs/catalog.md }
       requestBody: { $ref: '#/components/requestBodies/ProductWrite' }
       responses:
         '201': { description: Draft with stable SKU and slug }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Invalid product fields }
   /api/v1/admin/products/{product}:
@@ -1003,18 +1027,16 @@ paths:
       - { name: product, in: path, required: true, schema: { type: integer } }
     get:
       operationId: getAdminProduct
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       responses:
         '200': { description: 'Product detail with lifecycle state and the configured storefront URL in store_url' }
-        '403': { description: Verified administrator required }
         '404': { description: Product not found }
     patch:
       operationId: updateProduct
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       requestBody: { $ref: '#/components/requestBodies/ProductWrite' }
       responses:
         '200': { description: Product updated without changing SKU or slug }
-        '403': { description: Verified administrator required }
         '404': { description: Product not found }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Invalid fields or published product prerequisites not met }
@@ -1024,21 +1046,19 @@ paths:
     get:
       operationId: getProductAdjustments
       description: Newest-first page of committed price and stock edits with previous/current values and actor.
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       responses:
         '200': { description: 'Paginated adjustment history, not shared-cacheable' }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '404': { description: Product not found }
   /api/v1/admin/products/{product}/publish:
     parameters:
       - { name: product, in: path, required: true, schema: { type: integer } }
     post:
       operationId: publishProduct
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       responses:
         '200': { description: Product published }
-        '403': { description: Verified administrator required }
         '404': { description: Product not found }
         '409': { description: Product already published }
         '419': { description: Missing or invalid CSRF token }
@@ -1048,10 +1068,9 @@ paths:
       - { name: product, in: path, required: true, schema: { type: integer } }
     post:
       operationId: archiveProduct
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       responses:
         '200': { description: Product archived and removed from public browse }
-        '403': { description: Verified administrator required }
         '404': { description: Product not found }
         '409': { description: Product already archived }
         '419': { description: Missing or invalid CSRF token }
@@ -1060,7 +1079,7 @@ paths:
       - { name: product, in: path, required: true, schema: { type: integer } }
     post:
       operationId: uploadProductImages
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       description: Append photos in multipart order, up to five total including the cover. To recover an uncertain response, resend the same ordered files with the same key; the current gallery is returned without appending again.
       parameters:
         - name: Idempotency-Key
@@ -1072,7 +1091,6 @@ paths:
       responses:
         '201': { description: Admin product with the current gallery in display order on both initial upload and replay; first image is the cover }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '404': { description: Product not found }
         '409': { description: This key already completed with different file bytes or a different file order }
         '419': { description: Missing or invalid CSRF token }
@@ -1083,7 +1101,7 @@ paths:
       - { name: product, in: path, required: true, schema: { type: integer } }
     post:
       operationId: recoverableProductImageUpload
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       description: Append up to five photos total including the cover. Do not fall back to the unkeyed route.
       parameters:
         - name: Idempotency-Key
@@ -1095,7 +1113,6 @@ paths:
       responses:
         '201': { description: Admin product with the current gallery in display order on both initial upload and replay; first image is the cover }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '404': { description: Product not found }
         '409': { description: The key was closed or already completed with different ordered file bytes }
         '419': { description: Missing or invalid CSRF token }
@@ -1104,7 +1121,7 @@ paths:
   /api/v1/admin/products/{product}/images/uploads/replace:
     post:
       operationId: replaceProductImage
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       description: Replace one saved photo without changing its slot or ID. Replay the exact file and replacement ID with the same key after an uncertain response. Never fall back to an append route.
       parameters:
         - { name: product, in: path, required: true, schema: { type: integer } }
@@ -1113,7 +1130,6 @@ paths:
       responses:
         '201': { description: Admin product with the current gallery in display order on initial upload and replay }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '404': { description: Product not found }
         '409': { description: The key was closed or already used with different bytes or target }
         '419': { description: Missing or invalid CSRF token }
@@ -1122,7 +1138,7 @@ paths:
   /api/v1/admin/products/{product}/images/uploads/close:
     post:
       operationId: closeProductImageUpload
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       description: Close an uncertain upload. Keeps any committed changes and prevents a late upload with that key from appending or replacing.
       parameters:
         - { name: product, in: path, required: true, schema: { type: integer } }
@@ -1130,7 +1146,6 @@ paths:
       responses:
         '200': { description: Current product and gallery; repeated closes are safe }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '404': { description: Product not found }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Missing or invalid Idempotency-Key }
@@ -1139,7 +1154,7 @@ paths:
       - { name: product, in: path, required: true, schema: { type: integer } }
     put:
       operationId: orderProductImages
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       requestBody:
         required: true
         content:
@@ -1156,14 +1171,13 @@ paths:
       responses:
         '200': { description: Admin product with first image as the cover }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '404': { description: Product not found }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Stale gallery list or invalid image IDs }
   /api/v1/admin/catalog-imports/template:
     get:
       operationId: downloadCatalogImportTemplate
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       externalDocs: { url: docs/imports.md }
       responses:
         '200':
@@ -1171,11 +1185,10 @@ paths:
           content:
             text/csv: { schema: { type: string } }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
   /api/v1/admin/catalog-imports:
     post:
       operationId: previewCatalogImport
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       externalDocs: { url: docs/imports.md }
       requestBody:
         required: true
@@ -1190,7 +1203,6 @@ paths:
         '200': { description: Existing ledger for identical file bytes }
         '201': { description: New preview and per-row validation ledger }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '419': { description: Missing or invalid CSRF token }
         '422': { description: Invalid import file }
   /api/v1/admin/catalog-imports/{id}:
@@ -1198,22 +1210,20 @@ paths:
       - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
     get:
       operationId: getCatalogImport
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       responses:
         '200': { description: Ledger preview or durable row status and results }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '404': { description: Import not found }
   /api/v1/admin/catalog-imports/{id}/confirm:
     parameters:
       - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
     post:
       operationId: confirmCatalogImport
-      security: [{ sessionCookie: [] }]
+      security: [{ adminSessionCookie: [] }]
       responses:
         '202': { description: Valid pending rows queued or already processed }
         '401': { description: No authenticated session }
-        '403': { description: Verified administrator required }
         '404': { description: Import not found }
         '409': { description: No valid pending rows to confirm }
         '419': { description: Missing or invalid CSRF token }
@@ -1669,6 +1679,7 @@ components:
       schema: { type: string, enum: [display, thumbnail] }
   securitySchemes:
     sessionCookie: { type: apiKey, in: cookie, name: camba_session }
+    adminSessionCookie: { type: apiKey, in: cookie, name: camba_admin_session }
   responses:
     GeographyOptions:
       description: Directory options as stable numeric IDs and display names

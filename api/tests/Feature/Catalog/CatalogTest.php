@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Catalog;
 
+use App\Models\Admin;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -34,7 +35,7 @@ class CatalogTest extends TestCase
     {
         $this->getJson('/api/v1/products')->assertOk()->assertJsonCount(0, 'data');
 
-        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->signIn($this->adminIdentity());
         $category = $this->classification('categories', 'Home');
         $otherCategory = $this->classification('categories', 'Outdoor');
         $brand = $this->classification('brands', 'Senda');
@@ -79,7 +80,7 @@ class CatalogTest extends TestCase
         }
     }
 
-    public function test_admin_catalog_reuses_the_verified_admin_gate(): void
+    public function test_admin_catalog_reuses_the_admin_guard(): void
     {
         $productPath = '/api/v1/admin/products';
         $categoryPath = '/api/v1/admin/categories';
@@ -88,14 +89,14 @@ class CatalogTest extends TestCase
         $this->getJson($productPath)->assertUnauthorized();
         $this->postJson($categoryPath, ['name' => 'Hidden'])->assertUnauthorized();
         $this->signIn(User::factory()->create());
-        $this->getJson($productPath)->assertForbidden();
-        $this->getJson("$productPath/999999")->assertForbidden();
-        $this->postJson("$productPath/999999/publish")->assertForbidden();
-        $this->postJson($brandPath, ['name' => 'Hidden'])->assertForbidden();
+        $this->getJson($productPath)->assertUnauthorized();
+        $this->getJson("$productPath/999999")->assertUnauthorized();
+        $this->postJson("$productPath/999999/publish")->assertUnauthorized();
+        $this->postJson($brandPath, ['name' => 'Hidden'])->assertUnauthorized();
         $this->signIn(User::factory()->unverified()->create(['role' => 'admin']));
-        $this->getJson($brandPath)->assertForbidden();
-        $this->postJson($productPath, ['name' => 'Hidden'])->assertForbidden();
-        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->getJson($brandPath)->assertUnauthorized();
+        $this->postJson($productPath, ['name' => 'Hidden'])->assertUnauthorized();
+        $this->signIn($this->adminIdentity());
         $this->getJson($productPath)->assertOk()->assertJsonCount(0, 'data');
         $this->getJson("$productPath/999999")->assertNotFound();
         $this->assertDatabaseCount('categories', 0);
@@ -106,7 +107,7 @@ class CatalogTest extends TestCase
     public function test_product_lifecycle_keeps_an_exact_price_and_stable_identifiers(): void
     {
         config(['app.url' => 'https://tienda.example.test']);
-        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->signIn($this->adminIdentity());
         $category = $this->classification('categories', 'Home');
         $brand = $this->classification('brands', 'Senda');
         $product = $this->draft(['name' => 'Mug']);
@@ -146,7 +147,7 @@ class CatalogTest extends TestCase
 
     public function test_classifications_are_flat_and_cannot_hide_existing_published_products(): void
     {
-        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->signIn($this->adminIdentity());
         $category = $this->classification('categories', 'Home');
         $brand = $this->classification('brands', 'Senda');
         $categoryPath = "/api/v1/admin/categories/{$category['id']}";
@@ -176,7 +177,7 @@ class CatalogTest extends TestCase
 
     public function test_classification_slugs_fit_the_url_and_database_after_transliteration(): void
     {
-        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->signIn($this->adminIdentity());
         $category = $this->classification('categories', str_repeat('@', 120));
 
         $this->assertLessThanOrEqual(160, strlen($category['slug']));
@@ -185,7 +186,7 @@ class CatalogTest extends TestCase
 
     public function test_product_identifier_collision_does_not_replace_the_existing_product(): void
     {
-        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->signIn($this->adminIdentity());
         $ulid = Str::ulid();
         Str::createUlidsUsing(fn () => $ulid);
 
@@ -203,7 +204,7 @@ class CatalogTest extends TestCase
     #[DataProvider('invalidDatabaseValues')]
     public function test_database_rejects_invalid_price_stock_and_states(string $field, mixed $value): void
     {
-        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->signIn($this->adminIdentity());
         $product = $this->draft(['name' => 'Mug']);
 
         $this->expectException(QueryException::class);
@@ -224,7 +225,7 @@ class CatalogTest extends TestCase
 
     public function test_product_lists_load_only_covers_and_detail_keeps_the_full_gallery(): void
     {
-        $this->signIn(User::factory()->create(['role' => 'admin']));
+        $this->signIn($this->adminIdentity());
         $category = $this->classification('categories', 'Clothing');
         $products = [];
         foreach (['Shirt', 'Trousers'] as $name) {
@@ -250,7 +251,7 @@ class CatalogTest extends TestCase
 
     public function test_price_and_stock_audit_records_only_committed_changes_and_the_actor(): void
     {
-        $admin = User::factory()->create(['role' => 'admin']);
+        $admin = $this->adminIdentity();
         $this->signIn($admin);
         $product = $this->draft(['price_cents' => 12000, 'stock' => 7]);
         $url = '/api/v1/admin/products/'.$product['id'];
@@ -260,7 +261,7 @@ class CatalogTest extends TestCase
 
         $this->getJson("$url/history")->assertOk()
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.actor_id', $admin->id)
+            ->assertJsonPath('data.0.actor_admin_id', $admin->id)
             ->assertJsonPath('data.0.old_price_cents', 12000)
             ->assertJsonPath('data.0.price_cents', 12450)
             ->assertJsonPath('data.0.old_stock', 7)
@@ -268,13 +269,13 @@ class CatalogTest extends TestCase
         $this->assertDatabaseCount('product_adjustments', 1);
 
         $this->signIn(User::factory()->create());
-        $this->getJson("$url/history")->assertForbidden();
+        $this->getJson("$url/history")->assertUnauthorized();
     }
 
-    private function signIn(User $user): void
+    private function signIn(User|Admin $user): void
     {
         $this->app['auth']->forgetGuards();
-        $this->withHeader('Origin', 'http://localhost')->actingAs($user, 'web');
+        $this->withHeader('Origin', 'http://localhost')->actingAs($user, $user instanceof Admin ? 'admin' : 'web');
     }
 
     private function classification(string $route, string $name): array

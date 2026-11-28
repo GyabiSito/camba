@@ -25,7 +25,7 @@ class ApplyCatalogImportRows
         }
         foreach ($import->rows()->where('status', 'ready')->orderBy('id')->pluck('id') as $rowId) {
             try {
-                DB::transaction(fn () => $this->applyRow($rowId, $import->confirmed_by), 3);
+                DB::transaction(fn () => $this->applyRow($rowId, $import->confirmed_by, $import->confirmed_by_admin_id), 3);
             } catch (ValidationException|ConflictHttpException $error) {
                 // A row's product writes were rolled back before this independent status update.
                 CatalogImportRow::query()->whereKey($rowId)->where('status', 'ready')->update([
@@ -39,7 +39,7 @@ class ApplyCatalogImportRows
             ->update(['completed_at' => now()]);
     }
 
-    private function applyRow(int $id, int $actorId): void
+    private function applyRow(int $id, ?int $actorId, ?int $adminId): void
     {
         $row = CatalogImportRow::query()->lockForUpdate()->findOrFail($id);
         if ($row->status !== 'ready') {
@@ -76,7 +76,7 @@ class ApplyCatalogImportRows
             }
         }
         $result = $product
-            ? $this->saveProduct->update((string) $product->id, $values, actorId: $actorId)
+            ? $this->saveProduct->update((string) $product->id, $values, actorId: $actorId, adminId: $adminId)
             : $this->saveProduct->createForImport($row->sku, $values);
         $row->update(['status' => 'applied', 'product_id' => $result->id, 'changes' => $changes]);
     }

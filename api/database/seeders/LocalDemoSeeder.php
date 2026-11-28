@@ -6,6 +6,7 @@ use App\Actions\Cart\SetCartItem;
 use App\Enums\OrderStatus;
 use App\Enums\ProductStatus;
 use App\Models\Address;
+use App\Models\Admin;
 use App\Models\Brand;
 use App\Models\CatalogImport;
 use App\Models\CatalogImportRow;
@@ -100,8 +101,12 @@ class LocalDemoSeeder extends Seeder
         DB::transaction(function (): void {
             $this->copyDemoImages();
 
-            $buyer = $this->user(self::BUYER_NAME, 'cliente.diseno@camba.test', 'buyer');
-            $admin = $this->user('Administración de demostración', 'admin.diseno@camba.test', 'admin');
+            $buyer = $this->user(self::BUYER_NAME, 'cliente.diseno@camba.test');
+            $admin = Admin::query()->first() ?? Admin::query()->create([
+                'name' => 'Administración de demostración',
+                'email' => 'admin.diseno@camba.test',
+                'password' => self::PASSWORD,
+            ]);
             $categories = $this->classifications(Category::class, [
                 ['name' => 'Remeras', 'slug' => 'remeras'],
                 ['name' => 'Camisas', 'slug' => 'camisas'],
@@ -132,7 +137,7 @@ class LocalDemoSeeder extends Seeder
         }
     }
 
-    private function user(string $name, string $email, string $role): User
+    private function user(string $name, string $email): User
     {
         $user = User::query()->where('email', $email)->first();
         if ($user !== null) {
@@ -144,7 +149,7 @@ class LocalDemoSeeder extends Seeder
             'email' => $email,
             'email_verified_at' => now(),
             'password' => self::PASSWORD,
-            'role' => $role,
+            'role' => 'buyer',
         ]);
     }
 
@@ -303,11 +308,11 @@ class LocalDemoSeeder extends Seeder
         }
     }
 
-    private function import(User $admin, Product $product): void
+    private function import(Admin $admin, Product $product): void
     {
         $import = CatalogImport::query()->firstOrCreate(['sha256' => hash('sha256', 'camba-local-demo-import-v1')], [
-            'uploaded_by' => $admin->id,
-            'confirmed_by' => $admin->id,
+            'uploaded_by_admin_id' => $admin->id,
+            'confirmed_by_admin_id' => $admin->id,
             'confirmed_at' => now(),
             'completed_at' => now(),
         ]);

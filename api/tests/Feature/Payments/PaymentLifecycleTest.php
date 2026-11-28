@@ -199,7 +199,7 @@ class PaymentLifecycleTest extends TestCase
         $this->getJson('/api/v1/cart')->assertOk()->assertJsonCount(0, 'data.items');
         app(ProjectCommerceNotices::class)->execute();
         $this->assertSame(1, CommerceNotice::where('subject_id', $order->id)->where('channel', 'panel')->where('kind', 'order_created')->count());
-        $this->actingAs(User::factory()->create(['role' => 'admin']), 'web')
+        $this->actingAs($this->adminIdentity(), 'admin')
             ->getJson('/api/v1/admin/orders/'.$order->reference)->assertOk()
             ->assertJsonPath('data.status', 'paid')->assertJsonPath('data.fulfilment_status', 'preparing')
             ->assertJsonPath('payment.attempt.status', 'approved');
@@ -280,7 +280,7 @@ class PaymentLifecycleTest extends TestCase
         $this->providerOrderWebhook('refund-complete-replay', action: 'order.refunded')->assertOk();
         $this->artisan('camba:reconcile-payments')->assertSuccessful();
         $this->travel(2)->minutes();
-        $this->actingAs(User::factory()->create(['role' => 'admin']), 'web')
+        $this->actingAs($this->adminIdentity(), 'admin')
             ->postJson('/api/v1/admin/orders/'.$order->reference.'/payments/refresh')->assertAccepted();
         $this->artisan('camba:reconcile-payments')->assertSuccessful();
         $this->assertSame('refunded', $order->fresh()->status->value);
@@ -305,7 +305,7 @@ class PaymentLifecycleTest extends TestCase
     ): void {
         [$order, $approval, $setSnapshot] = $this->paidOrdersCheckoutForChargeback();
         $path = '/api/v1/admin/orders/'.$order->reference;
-        $this->actingAs(User::factory()->create(['role' => 'admin']), 'web');
+        $this->actingAs($this->adminIdentity(), 'admin');
         $order->fresh()->forceFill([
             'shipping_method' => 'delivery',
             ...($blockedStage === 'preparing' ? ['fulfilment_status' => 'unstarted'] : []),
@@ -527,7 +527,7 @@ class PaymentLifecycleTest extends TestCase
         $this->assertDatabaseCount('payments', 2);
         app(ProjectCommerceNotices::class)->execute();
         $this->assertSame(1, CommerceNotice::where('subject_id', $order->id)->where('channel', 'panel')->where('kind', 'order_created')->count());
-        $this->actingAs(User::factory()->create(['role' => 'admin']), 'web')
+        $this->actingAs($this->adminIdentity(), 'admin')
             ->getJson('/api/v1/admin/orders/'.$order->reference)->assertOk()
             ->assertJsonPath('payment.attempt.status', 'approved');
     }
@@ -1036,7 +1036,7 @@ class PaymentLifecycleTest extends TestCase
         $this->artisan('camba:notices')->assertSuccessful();
         $this->assertSame(['mail', 'panel'], $paidNotices());
         $this->assertSame(1, $this->stock($order));
-        $this->actingAs(User::factory()->create(['role' => 'admin']), 'web')
+        $this->actingAs($this->adminIdentity(), 'admin')
             ->getJson('/api/v1/admin/orders/'.$order->reference)->assertOk()
             ->assertJsonPath('data.status', 'paid');
     }
@@ -1283,11 +1283,12 @@ class PaymentLifecycleTest extends TestCase
         $this->assertEquals($due, $order->fresh()->payment_reconcile_at);
         $buyer = User::factory()->create();
         $this->actingAs($buyer, 'web')->postJson($orderPath)->assertNotFound();
-        $this->postJson($adminPath)->assertForbidden();
+        $this->postJson($adminPath)->assertUnauthorized();
         $buyer->forceFill(['role' => 'admin'])->save();
-        $this->actingAs($buyer, 'web')->postJson($adminPath)->assertConflict();
+        $this->actingAs($buyer, 'web')->postJson($adminPath)->assertUnauthorized();
+        $this->actingAs($this->adminIdentity(), 'admin')->postJson($adminPath)->assertConflict();
         $this->recordCheckoutAttempt($order);
-        $this->actingAs($buyer, 'web')->postJson($adminPath)->assertAccepted();
+        $this->postJson($adminPath)->assertAccepted();
         Http::assertNothingSent();
     }
 
@@ -1297,7 +1298,7 @@ class PaymentLifecycleTest extends TestCase
         $order->forceFill(['status' => 'paid', 'paid_at' => now(), 'payment_reconcile_at' => now()->addHour()])->save();
         $scheduled = $order->payment_reconcile_at;
         $path = "/api/v1/admin/orders/$order->reference";
-        $this->actingAs(User::factory()->create(['role' => 'admin']), 'web');
+        $this->actingAs($this->adminIdentity(), 'admin');
         Http::fake([]);
 
         $this->getJson($path)->assertOk()->assertJsonPath('data.status', 'paid')
@@ -1328,7 +1329,7 @@ class PaymentLifecycleTest extends TestCase
         $order = $this->reservedOrder();
         $this->recordCheckoutAttempt($order);
         $path = "/api/v1/admin/orders/$order->reference";
-        $this->actingAs(User::factory()->create(['role' => 'admin']), 'web');
+        $this->actingAs($this->adminIdentity(), 'admin');
         Http::fake([]);
 
         $this->getJson($path)->assertOk()->assertJsonPath('payment.can_request_refresh', true);

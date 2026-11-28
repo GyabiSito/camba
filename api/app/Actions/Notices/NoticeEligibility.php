@@ -4,6 +4,7 @@ namespace App\Actions\Notices;
 
 use App\Commerce\WithdrawalOwnerConfirmation;
 use App\Mail\TransactionalEmail;
+use App\Models\Admin;
 use App\Models\BuyerReminderPreference;
 use App\Models\Cart;
 use App\Models\CommerceNotice;
@@ -122,24 +123,31 @@ class NoticeEligibility
             : ['state' => 'cancelled', 'available_at' => null, 'error_code' => 'no_eligible_admin'];
     }
 
-    private function boundAdministrator(CommerceNotice $notice): ?User
+    private function boundAdministrator(CommerceNotice $notice): ?Admin
     {
         $admin = $this->soleAdministrator();
 
-        return $admin && hash_equals($notice->source_hash ?? '', $this->administratorFingerprint($admin)) ? $admin : null;
+        if (! $admin) {
+            return null;
+        }
+
+        $binding = $notice->source_hash ?? '';
+        $legacy = $admin->legacy_user_id === null ? null : hash('sha256', $admin->legacy_user_id.'|'.$admin->email);
+
+        return hash_equals($this->administratorFingerprint($admin), $binding)
+            || ($legacy !== null && hash_equals($legacy, $binding)) ? $admin : null;
     }
 
-    public function soleAdministrator(): ?User
+    public function soleAdministrator(): ?Admin
     {
-        $admins = User::query()->where('role', 'admin')->limit(2)->get();
-        $admin = $admins->count() === 1 ? $admins->first() : null;
+        $admin = Admin::query()->first();
 
-        return $admin?->hasVerifiedEmail() && filter_var($admin->email, FILTER_VALIDATE_EMAIL) ? $admin : null;
+        return $admin && filter_var($admin->email, FILTER_VALIDATE_EMAIL) ? $admin : null;
     }
 
-    public function administratorFingerprint(User $admin): string
+    public function administratorFingerprint(Admin $admin): string
     {
-        return hash('sha256', $admin->id.'|'.$admin->email);
+        return hash('sha256', 'admin|'.$admin->id.'|'.$admin->email);
     }
 
     public function cartFingerprint(Cart $cart): ?string

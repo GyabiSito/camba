@@ -21,6 +21,6 @@ export type PaymentEvidence = {
   observations: { id: number; status: string; amount_cents: number; updated_at: string }[];
 };
 export type OrderResponse = Data<OrderDetail> & {
-  events: { actor_id: number; to_status: FulfilmentStatus; note: string | null; created_at: string }[];
+  events: { actor_id: number | null; actor_admin_id?: number | null; to_status: FulfilmentStatus; note: string | null; created_at: string }[];
   payment: PaymentEvidence;
 };

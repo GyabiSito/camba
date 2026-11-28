@@ -6,10 +6,13 @@ assert(password, 'Set CAMBA_DEMO_PASSWORD to the documented local demo password.
 
 const canonical = 'http://127.0.0.1:4300';
 const store = 'http://127.0.0.1:4200';
-const paths = ['/sanctum/csrf-cookie', '/api/v1/auth/login', '/api/v1/admin/session'];
+const buyerPaths = ['/sanctum/csrf-cookie', '/api/v1/auth/login'];
+const adminPaths = ['/api/v1/admin/auth/csrf-cookie', '/api/v1/admin/auth/login', '/api/v1/admin/session'];
 const browser = await chromium.launch();
 
-async function submitLogin(page, origin, route, email) {
+async function submitLogin(page, origin, route, email, expected = 204) {
+  const buyer = route === '/cuenta';
+  const paths = buyer ? buyerPaths : adminPaths;
   await page.goto(origin + route);
   await page.locator('input[type=email]').fill(email);
   await page.locator('input[type=password]').fill(password);
@@ -19,18 +22,21 @@ async function submitLogin(page, origin, route, email) {
   const [csrfResponse, loginResponse] = await Promise.all([csrf, login]);
   const failure = loginResponse.ok() ? '' : (await loginResponse.json().catch(() => ({}))).message;
   assert.equal(csrfResponse.status(), 204);
-  assert((await csrfResponse.headerValues('set-cookie')).some((v) => v.startsWith('XSRF-TOKEN=')));
+  assert((await csrfResponse.headerValues('set-cookie')).some((v) =>
+    v.startsWith(buyer ? 'XSRF-TOKEN=' : 'CAMBA-ADMIN-XSRF-TOKEN=')));
   assert(await loginResponse.request().headerValue('x-xsrf-token'), 'Login must send the XSRF header');
-  assert.equal(loginResponse.status(), 204, `${origin}: login POST ${loginResponse.status()} ${failure ?? ''}`);
-  assert((await page.context().cookies(origin)).some(
-    (cookie) => cookie.name === 'laravel-session' && cookie.httpOnly,
-  ));
+  assert.equal(loginResponse.status(), expected, `${origin}: login POST ${loginResponse.status()} ${failure ?? ''}`);
+  if (!buyer) {
+    assert((await page.context().cookies(origin + adminPaths[2])).some(
+      (cookie) => cookie.name === 'camba_admin_session' && cookie.httpOnly,
+    ));
+  }
 }
 
 async function signIn(page, origin, email, expected) {
-  await submitLogin(page, origin, '/ingresar', email);
-  if (expected === 403) {
-    await expect(page.getByRole('alert')).toContainText(/no tiene acceso administrativo/);
+  await submitLogin(page, origin, '/ingresar', email, expected === 200 ? 204 : 422);
+  if (expected === 401) {
+    await expect(page.getByRole('alert')).toContainText(/correo o la contraseña no son correctos/i);
     await expect(page).toHaveURL(/\/ingresar/);
   } else {
     await expect(page).toHaveURL(`${origin}/dashboard`);
@@ -38,10 +44,10 @@ async function signIn(page, origin, email, expected) {
     await page.reload();
     await expect(page.getByRole('heading', { name: 'Inicio', exact: true })).toBeVisible();
   }
-  const session = await page.request.get(`${origin}${paths[2]}`, { headers: { Referer: `${origin}/` } });
+  const session = await page.request.get(`${origin}${adminPaths[2]}`, { headers: { Referer: `${origin}/` } });
   assert.equal(session.status(), expected);
   assert.match(session.headers()['content-type'] ?? '', /^application\/json/);
-  console.log(`${origin} ${expected === 200 ? 'admin' : 'buyer'}: CSRF 204 → POST 204 → session ${expected}`);
+  console.log(`${origin} ${expected === 200 ? 'admin' : 'buyer rejected'}: session ${expected}`);
 }
 
 async function checkCanvasGuard(page, origin, reason) {
@@ -55,14 +61,14 @@ async function checkCanvasGuard(page, origin, reason) {
   else assert.equal(redirected.searchParams.get('reason'), reason);
 }
 
-async function checkCsrf(context, origin) {
+async function checkCsrf(context, origin, admin = false) {
+  const paths = admin ? adminPaths : buyerPaths;
   for (const source of [{}, { Origin: 'http://localhost:4999' }]) {
     const nonStateful = await context.request.post(origin + paths[1], {
       headers: { Accept: 'application/json', ...source },
       data: { email: 'origin-probe@camba.test', password: 'not-a-demo-login' },
     });
-    assert.equal(nonStateful.status(), 400);
-    assert.equal((await nonStateful.json()).message, 'La sesión no está disponible.');
+    assert.equal(nonStateful.status(), admin ? 419 : 400);
   }
 
   const noToken = await context.request.post(origin + paths[1], {
@@ -100,12 +106,12 @@ try {
   for (const origin of [canonical, 'http://localhost:4300']) {
     const context = await browser.newContext();
     await checkCanvasGuard(await context.newPage(), origin);
-    const anonymous = await context.request.get(`${origin}${paths[2]}`, {
+    const anonymous = await context.request.get(`${origin}${adminPaths[2]}`, {
       headers: { Accept: 'application/json', Referer: `${origin}/` },
     });
     assert.equal(anonymous.status(), 401);
 
-    await checkCsrf(context, origin);
+    await checkCsrf(context, origin, true);
     await signIn(await context.newPage(), origin, 'admin.diseno@camba.test', 200);
     await context.close();
   }
@@ -117,8 +123,9 @@ try {
   assert.equal(products.status(), 200);
   assert((await products.json()).data.length > 0);
   const admin = await shared.newPage();
-  await signIn(admin, canonical, 'cliente.diseno@camba.test', 403);
-  await checkCanvasGuard(admin, canonical, 'ineligible');
+  await submitLogin(shop, store, '/cuenta', 'cliente.diseno@camba.test');
+  await signIn(admin, canonical, 'cliente.diseno@camba.test', 401);
+  await checkCanvasGuard(admin, canonical);
   const buyer = await shop.request.get(`${store}/api/v1/auth/me`, { headers: { Referer: `${store}/` } });
   assert.equal(buyer.status(), 200);
   assert.equal((await buyer.json()).data.role, 'buyer');
@@ -127,9 +134,8 @@ try {
   await signIn(admin, canonical, 'admin.diseno@camba.test', 200);
   const sharedAdmin = await shop.request.get(`${store}/api/v1/auth/me`, { headers: { Referer: `${store}/` } });
   assert.equal(sharedAdmin.status(), 200);
-  assert.equal((await sharedAdmin.json()).data.role, 'admin');
-  assert((await shared.cookies()).some((cookie) => cookie.name === 'laravel-session' && cookie.httpOnly));
-  console.log('Shared browser profile: storefront catalog 200; distinct ports share the same 127.0.0.1 session.');
+  assert.equal((await sharedAdmin.json()).data.role, 'buyer');
+  console.log('Shared browser profile: both Admin and buyer sessions stay authenticated independently.');
 } finally {
   await browser.close();
 }

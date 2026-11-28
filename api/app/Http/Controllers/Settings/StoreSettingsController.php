@@ -67,7 +67,7 @@ class StoreSettingsController
             if ($settings->isDirty('values')) {
                 $settings->save();
                 DB::table('store_setting_changes')->insert([
-                    'actor_id' => $request->user()->id,
+                    'actor_admin_id' => $request->user('admin')->id,
                     'before' => json_encode($before, JSON_THROW_ON_ERROR),
                     'after' => json_encode($after, JSON_THROW_ON_ERROR),
                     'created_at' => now(),

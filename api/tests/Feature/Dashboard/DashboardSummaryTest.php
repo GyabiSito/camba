@@ -38,14 +38,14 @@ class DashboardSummaryTest extends TestCase
         $this->travelTo(Carbon::parse('2026-03-01 02:30:00', 'UTC'));
     }
 
-    public function test_only_verified_administrators_can_read_the_summary(): void
+    public function test_only_the_dedicated_admin_can_read_the_summary(): void
     {
         $this->getJson(self::URL)->assertUnauthorized()->assertJsonMissingPath('data');
         $this->actingAs(User::factory()->create(['role' => 'buyer']))
-            ->getJson(self::URL)->assertForbidden();
+            ->getJson(self::URL)->assertUnauthorized();
         $this->actingAs(User::factory()->unverified()->create(['role' => 'admin']))
-            ->getJson(self::URL)->assertForbidden();
-        $this->actingAs(User::factory()->create(['role' => 'admin']))
+            ->getJson(self::URL)->assertUnauthorized();
+        $this->actingAs($this->adminIdentity(), 'admin')
             ->getJson(self::URL)->assertOk()->assertHeader('Cache-Control', 'no-store, private');
     }
 
@@ -210,7 +210,7 @@ class DashboardSummaryTest extends TestCase
 
     private function admin(): void
     {
-        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $this->actingAs($this->adminIdentity(), 'admin');
     }
 
     private function order(array $attributes = []): Order

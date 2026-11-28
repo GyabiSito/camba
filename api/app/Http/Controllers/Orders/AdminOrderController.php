@@ -104,7 +104,7 @@ class AdminOrderController
     {
         $order = Order::query()->with('items')->where('reference', $reference)->firstOrFail();
         $events = DB::table('order_fulfilment_events')->where('order_id', $order->id)->orderByDesc('id')->get([
-            'actor_id', 'to_status', 'note', 'created_at',
+            'actor_id', 'actor_admin_id', 'to_status', 'note', 'created_at',
         ])->map(fn ($event) => [
             ...((array) $event), 'note' => $event->note === null ? null : Crypt::decryptString($event->note),
         ]);
@@ -162,7 +162,7 @@ class AdminOrderController
             $occurredAt = now();
             DB::table('order_fulfilment_events')->insert([
                 'order_id' => $order->id,
-                'actor_id' => $request->user()->id,
+                'actor_admin_id' => $request->user('admin')->id,
                 'to_status' => $expected,
                 'note' => isset($input['note']) ? Crypt::encryptString($input['note']) : null,
                 'created_at' => $occurredAt,

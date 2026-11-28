@@ -41,12 +41,12 @@ class HomepageTest extends TestCase
         $this->postJson('/api/v1/admin/homepage/media')->assertUnauthorized();
         $this->actingAs(User::factory()->create(['role' => 'buyer']), 'web');
         foreach (['', '/preview', '/media/00000000-0000-4000-8000-000000000000/display'] as $suffix) {
-            $this->getJson('/api/v1/admin/homepage'.$suffix)->assertForbidden();
+            $this->getJson('/api/v1/admin/homepage'.$suffix)->assertUnauthorized();
         }
         foreach (['/publish', '/discard', '/media'] as $suffix) {
-            $this->postJson('/api/v1/admin/homepage'.$suffix)->assertForbidden();
+            $this->postJson('/api/v1/admin/homepage'.$suffix)->assertUnauthorized();
         }
-        $this->putJson('/api/v1/admin/homepage')->assertForbidden();
+        $this->putJson('/api/v1/admin/homepage')->assertUnauthorized();
     }
 
     public function test_draft_publish_revision_conflict_preview_and_discard(): void
@@ -228,7 +228,7 @@ class HomepageTest extends TestCase
 
     private function adminState(): array
     {
-        $this->actingAs(User::factory()->create(['role' => 'admin']), 'web')->withHeaders(['Accept' => 'application/json']);
+        $this->actingAs($this->adminIdentity(), 'admin')->withHeaders(['Accept' => 'application/json']);
 
         return $this->getJson('/api/v1/admin/homepage')->assertOk()->json('data');
     }

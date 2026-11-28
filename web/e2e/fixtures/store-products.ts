@@ -20,17 +20,17 @@ export async function fixtureCatalog(browser: Browser, baseURL: string) {
   });
   const { request } = context;
   const headers = async () => {
-    const token = (await context.cookies(baseURL)).find(({ name }) => name === 'XSRF-TOKEN');
+    const token = (await context.cookies(baseURL)).find(({ name }) => name === 'CAMBA-ADMIN-XSRF-TOKEN');
     expect(token, 'Laravel CSRF cookie').toBeDefined();
     return { 'X-XSRF-TOKEN': decodeURIComponent(token!.value) };
   };
   const products = '/api/v1/admin/products';
   const published: number[] = [];
   try {
-    await expect(await request.get('/sanctum/csrf-cookie')).toBeOK();
+    await expect(await request.get('/api/v1/admin/auth/csrf-cookie')).toBeOK();
     await expect(
-      await request.post('/api/v1/auth/login', {
-        data: { email: 'fixture-admin@camba.test', password: 'Camba-test-only-2026' },
+      await request.post('/api/v1/admin/auth/login', {
+        data: { email: 'a11y-admin@camba.test', password: 'Camba-test-only-2026' },
         headers: await headers(),
       }),
     ).toBeOK();

@@ -35,22 +35,19 @@ export function demoHttp(app: keyof typeof users): HttpInterceptorFn {
     const fail = (status: number, message: string) =>
       throwError(() => new HttpErrorResponse({ status, url: request.url, error: { message } }));
 
-    if (is('GET', '/sanctum/csrf-cookie')) return response(null, 204);
-    if (is('POST', '/api/v1/auth/login') && browser) {
+    const auth = app === 'admin' ? '/api/v1/admin/auth' : '/api/v1/auth';
+    if (is('GET', app === 'admin' ? auth + '/csrf-cookie' : '/sanctum/csrf-cookie')) return response(null, 204);
+    if (is('POST', auth + '/login') && browser) {
       const { email, password: submitted } = (request.body ?? {}) as {
         email?: string;
         password?: string;
       };
-      const user = Object.values(users).find(
-        (candidate) => candidate.email === email?.trim().toLowerCase(),
-      );
-      if (submitted !== password || !user)
+      if (submitted !== password || users[app].email !== email?.trim().toLowerCase())
         return fail(422, 'El correo o la contraseña no son correctos.');
-      if (user !== users[app]) return fail(403, 'Esta cuenta no tiene acceso a esta aplicación.');
       document.cookie = `${cookie}=1; Path=/; SameSite=Strict`;
       return response(null, 204);
     }
-    if (is('POST', '/api/v1/auth/logout') && browser) {
+    if (is('POST', auth + '/logout') && browser) {
       document.cookie = `${cookie}=; Max-Age=0; Path=/; SameSite=Strict`;
       return response(null, 204);
     }

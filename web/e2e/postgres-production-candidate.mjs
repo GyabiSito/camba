@@ -24,6 +24,11 @@ async function open() {
 
 try {
   const shopper = await open();
+  await shopper.goto(store + '/cuenta');
+  await shopper.getByLabel('Correo electrónico').fill('postgres-buyer@camba.test');
+  await shopper.getByLabel('Contraseña', { exact: true }).fill(password);
+  await shopper.getByRole('button', { name: 'Ingresar', exact: true }).click();
+  await expect(shopper.getByRole('heading', { name: 'Datos personales' })).toBeVisible();
   await shopper.goto(store + '/tienda');
   const hydrated = shopper.waitForResponse(response =>
     response.url() === store + '/api/v1/cart' && response.request().method() === 'GET');
