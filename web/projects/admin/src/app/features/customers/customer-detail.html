@@ -1,0 +1,85 @@
+<a class="ops-back ops-link customer-back" routerLink="/usuarios" [queryParams]="backParams()">Volver a usuarios</a>
+@let profile = account();
+@if (profile?.status === 'loading') {
+  <h1>Ficha de usuario</h1><camba-operation-loading label="Cargando ficha" />
+} @else if (profile?.status === 'error') {
+  <h1>Ficha de usuario</h1>
+  <div class="callout ops-error" role="alert"><p>{{ profile.message }}</p>
+    <button class="button button--quiet" type="button" (click)="retryAccount()">Reintentar</button>
+  </div>
+} @else if (profile?.status === 'loaded') {
+  @let customer = profile.value.data;
+  <header class="ops-heading"><h1>{{ customer.name }}</h1></header>
+  <div class="customer-panels">
+    <section class="customer-panel" aria-labelledby="customer-account">
+      <h2 id="customer-account">Datos de cuenta</h2>
+      <dl class="customer-facts">
+        <div><dt>Correo</dt><dd>{{ customer.email }}</dd></div>
+        <div><dt>Verificación</dt><dd><span class="ops-state" [class.ops-state--good]="customer.email_verified">
+          {{ customer.email_verified ? 'Verificado' : 'Sin verificar' }}
+        </span></dd></div>
+        <div><dt>Fecha de registro</dt><dd><time [attr.datetime]="customer.created_at">{{ date(customer.created_at) }}</time></dd></div>
+      </dl>
+    </section>
+    <section class="customer-panel" aria-labelledby="customer-addresses">
+      <h2 id="customer-addresses">Direcciones guardadas</h2>
+      <p class="muted">Son las direcciones actuales de la cuenta. Cada pedido conserva la dirección de la compra.</p>
+      @if (customer.addresses.length) {
+        <ul class="ops-list customer-addresses">
+          @for (address of customer.addresses; track address.id) {
+            <li>
+              <strong>{{ address.recipient }}</strong>
+              <span>{{ address.street }} {{ address.number }}</span>
+              <span>{{ address.locality }}{{ address.department === address.locality ? '' : ', ' + address.department }}
+                @if (address.postal_code) { · CP {{ address.postal_code }} }
+              </span>
+              @if (address.details) { <span class="muted">{{ address.details }}</span> }
+            </li>
+          }
+        </ul>
+      } @else { <p>Este cliente no tiene direcciones guardadas.</p> }
+    </section>
+  </div>
+
+  <section aria-labelledby="customer-history">
+    <h2 id="customer-history">Historial de pedidos</h2>
+    @if (history(); as state) {
+      @switch (state.status) {
+        @case ('loading') { <camba-operation-loading label="Cargando pedidos" /> }
+        @case ('error') {
+          <div class="callout ops-error" role="alert"><p>{{ state.message }}</p>
+            <button class="button button--quiet" type="button" (click)="retryHistory()">Reintentar</button>
+          </div>
+        }
+        @case ('loaded') {
+          @if (state.value.data.length) {
+            <table class="customer-table customer-orders" role="table" aria-label="Pedidos del cliente">
+              <thead role="rowgroup"><tr role="row">
+                <th role="columnheader" scope="col">Referencia</th><th role="columnheader" scope="col">Fecha</th>
+                <th role="columnheader" scope="col">Total</th><th role="columnheader" scope="col">Pago</th>
+                <th role="columnheader" scope="col">Modalidad</th><th role="columnheader" scope="col"><span class="sr-only">Detalle</span></th>
+              </tr></thead>
+              <tbody role="rowgroup">
+                @for (order of state.value.data; track order.reference) {
+                  <tr role="row">
+                    <td role="cell" class="numeric"><span class="customer-field">Referencia</span><strong>{{ order.reference }}</strong></td>
+                    <td role="cell"><span class="customer-field">Fecha</span><time [attr.datetime]="order.created_at">{{ date(order.created_at) }}</time></td>
+                    <td role="cell"><span class="customer-field">Total</span><span class="numeric">{{ money(order.total_cents) }}</span></td>
+                    <td role="cell"><span class="customer-field">Pago</span><span class="ops-state" [class.ops-state--good]="order.status === 'paid'">
+                      {{ orderStatus[order.status] }}
+                    </span></td>
+                    <td role="cell"><span class="customer-field">Modalidad</span>{{ order.shipping_method === 'delivery' ? 'Envío' : 'Retiro' }}</td>
+                    <td role="cell" class="customer-action"><a class="button button--quiet" [routerLink]="['/pedidos', order.reference]">Ver pedido</a></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <div class="ops-empty"><p>{{ state.value.meta.total ? 'No hay pedidos en esta página.' : 'Este cliente todavía no tiene pedidos.' }}</p></div>
+          }
+          <camba-operation-pager [info]="state.value.meta" singular="pedido" plural="pedidos" />
+        }
+      }
+    }
+  </section>
+}

@@ -7,6 +7,7 @@ export type Dashboard = {
   priorities: {
     pending_payment: number; needs_preparation: number; ready_for_pickup: number; out_of_stock: number;
     received_withdrawals?: number;
+    registered_buyers?: number;
   };
   recent_orders: Order[];
   sales: { timezone: string; from: string; through: string; order_count: number; total_cents: number; months: SalesMonth[] };

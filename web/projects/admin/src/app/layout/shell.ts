@@ -38,7 +38,7 @@ export class AdminLogin {
       await firstValueFrom(this.session.signIn(this.email.trim(), this.password));
       this.password = '';
       const next = this.route.snapshot.queryParamMap.get('next') ?? '';
-      await this.router.navigateByUrl(/^\/(dashboard|productos|pedidos|configuracion|portada)(?:[/?#]|$)/.test(next) ? next : '/dashboard');
+      await this.router.navigateByUrl(/^\/(dashboard|productos|pedidos|usuarios|configuracion|portada)(?:[/?#]|$)/.test(next) ? next : '/dashboard');
     } catch (error) {
       this.error.set(error instanceof HttpErrorResponse && error.status === 403
         ? 'La cuenta no tiene acceso administrativo o el correo no está verificado.'

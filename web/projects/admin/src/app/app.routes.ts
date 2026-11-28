@@ -14,6 +14,10 @@ export const routes: Routes = [
     { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
     { path: 'dashboard', title: 'Inicio | Camba Admin', loadComponent: () =>
       import('./features/dashboard/dashboard').then(module => module.DashboardPage) },
+    { path: 'usuarios', pathMatch: 'full', title: 'Usuarios | Camba Admin', loadComponent: () =>
+      import('./features/customers/customers').then(module => module.CustomerListPage) },
+    { path: 'usuarios/:customer', title: 'Ficha de usuario | Camba Admin', loadComponent: () =>
+      import('./features/customers/customers').then(module => module.CustomerDetailPage) },
     ...adminCatalogRoutes, ...noticeRoutes, ...orderRoutes, ...settingsRoutes,
     { path: 'portada', loadChildren: () => import('./features/homepage/routes').then(module => module.homepageRoutes) },
     { path: '**', redirectTo: 'productos' },

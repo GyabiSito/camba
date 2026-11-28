@@ -14,7 +14,7 @@ const orders = Array.from({ length: 5 }, (_, index) => ({
   total_cents: 129950,
 }));
 const summary = {
-  priorities: { pending_payment: 1, needs_preparation: 2, ready_for_pickup: 3, out_of_stock: 4, received_withdrawals: 6 },
+  priorities: { pending_payment: 1, needs_preparation: 2, ready_for_pickup: 3, out_of_stock: 4, received_withdrawals: 6, registered_buyers: 7 },
   recent_orders: orders,
   sales: {
     timezone: 'America/Montevideo', from: '2026-10-25', through: '2026-11-23',
@@ -26,7 +26,7 @@ const summary = {
   },
 };
 const empty = {
-  priorities: { pending_payment: 0, needs_preparation: 0, ready_for_pickup: 0, out_of_stock: 0, received_withdrawals: 0 },
+  priorities: { pending_payment: 0, needs_preparation: 0, ready_for_pickup: 0, out_of_stock: 0, received_withdrawals: 0, registered_buyers: 0 },
   recent_orders: [],
   sales: { ...summary.sales, order_count: 0, total_cents: 0,
     months: summary.sales.months.map(month => ({ ...month, order_count: 0, total_cents: 0 })) },
@@ -47,7 +47,7 @@ test('grouped navigation marks the withdrawal route after deep links and reloads
   await page.goto('/dashboard');
   const nav = page.getByRole('navigation', { name: 'Administración' });
   for (const [group, links] of [
-    ['Operación', ['Inicio', 'Pedidos', 'Arrepentimientos', 'Avisos']],
+    ['Operación', ['Inicio', 'Pedidos', 'Arrepentimientos', 'Avisos', 'Usuarios']],
     ['Catálogo', ['Productos', 'Categorías', 'Marcas']],
     ['Tienda', ['Portada', 'Configuración']],
   ] as const) await expect(nav.getByRole('group', { name: group }).getByRole('link')).toHaveText([...links]);
@@ -152,7 +152,7 @@ test('failure is recoverable and zero summaries teach the empty state', async ({
   await expect(page.getByText('No hubo ventas confirmadas en estos 30 días.', { exact: true })).toBeVisible();
   await expect(page.getByText('Todavía no hay ventas confirmadas en estos seis meses.', { exact: true })).toBeVisible();
   expect(calls).toBe(2);
-  await expect(page.getByRole('region', { name: 'Qué necesita atención' }).getByRole('link')).toHaveCount(5);
+  await expect(page.getByRole('region', { name: 'Qué necesita atención' }).getByRole('link')).toHaveCount(6);
 });
 
 test('older monthly sales remain visible when the last 30 days are empty', async ({ page }) => {
@@ -177,11 +177,11 @@ test('a missing withdrawal count is visibly unavailable rather than zero', async
 
 test('priority cards keep their icons, counters and arrows aligned with long labels', async ({ page }) => {
   await page.route('**/api/v1/admin/dashboard', route => route.fulfill({ json: { data: summary } }));
-  for (const [width, expectedRows] of [[1440, 1], [1180, 2], [390, 5]] as const) {
+  for (const [width, expectedRows] of [[1920, 1], [1440, 2], [1180, 2], [390, 6]] as const) {
     await page.setViewportSize({ width, height: 880 });
     await page.goto('/dashboard');
     const cards = page.getByRole('region', { name: 'Qué necesita atención' }).getByRole('link');
-    await expect(cards.locator('.priority-icon')).toHaveCount(5);
+    await expect(cards.locator('.priority-icon')).toHaveCount(6);
     await expect(page.getByRole('navigation', { name: 'Acciones rápidas' }).locator('a svg[aria-hidden="true"]')).toHaveCount(2);
     const rects = await cards.evaluateAll(elements => elements.map(element => element.getBoundingClientRect().y));
     expect(new Set(rects).size).toBe(expectedRows);

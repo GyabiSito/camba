@@ -53,7 +53,7 @@ class DashboardSummaryTest extends TestCase
     {
         $this->admin();
         $this->getJson(self::URL)->assertOk()->assertExactJson(['data' => [
-            'priorities' => ['pending_payment' => 0, 'needs_preparation' => 0, 'ready_for_pickup' => 0, 'out_of_stock' => 0, 'received_withdrawals' => 0],
+            'priorities' => ['pending_payment' => 0, 'needs_preparation' => 0, 'ready_for_pickup' => 0, 'out_of_stock' => 0, 'received_withdrawals' => 0, 'registered_buyers' => 0],
             'recent_orders' => [],
             'sales' => [
                 'timezone' => 'America/Montevideo', 'from' => '2026-01-30', 'through' => '2026-02-28',
@@ -84,7 +84,7 @@ class DashboardSummaryTest extends TestCase
         }
 
         $this->getJson(self::URL)->assertOk()->assertJsonPath('data.priorities', [
-            'pending_payment' => 2, 'needs_preparation' => 2, 'ready_for_pickup' => 1, 'out_of_stock' => 1, 'received_withdrawals' => 0,
+            'pending_payment' => 2, 'needs_preparation' => 2, 'ready_for_pickup' => 1, 'out_of_stock' => 1, 'received_withdrawals' => 0, 'registered_buyers' => 0,
         ]);
     }
 

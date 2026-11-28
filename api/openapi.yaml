@@ -500,6 +500,70 @@ paths:
                   data: { $ref: '#/components/schemas/AdminDashboard' }
         '401': { description: No authenticated session }
         '403': { description: Verified administrator required }
+  /api/v1/admin/users:
+    get:
+      operationId: listAdminCustomers
+      description: Verified administrator only. Buyer accounts, newest registration first, without saved addresses.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: q, in: query, description: Case-insensitive literal substring of name or email., schema: { type: string, maxLength: 120 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Up to 25 buyer accounts and aggregates of orders linked by account ID. Private and not cacheable.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/AdminCustomerRow' } }
+                  meta: { $ref: '#/components/schemas/AdminCustomerPage' }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '422': { description: Invalid search }
+  /api/v1/admin/users/{customer}:
+    parameters:
+      - { name: customer, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      operationId: getAdminCustomer
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Buyer account and its current saved addresses, not checkout snapshots. Private and not cacheable.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AdminCustomerDetail' }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '404': { description: No such buyer account }
+  /api/v1/admin/users/{customer}/orders:
+    parameters:
+      - { name: customer, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      operationId: listAdminCustomerOrders
+      description: Orders linked by the recorded buyer account ID; contact email is not consulted.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Up to 25 orders, newest first, without contact or shipping-address snapshots. Private and not cacheable.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/AdminCustomerOrder' } }
+                  meta: { $ref: '#/components/schemas/AdminCustomerPage' }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '404': { description: No such buyer account }
   /api/v1/admin/orders:
     get:
       operationId: listAdminOrders
@@ -995,7 +1059,7 @@ paths:
     post:
       operationId: uploadProductImages
       security: [{ sessionCookie: [] }]
-      description: Append photos in multipart order. To recover an uncertain response, resend the same ordered files with the same key; the current gallery is returned without appending again.
+      description: Append photos in multipart order, up to five total including the cover. To recover an uncertain response, resend the same ordered files with the same key; the current gallery is returned without appending again.
       parameters:
         - name: Idempotency-Key
           in: header
@@ -1018,7 +1082,7 @@ paths:
     post:
       operationId: recoverableProductImageUpload
       security: [{ sessionCookie: [] }]
-      description: Use this route for recoverable uploads. Older API releases reject it without writing; do not fall back to the unkeyed route.
+      description: Append up to five photos total including the cover. Do not fall back to the unkeyed route.
       parameters:
         - name: Idempotency-Key
           in: header
@@ -1035,11 +1099,29 @@ paths:
         '419': { description: Missing or invalid CSRF token }
         '422': { description: 'Invalid file, gallery input, or Idempotency-Key' }
         '503': { description: Image processing or storage is unavailable }
+  /api/v1/admin/products/{product}/images/uploads/replace:
+    post:
+      operationId: replaceProductImage
+      security: [{ sessionCookie: [] }]
+      description: Replace one saved photo without changing its slot or ID. Replay the exact file and replacement ID with the same key after an uncertain response. Never fall back to an append route.
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, format: uuid } }
+      requestBody: { $ref: '#/components/requestBodies/ReplaceProductPhoto' }
+      responses:
+        '201': { description: Admin product with the current gallery in display order on initial upload and replay }
+        '401': { description: No authenticated session }
+        '403': { description: Verified administrator required }
+        '404': { description: Product not found }
+        '409': { description: The key was closed or already used with different bytes or target }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid image, target, or key }
+        '503': { description: Image processing or storage is unavailable }
   /api/v1/admin/products/{product}/images/uploads/close:
     post:
       operationId: closeProductImageUpload
       security: [{ sessionCookie: [] }]
-      description: Close an uncertain upload. Keeps any committed photos and prevents a late upload with that key from appending.
+      description: Close an uncertain upload. Keeps any committed changes and prevents a late upload with that key from appending or replacing.
       parameters:
         - { name: product, in: path, required: true, schema: { type: integer } }
         - { name: Idempotency-Key, in: header, required: true, schema: { type: string, format: uuid } }
@@ -1162,12 +1244,75 @@ paths:
         '429': { description: Too many requests }
 components:
   schemas:
+    ProductPhotoBatch:
+      type: object
+      required: ['photos[]']
+      properties:
+        'photos[]':
+          type: array
+          description: JPEG, PNG, or WebP only, at most 10 MiB and 4096 × 4096 pixels per file. New appends are limited to five photos in the gallery. Older keys may replay a batch originally allowed by the API.
+          minItems: 1
+          maxItems: 12
+          items: { type: string, format: binary }
     CartCheckout:
       type: object
       required: [reference, state]
       properties:
         reference: { type: string, format: uuid }
         state: { type: string, enum: [ready, checking, paid] }
+    AdminCustomerPage:
+      type: object
+      required: [total, current_page, last_page]
+      properties:
+        total: { type: integer, minimum: 0 }
+        current_page: { type: integer, minimum: 1 }
+        last_page: { type: integer, minimum: 1 }
+    AdminCustomerAccount:
+      type: object
+      required: [name, email, email_verified, created_at]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        email_verified: { type: boolean }
+        created_at: { type: [string, 'null'], format: date-time }
+    AdminCustomerRow:
+      allOf:
+        - $ref: '#/components/schemas/AdminCustomerAccount'
+        - type: object
+          required: [id, orders_count, last_order_at]
+          properties:
+            id: { type: integer }
+            orders_count: { type: integer, minimum: 0 }
+            last_order_at: { type: [string, 'null'], format: date-time }
+    AdminCustomerDetail:
+      allOf:
+        - $ref: '#/components/schemas/AdminCustomerAccount'
+        - type: object
+          required: [addresses]
+          properties:
+            addresses:
+              type: array
+              items:
+                type: object
+                required: [id, recipient, department, locality, street, number, details, postal_code]
+                properties:
+                  id: { type: integer }
+                  recipient: { type: string }
+                  department: { type: string }
+                  locality: { type: string }
+                  street: { type: string }
+                  number: { type: string }
+                  details: { type: [string, 'null'] }
+                  postal_code: { type: [string, 'null'] }
+    AdminCustomerOrder:
+      type: object
+      required: [reference, created_at, total_cents, status, shipping_method]
+      properties:
+        reference: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        total_cents: { type: integer, minimum: 0, description: UYU cents }
+        status: { type: string, enum: [pending_payment, paid, payment_expired, payment_review, refunded, charged_back] }
+        shipping_method: { type: string, enum: [pickup, delivery] }
     AdminDashboard:
       type: object
       required: [priorities, recent_orders, sales]
@@ -1181,6 +1326,7 @@ components:
             ready_for_pickup: { type: integer, minimum: 0 }
             out_of_stock: { type: integer, minimum: 0 }
             received_withdrawals: { type: integer, minimum: 0, description: Total withdrawal requests in the received state before pagination. }
+            registered_buyers: { type: integer, minimum: 0, description: Total buyer accounts including those awaiting email verification. }
         recent_orders:
           type: array
           maxItems: 5
@@ -1476,16 +1622,24 @@ components:
       required: true
       content:
         multipart/form-data:
+          schema: { $ref: '#/components/schemas/ProductPhotoBatch' }
+          encoding:
+            'photos[]': { contentType: 'image/*', explode: true }
+    ReplaceProductPhoto:
+      required: true
+      content:
+        multipart/form-data:
           schema:
-            type: object
-            required: ['photos[]']
-            properties:
-              'photos[]':
-                type: array
-                description: JPEG, PNG, or WebP only, at most 10 MiB and 4096 × 4096 pixels per file.
-                minItems: 1
-                maxItems: 12
-                items: { type: string, format: binary }
+            allOf:
+              - $ref: '#/components/schemas/ProductPhotoBatch'
+              - type: object
+                required: [replace_image_id]
+                properties:
+                  'photos[]': { type: array, maxItems: 1 }
+                  replace_image_id:
+                    type: integer
+                    minimum: 1
+                    description: Replace this saved image of the same product. Send exactly one file. The image ID and position are preserved.
           encoding:
             'photos[]': { contentType: 'image/*', explode: true }
     ProductWrite:
