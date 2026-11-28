@@ -1,0 +1,15 @@
+.shipping-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem 2rem;
+  margin: 0 0 1.75rem;
+  padding: 1.25rem clamp(1rem, 3vw, 2rem);
+  background: var(--home-shelf, var(--surface));
+  border-block: 1px solid var(--line);
+}
+.shipping-summary dt { font-weight: 800; color: var(--home-brand); }
+.shipping-summary dd { margin: .35rem 0 0; line-height: 1.55; }
+
+@media (max-width: 42rem) {
+  .shipping-summary { grid-template-columns: minmax(0, 1fr); }
+}

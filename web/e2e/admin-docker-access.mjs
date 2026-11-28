@@ -1,0 +1,141 @@
+import assert from 'node:assert/strict';
+import { chromium, expect } from '@playwright/test';
+
+const password = process.env.CAMBA_DEMO_PASSWORD;
+assert(password, 'Set CAMBA_DEMO_PASSWORD to the documented local demo password.');
+
+const canonical = 'http://127.0.0.1:4300';
+const store = 'http://127.0.0.1:4200';
+const buyerPaths = ['/sanctum/csrf-cookie', '/api/v1/auth/login'];
+const adminPaths = ['/api/v1/admin/auth/csrf-cookie', '/api/v1/admin/auth/login', '/api/v1/admin/session'];
+const browser = await chromium.launch();
+
+async function submitLogin(page, origin, route, email, expected = 204) {
+  const buyer = route === '/cuenta';
+  const paths = buyer ? buyerPaths : adminPaths;
+  await page.goto(origin + route);
+  await page.locator('input[type=email]').fill(email);
+  await page.locator('input[type=password]').fill(password);
+  const csrf = page.waitForResponse((r) => new URL(r.url()).pathname === paths[0]);
+  const login = page.waitForResponse((r) => new URL(r.url()).pathname === paths[1]);
+  await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
+  const [csrfResponse, loginResponse] = await Promise.all([csrf, login]);
+  const failure = loginResponse.ok() ? '' : (await loginResponse.json().catch(() => ({}))).message;
+  assert.equal(csrfResponse.status(), 204);
+  assert((await csrfResponse.headerValues('set-cookie')).some((v) =>
+    v.startsWith(buyer ? 'XSRF-TOKEN=' : 'CAMBA-ADMIN-XSRF-TOKEN=')));
+  assert(await loginResponse.request().headerValue('x-xsrf-token'), 'Login must send the XSRF header');
+  assert.equal(loginResponse.status(), expected, `${origin}: login POST ${loginResponse.status()} ${failure ?? ''}`);
+  if (!buyer) {
+    assert((await page.context().cookies(origin + adminPaths[2])).some(
+      (cookie) => cookie.name === 'camba_admin_session' && cookie.httpOnly,
+    ));
+  }
+}
+
+async function signIn(page, origin, email, expected) {
+  await submitLogin(page, origin, '/ingresar', email, expected === 200 ? 204 : 422);
+  if (expected === 401) {
+    await expect(page.getByRole('alert')).toContainText(/correo o la contraseña no son correctos/i);
+    await expect(page).toHaveURL(/\/ingresar/);
+  } else {
+    await expect(page).toHaveURL(`${origin}/dashboard`);
+    await expect(page.getByRole('heading', { name: 'Inicio', exact: true })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'Inicio', exact: true })).toBeVisible();
+  }
+  const session = await page.request.get(`${origin}${adminPaths[2]}`, { headers: { Referer: `${origin}/` } });
+  assert.equal(session.status(), expected);
+  assert.match(session.headers()['content-type'] ?? '', /^application\/json/);
+  console.log(`${origin} ${expected === 200 ? 'admin' : 'buyer rejected'}: session ${expected}`);
+}
+
+async function checkCanvasGuard(page, origin, reason) {
+  const target = '/portada/vista-previa/lienzo';
+  await page.goto(origin + target);
+  await expect(page.getByLabel('Contraseña', { exact: true })).toBeVisible();
+  const redirected = new URL(page.url());
+  assert.equal(redirected.pathname, '/ingresar');
+  assert.equal(redirected.searchParams.get('next'), target);
+  if (reason === undefined) assert.equal(redirected.searchParams.has('reason'), false);
+  else assert.equal(redirected.searchParams.get('reason'), reason);
+}
+
+async function checkCsrf(context, origin, admin = false) {
+  const paths = admin ? adminPaths : buyerPaths;
+  for (const source of [{}, { Origin: 'http://localhost:4999' }]) {
+    const nonStateful = await context.request.post(origin + paths[1], {
+      headers: { Accept: 'application/json', ...source },
+      data: { email: 'origin-probe@camba.test', password: 'not-a-demo-login' },
+    });
+    assert.equal(nonStateful.status(), admin ? 419 : 400);
+  }
+
+  const noToken = await context.request.post(origin + paths[1], {
+    headers: { Origin: origin, Referer: origin + '/', Accept: 'application/json' },
+    data: { email: 'no-csrf-probe@camba.test', password: 'not-a-demo-login' },
+  });
+  assert.equal(noToken.status(), 419, `${origin} must still enforce CSRF`);
+}
+
+try {
+  for (const origin of [store, 'http://localhost:4200']) {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    const email = 'cliente.diseno@camba.test';
+    await submitLogin(page, origin, '/cuenta', email);
+    const profile = page.getByRole('heading', { name: 'Datos personales', exact: true });
+    await expect(profile).toBeVisible();
+    const me = page.waitForResponse((r) => new URL(r.url()).pathname === '/api/v1/auth/me');
+    await page.reload();
+    await expect(profile).toBeVisible();
+    const session = await me;
+    assert.equal(session.status(), 200);
+    assert.match((await session.headerValue('content-type')) ?? '', /^application\/json/);
+    const { data } = await session.json();
+    assert.equal(data.email, email);
+    assert.equal(data.role, 'buyer');
+    assert.equal(data.email_verified, true);
+    const guest = await browser.newContext();
+    await checkCsrf(guest, origin);
+    await guest.close();
+    await context.close();
+    console.log(`${origin} buyer: CSRF 204 → POST 204 → session 200 after reload`);
+  }
+
+  for (const origin of [canonical, 'http://localhost:4300']) {
+    const context = await browser.newContext();
+    await checkCanvasGuard(await context.newPage(), origin);
+    const anonymous = await context.request.get(`${origin}${adminPaths[2]}`, {
+      headers: { Accept: 'application/json', Referer: `${origin}/` },
+    });
+    assert.equal(anonymous.status(), 401);
+
+    await checkCsrf(context, origin, true);
+    await signIn(await context.newPage(), origin, 'admin.diseno@camba.test', 200);
+    await context.close();
+  }
+
+  const shared = await browser.newContext();
+  const shop = await shared.newPage();
+  await shop.goto(store);
+  const products = await shop.request.get(`${store}/api/v1/products`);
+  assert.equal(products.status(), 200);
+  assert((await products.json()).data.length > 0);
+  const admin = await shared.newPage();
+  await submitLogin(shop, store, '/cuenta', 'cliente.diseno@camba.test');
+  await signIn(admin, canonical, 'cliente.diseno@camba.test', 401);
+  await checkCanvasGuard(admin, canonical);
+  const buyer = await shop.request.get(`${store}/api/v1/auth/me`, { headers: { Referer: `${store}/` } });
+  assert.equal(buyer.status(), 200);
+  assert.equal((await buyer.json()).data.role, 'buyer');
+  await shop.goto(`${store}/cuenta`);
+  await expect(shop.getByRole('heading', { name: 'Datos personales', exact: true })).toBeVisible();
+  await signIn(admin, canonical, 'admin.diseno@camba.test', 200);
+  const sharedAdmin = await shop.request.get(`${store}/api/v1/auth/me`, { headers: { Referer: `${store}/` } });
+  assert.equal(sharedAdmin.status(), 200);
+  assert.equal((await sharedAdmin.json()).data.role, 'buyer');
+  console.log('Shared browser profile: both Admin and buyer sessions stay authenticated independently.');
+} finally {
+  await browser.close();
+}

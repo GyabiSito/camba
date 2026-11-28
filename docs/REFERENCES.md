@@ -2,7 +2,36 @@
 
 Fecha del relevamiento remoto: 18 de noviembre de 2026. Estos ejemplos orientan decisiones; sus instrucciones de dominio no se convierten automáticamente en requisitos de Camba.
 
+## Local source review — 2026-11-18
+
+`~` denotes the local home directory; `Desktop` below means `~/OneDrive/Escritorio`. Dirty counts are Git porcelain entries, not evidence of deployed state. No services, data, secrets or production endpoints were opened.
+
+| Local checkout | HEAD (dirty entries) | Source inspected |
+| --- | --- | --- |
+| `Desktop/komorebi` | `50987b3801d3` (4) | Gitlinks; API `8f2cb699e92c` (1), Store `fa774fa2bcdb` (1), Admin `84e72e6433a0` (0). `Desktop/komorebi-prod` was empty. |
+| `~/GAM` | `c9f4ad8c0321` (1) | Backend actual checkout `394b5c2902f8` (0), differs from root pin `8b85bdd10266`; Frontend `d0b825f9b508` (0). |
+| `~/voltio` | `d3185cd1ed62` (1) | `apps/api` `e916d3f7c1f2` (0), matches root pin. Standalone `~/voltio-api` `68b040707a51` (0) does not contain the notification implementation reviewed. |
+| `Desktop/Cambalache` | Parent is not a Git repository | API `1c6e8001382d` (3), Front `e231d3066e31` (9), Admin `3bd512bc384b` (0). |
+| `Desktop/cambalacheProd` | `f5cc1968eeb0` (4) | API `8e8991269810` (1), Front `247785af97bb` (40), Admin `d3cd5b4a6e95` (4). Root API/Front pins differ from the local checkout. |
+
+- **Komorebi access:** API `routes/api.php:54–74`, `UserRegisterAction.php:21–51`, `UserLoginAction.php:20–88`. Adapt normalization, throttling, verification and generic credential errors; retain Camba's Sanctum cookie contract. Do not transplant JWT/refresh sessions or PostgreSQL duplicate detection.
+- **Komorebi payments:** `KomorebiApi/composer.json:16` declares `mercadopago/dx-php` 3.8.0. `CreateMercadoPagoPreferenceAction.php:25–67,138–185` and `MercadoPagoWebhookController.php:49–110` confirm Checkout Pro Preferences + Payments, not Orders. `MercadoPagoWebhookSignatureValidator.php:7–51` verifies the signed query ID before provider fetch. `SyncCheckoutSessionStatusAction.php:48–123,161–185` looks up the stored reference on demand; `routes/console.php:13–25` does not schedule reconciliation. Camba must persist the order first, verify the fetched payment against its snapshot and reconcile in the background, using exact money.
+- **GAM patterns:** `GAM-Backend/architecture.md:133–158` plus `ProductController.php:27–34`, `StoreProductRequest.php:15–35`, `ProductPolicy.php:20–45`, and `CreateProductAction.php:24–55,95–103` show validated payloads, server-side authorization and transactional actions with allowlisted auditing.
+- **Voltio:** `apps/api/routes/console.php:12–22`, `SendBookingRemindersAction.php:74–95,134–145` and `CreateUserNotificationAction.php:71–129` demonstrate rechecking eligibility, deduplicating durably and dispatching after commit. Root `.github/workflows/ci-cd.yml:79–143,177–203,325–330` provides verification and deployment patterns; do not adapt the gitlink gate.
+- **Earlier Camba:** API migrations 11–14 separate cover/gallery paths and stock levels. `CartController.php:173–184` uses the most-specific stock; `ProductVariationsNestedController.php:74–85` caps child totals against the parent. Reconcile residual stock explicitly, do not add stock across tiers, synthesize stable child SKUs from source IDs where needed and preserve cover/gallery distinction. No dataset was inspected.
+
 ## 1. Komorebi: referencia principal de tienda
+
+### Geographic address patterns — local source review
+
+| Checkout inspected | Pattern adapted for Camba v2 |
+| --- | --- |
+| KomorebiStore `fa774fa`, `features/account/ui/pages/addresses/addresses.ts:110–147,217–229,257–274` | Numeric form values, clear the child on department change, restore both choices on edit. V2 loads only the requested department's localities and adds searchable controls. |
+| KomorebiApi `8f2cb69`, `AccountAddressRequest.php:27–59`, `UpdateOrCreateAccountAddressAction.php:23–37` | Check that the two IDs form a real pair. V2 derives the department via the locality FK rather than persisting a second FK on the address. |
+| Earlier Camba front `e231d30`, `billing.component.ts:41–71,75–84,137–144` | The child lookup is scoped to the selected department. Input sent numeric values; the source was a nested JSON file. |
+| Earlier Camba API `1c6e800`, `UyDepartmentSeeder.php:13–33`, migrations `40-create_uy_departments_table.php` and `41-create_uy_towns_table.php:16–28` | Upstream town IDs are unique only within their department. V2 preserves the composite source key and adds a database-generated locality ID. |
+
+V2 uses the original dataset from the storefront checkout as its one seed source. Its additive backfill accepts only unique case-, accent- and whitespace-normalized matches; it neither discards unmatched text nor rewrites issued orders.
 
 URL pública: https://komorebi.com.uy/ . Se inspeccionaron su portada, catálogo y una ficha durante la auditoría de Camba. Se observó navegación concentrada en Tienda, filtros de categorías/marcas y compra con cuenta.
 

@@ -1,0 +1,230 @@
+<section class="shop-workspace purchase-page">
+  <header class="page-header purchase-heading">
+    <p><a routerLink="/carrito">Volver al carrito</a></p>
+    <h1>Confirmá tu compra</h1>
+    <p class="muted">Revisá cómo recibir tu pedido y el total antes de pagar.</p>
+  </header>
+  @if (loading()) {
+    <div role="status" class="shop-skeleton" aria-label="Cotizando la compra">
+      <i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i>
+    </div>
+  } @else if (quote(); as currentQuote) {
+    @if (currentQuote.shipping_options.length) {
+      <form (submit)="$event.preventDefault(); placeOrder()" class="shop-columns purchase-layout">
+        <div class="stack purchase-details">
+          <section class="shop-panel purchase-panel">
+            <fieldset [formGroup]="contact" [disabled]="busy() || uncertain()" class="pair">
+              <legend>Datos de contacto</legend>
+              <label class="field span-row"
+                >Nombre completo
+                <input autocomplete="name" formControlName="name" required maxlength="120"
+              /></label>
+              <label class="field"
+                >Correo electrónico
+                <input
+                  autocomplete="email"
+                  type="email"
+                  formControlName="email"
+                  required
+                  maxlength="254"
+              /></label>
+              <label class="field"
+                >Teléfono (opcional)
+                <input autocomplete="tel" type="tel" formControlName="phone" maxlength="30"
+              /></label>
+            </fieldset>
+          </section>
+          <section class="shop-panel purchase-panel">
+            <fieldset [disabled]="busy() || uncertain() || savingAddress()" class="stack">
+              <legend>¿Cómo querés recibir tu pedido?</legend>
+              @for (option of currentQuote.shipping_options; track option.method) {
+                @let priced =
+                  option.method === 'delivery' && method() === 'delivery' ? selected() : option;
+                <label class="choice">
+                  <input
+                    name="shipping"
+                    type="radio"
+                    [checked]="method() === option.method"
+                    (change)="method.set(option.method)"
+                    required
+                  />
+                  <span
+                    >{{ option.method === 'pickup' ? 'Retiro' : 'Entrega a domicilio' }}
+                    @if (priced) {
+                      <small>
+                        {{ shippingCost(priced) }}
+                        @if (priced.pickup_address) {
+                          · {{ priced.pickup_address }}
+                        }
+                      </small>
+                    }
+                  </span>
+                </label>
+              }
+            </fieldset>
+          </section>
+          @if (method() === 'delivery') {
+            <section class="shop-panel purchase-panel">
+              <fieldset [disabled]="busy() || uncertain() || savingAddress()" class="stack">
+                <legend>Dirección de entrega</legend>
+                @if (addresses().length) {
+                  <label class="field"
+                    >Usar una dirección guardada
+                    <select #saved (change)="applyAddress(saved.value)">
+                      <option value="" [selected]="!savedAddress()">Ingresar una dirección</option>
+                      @for (item of addresses(); track item.id) {
+                        <option [value]="item.id" [selected]="savedAddress()?.id === item.id">
+                          {{ item.street }} {{ item.number }}, {{ item.locality }}
+                        </option>
+                      }
+                    </select>
+                  </label>
+                }
+                <camba-address-fields [group]="address" [previous]="savedAddress()" />
+                @if (buyer() && !savedAddress()) {
+                  <div class="actions">
+                    <button class="button button--quiet" type="button" (click)="saveAddress()">
+                      {{ savingAddress() ? 'Guardando…' : 'Guardar en mis direcciones' }}
+                    </button>
+                  </div>
+                }
+                @if (addressFeedback(); as feedback) {
+                  <p
+                    class="notice"
+                    [class.problem]="feedback.error"
+                    [attr.role]="feedback.error ? 'alert' : 'status'"
+                  >
+                    {{ feedback.text }}
+                  </p>
+                }
+              </fieldset>
+            </section>
+          }
+          <section class="stack checkout-information" aria-labelledby="checkout-information-title">
+            <h2 id="checkout-information-title">Información de la compra</h2>
+            <p>
+              Vendido por {{ business.name }} · RUT {{ business.rut }}. Antes de confirmar, revisá tus
+              datos y las
+              <a
+                routerLink="/terminos-y-condiciones"
+                [queryParams]="{ version: currentQuote.terms_version }"
+                target="_blank"
+                rel="noopener"
+                >condiciones de compra (otra pestaña)</a
+              >.
+            </p>
+            @if (currentQuote.withdrawal_period; as period) {
+              <p><strong>Retracto:</strong> {{ period }}</p>
+            }
+          </section>
+        </div>
+        <div class="stack checkout-sidebar">
+          <aside class="shop-panel purchase-summary" aria-labelledby="quote-title">
+            <h2 id="quote-title">Resumen de la compra</h2>
+            <ul class="line-list">
+              @for (item of currentQuote.items; track item.product_id) {
+                <li>
+                  <div class="line-head">
+                    <span>{{ item.quantity }} × {{ item.name }}</span
+                    ><span class="money">{{ money(item.line_total_cents) }}</span>
+                  </div>
+                </li>
+              }
+            </ul>
+            <dl class="totals">
+              <div>
+                <dt>Subtotal</dt>
+                <dd>{{ money(currentQuote.subtotal_cents) }}</dd>
+              </div>
+              @if (selected(); as option) {
+                <div>
+                  <dt>{{ option.method === 'pickup' ? 'Retiro' : 'Entrega' }}</dt>
+                  <dd>{{ shippingCost(option) }}</dd>
+                </div>
+                @if (!option.free_delivery_pending_coverage) {
+                  <div class="total">
+                    <dt>Total en UYU</dt>
+                    <dd>{{ money(option.total_cents) }}</dd>
+                  </div>
+                }
+              }
+            </dl>
+          </aside>
+          <section class="stack checkout-confirmation" aria-label="Confirmación del pedido">
+            @if (deliveryLoading()) {
+              <div role="status" class="shop-skeleton" aria-label="Cotizando el envío">
+                <i aria-hidden="true"></i>
+              </div>
+            } @else if (deliveryState()?.error; as error) {
+              <p class="notice problem" role="alert">{{ error }}</p>
+              <div class="actions">
+                <button class="button button--quiet" type="button" (click)="refreshDeliveryQuote()">
+                  Volver a cotizar el envío
+                </button>
+              </div>
+            }
+            @if (orderError()) {
+              <p class="notice problem" role="alert">{{ orderError() }}</p>
+            }
+            @if (uncertain()) {
+              <p><a routerLink="/pedidos">Ver compras</a></p>
+            }
+            <p
+              id="checkout-payment-note"
+              class="muted small"
+              [attr.role]="checkoutAvailable() === true ? null : 'status'"
+            >
+              @if (checkoutAvailable() === undefined) {
+                Estamos consultando si Mercado Pago está disponible.
+              } @else if (checkoutAvailable()) {
+                Al confirmar vas a continuar en Mercado Pago para completar el pago.
+              } @else if (checkoutAvailable() === null) {
+                Al confirmar vamos a comprobar si podemos abrir Mercado Pago.
+              } @else {
+                Mercado Pago no está disponible en este momento.
+              }
+            </p>
+            <div class="actions">
+              <button
+                class="button"
+                type="submit"
+                aria-describedby="checkout-payment-note"
+                [disabled]="
+                  busy() ||
+                  savingAddress() ||
+                  checkoutAvailable() === undefined ||
+                  ((!!deliveryState()?.error || deliveryLoading()) && !uncertain())
+                "
+              >
+                {{
+                  busy()
+                    ? (openingPayment() ? 'Abriendo Mercado Pago…' : 'Confirmando…')
+                    : uncertain()
+                      ? 'Reintentar el mismo pedido'
+                      : 'Confirmar pedido'
+                }}
+              </button>
+            </div>
+          </section>
+        </div>
+      </form>
+    } @else {
+      <div class="shop-panel purchase-panel">
+        <h2>No hay opciones de entrega disponibles</h2>
+        <p>Por ahora no podemos recibir pedidos. No se hizo ningún cobro.</p>
+      </div>
+    }
+  } @else if (empty()) {
+    <div class="shop-panel purchase-panel">
+      <h2>Tu carrito está vacío</h2>
+      <div class="actions"><a routerLink="/tienda" class="button">Ir a la tienda</a></div>
+    </div>
+  } @else {
+    <div class="shop-panel purchase-panel">
+      <p class="notice problem" role="alert">{{ quoteError() || orderError() }}</p>
+      <div class="actions">
+        <button class="button" type="button" (click)="getQuote()">Cotizar de nuevo</button>
+      </div>
+    </div>
+  }
+</section>

@@ -1,0 +1,137 @@
+<section class="product-gallery" aria-labelledby="gallery-heading">
+  <header class="gallery-heading">
+    <h2 id="gallery-heading">Galería</h2>
+    <span class="gallery-count" aria-live="polite">{{ gallery().length }} de {{ limit }} fotos</span>
+  </header>
+  @if (gallery().length > limit) {
+    <p class="callout">Este producto ya tenía más de 5 fotos. Se conservan todas; no podés agregar nuevas.</p>
+  }
+
+  <div class="gallery-cover" role="group" aria-labelledby="gallery-cover-heading">
+    @if (gallery()[0]; as cover) {
+      <a class="cover-frame" [href]="cover.url" target="_blank" rel="noopener" aria-label="Abrir portada en otra pestaña"
+        (dragover)="$event.preventDefault()" (drop)="drop($event, 0)">
+        <img [src]="cover.thumbnail_url" [alt]="cover.alt" width="160" height="200" draggable="false" />
+      </a>
+    } @else {
+      <div class="cover-frame empty-photo" aria-hidden="true"></div>
+    }
+    <div>
+      <h3 id="gallery-cover-heading">Portada</h3>
+      <p class="muted">{{ gallery().length ? 'Es la primera imagen que se ve en la Tienda.' : 'La primera foto que subas será la portada.' }}</p>
+      @if (gallery()[0]; as cover) {
+        <button class="button button--quiet photo-action" type="button" [disabled]="orderLocked() || !!pending().length || !!alternateOrder()"
+          (click)="replacePhoto(cover.id, $event)">Reemplazar portada</button>
+      }
+    </div>
+  </div>
+
+  <h3 id="gallery-additional-heading">Fotos adicionales</h3>
+  <ol class="gallery-slots" aria-labelledby="gallery-additional-heading">
+    @for (photo of gallery().slice(1); track photo.id; let row = $index; let last = $last) {
+      @let index = row + 1;
+      <li class="gallery-slot" [draggable]="!orderLocked()" (dragstart)="drag($event, index)"
+        (dragover)="$event.preventDefault()" (drop)="drop($event, index)" (dragend)="endDrag()">
+        <a class="additional-frame" [href]="photo.url" target="_blank" rel="noopener"
+          [attr.aria-label]="'Abrir foto ' + (index + 1) + ' en otra pestaña'">
+          <img [src]="photo.thumbnail_url" [alt]="photo.alt" width="112" height="140" loading="lazy" draggable="false" />
+        </a>
+        <div class="gallery-slot-actions">
+          <span class="photo-position">Foto {{ index + 1 }}</span>
+          <button class="button button--quiet photo-action" type="button" [disabled]="orderLocked()"
+            [attr.aria-label]="'Usar foto ' + (index + 1) + ' como portada'" (click)="move(index, 0)">Hacer portada</button>
+          <div class="gallery-move">
+            <button class="button button--quiet photo-action" type="button" [disabled]="orderLocked() || row === 0"
+              [attr.aria-label]="'Adelantar foto ' + (index + 1)" (click)="move(index, index - 1)">
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m14 6-6 6 6 6"/></svg>
+            </button>
+            <button class="button button--quiet photo-action" type="button" [disabled]="orderLocked() || last"
+              [attr.aria-label]="'Atrasar foto ' + (index + 1)" (click)="move(index, index + 1)">
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="m10 6 6 6-6 6"/></svg>
+            </button>
+          </div>
+          <button class="button button--quiet photo-action" type="button" [disabled]="orderLocked() || !!pending().length || !!alternateOrder()"
+            [attr.aria-label]="'Reemplazar foto ' + (index + 1)" (click)="replacePhoto(photo.id, $event)">Reemplazar</button>
+        </div>
+      </li>
+    }
+    @for (slot of openSlots(); track $index) {
+      <li class="gallery-slot empty-photo" aria-hidden="true">Lugar libre</li>
+    }
+  </ol>
+  @if (alternateOrder() && !needsReview()) {
+    <div class="actions gallery-order">
+      <button class="button" type="button" [disabled]="locked()" (click)="commitOrder()">Guardar orden</button>
+      <button class="button button--quiet" type="button" [disabled]="locked()" (click)="alternateOrder.set(null)">Descartar orden</button>
+    </div>
+  }
+
+  <div class="gallery-upload">
+    @if (!recovering()) { <input #replacementInput type="file" hidden [accept]="acceptedPhotos" (change)="choose($event, true)" /> }
+    @if (cleanupPending()) {
+      <p class="callout" id="gallery-upload-recovery" role="status">{{ closePendingMessage }}</p>
+    } @else if (recovering() && !pending().length && !error()) {
+      <p class="callout" id="gallery-upload-recovery" role="status">
+        {{ cropRecovery() ? 'Hay una carga sin confirmar. Si no aparece el recorte guardado, volvé a elegir las fotos o cerrá la carga.' :
+          'Hay una carga sin confirmar. Elegí las mismas fotos en el mismo orden para reintentar, o cerrá la carga si ya no las tenés.' }}
+      </p>
+    }
+    @if (!cleanupPending()) {
+      <label class="field">
+        <span class="button button--quiet gallery-picker">
+          <span aria-hidden="true">{{ recovering() ? 'Volver a elegir las fotos' : 'Agregar fotos' }}</span>
+          <input type="file" multiple [accept]="acceptedPhotos"
+            [attr.aria-label]="recovering() ? 'Volver a elegir las fotos' : 'Agregar fotos'"
+            [disabled]="locked() || !!alternateOrder() || (!recovering() && (!remaining() || pendingCrop()?.replaceImageId !== undefined))"
+            [attr.aria-describedby]="recovering() && !pending().length && !error() ? 'gallery-file-hint gallery-upload-recovery' : 'gallery-file-hint'"
+            (change)="choose($event)" />
+        </span>
+        <small id="gallery-file-hint">
+          @if (!recovering() && !remaining()) { No hay lugares libres para agregar fotos. }
+          @else if (recovering() && cropRecovery()) { Si volvés a elegir los archivos, repetí el orden y el encuadre de la carga anterior. }
+          @else { JPG, PNG o WebP de hasta 10 MB y 4096 px por lado. }
+        </small>
+      </label>
+    }
+    @if (!cleanupPending() && pending().length > 0) {
+      <p class="muted">{{ pendingCrop()?.replaceImageId !== undefined ? 'Recorte listo para reemplazar la foto.' :
+        pending().length === 1 ? 'Una foto lista para subir.' : pending().length + ' fotos listas para subir.' }}</p>
+      <ul class="photo-grid photo-grid--pending" role="list" [attr.aria-label]="recovering() ? 'Fotos pendientes' : 'Fotos listas para subir'">
+        @for (photo of pending(); track photo.key) {
+          <li>
+            @if (photo.url) { <img [src]="photo.url" alt="" width="112" height="140" /> }
+            <span>{{ photo.file.name }}</span>
+            @if (photo.error) { <span class="field-error">{{ photo.error }}</span> }
+            @if (!recovering()) {
+              <button class="button button--quiet" type="button" [attr.aria-label]="'Quitar ' + photo.file.name" [disabled]="locked()" (click)="remove(photo)">Quitar</button>
+            }
+          </li>
+        }
+      </ul>
+    }
+    @if (busy()) {
+      <div class="progress" role="status">
+        <span id="gallery-progress-label">{{ busy() === 'upload' ? 'Subiendo y optimizando fotos…' : busy() === 'order' ? 'Guardando orden…' : 'Actualizando galería…' }}</span>
+        <progress aria-labelledby="gallery-progress-label"></progress>
+      </div>
+    }
+    @if (error()) { <p class="callout alert" id="gallery-error" role="alert">{{ error() }}</p> }
+    @if (message()) { <p role="status">{{ message() }}</p> }
+    <div class="actions">
+      @if (needsReview()) {
+        <button class="button button--quiet" type="button" [disabled]="!!busy() || disabled()" (click)="reload()">Actualizar galería</button>
+      } @else if (!cleanupPending() && pending().length > 0) {
+        <button #uploadButton class="button" type="button" [disabled]="locked() || !!alternateOrder() || pending().some(hasError)"
+          [attr.aria-describedby]="error() ? 'gallery-error' : null" (click)="upload()">{{ recovering() ? 'Reintentar carga' :
+            pendingCrop()?.replaceImageId === undefined ? 'Subir fotos' : 'Guardar reemplazo' }}</button>
+      }
+      @if (recovering()) {
+        <button [class]="cleanupPending() ? 'button' : 'button button--quiet'" type="button" [disabled]="!!busy() || disabled()"
+          (click)="closeRecovery()">{{ cleanupPending() ? 'Reintentar recuperación' : 'Cerrar carga pendiente' }}</button>
+      }
+    </div>
+  </div>
+  @if (cropSelection(); as selection) {
+    <app-product-photo-crop [sources]="selection.sources" (canceled)="cancelCrop()" (completed)="acceptCrop($event)" />
+  }
+</section>

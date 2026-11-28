@@ -1,0 +1,75 @@
+<section class="shop-workspace members">
+  <header class="page-header">
+    <p><a routerLink="/cuenta">Mi cuenta</a></p>
+    <h1>Tus compras</h1>
+    <p class="muted">Acá aparecen los pedidos de tu cuenta o de tu sesión como invitado.</p>
+  </header>
+  @if (loading()) {
+    <div role="status" class="shop-skeleton" aria-label="Cargando compras">
+      <i aria-hidden="true"></i><i aria-hidden="true"></i>
+    </div>
+  } @else if (error()) {
+    <div class="shop-panel">
+      <p class="notice problem" role="alert">{{ error() }}</p>
+      <div class="actions">
+        <button type="button" class="button" (click)="load(page())">Reintentar</button>
+      </div>
+    </div>
+  } @else if (orders().length) {
+    <div class="orders-list">
+      <ul class="line-list">
+        @for (order of orders(); track order.reference) {
+          <li class="order-row">
+            <div class="order-main">
+              <div>
+                <h2>Pedido del {{ date(order.created_at) }}</h2>
+                <p class="muted small">Referencia · {{ order.reference.slice(0, 8) }}</p>
+              </div>
+              <p class="order-total"><span class="muted small">Total</span><strong class="money">{{ money(order.total_cents) }}</strong></p>
+            </div>
+            <div class="order-details">
+              <span class="muted">
+                {{ order.shipping_method === 'pickup' ? 'Retiro' : 'Entrega a domicilio' }}
+              </span>
+              <span class="state-chip" [attr.data-status]="order.status">{{ states[order.status] || 'Estado no disponible' }}</span>
+              <a
+                [routerLink]="['/pedidos', order.reference]"
+                [attr.aria-label]="'Ver pedido ' + order.reference.slice(0, 8)"
+                >Ver pedido →</a
+              >
+            </div>
+          </li>
+        }
+      </ul>
+      @if (lastPage() > 1) {
+        <div class="actions" aria-label="Paginación">
+          <button
+            class="button button--quiet"
+            type="button"
+            [disabled]="page() <= 1"
+            (click)="load(page() - 1)"
+          >
+            Anterior
+          </button>
+          <span>Página {{ page() }} de {{ lastPage() }}</span>
+          <button
+            class="button button--quiet"
+            type="button"
+            [disabled]="page() >= lastPage()"
+            (click)="load(page() + 1)"
+          >
+            Siguiente
+          </button>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="shop-panel">
+      <h2>Todavía no hay compras</h2>
+      <p class="muted">
+        Si hiciste un pedido como invitado, consultalo en el mismo navegador y sesión.
+      </p>
+      <div class="actions"><a class="button" routerLink="/tienda">Ir a la tienda</a></div>
+    </div>
+  }
+</section>

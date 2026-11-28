@@ -1,0 +1,11 @@
+{
+  "source": "Built-in ImageGen",
+  "use": "Demo only. Approve or replace before publication.",
+  "inputs": [],
+  "prompt": "Use case: ads-marketing. Single fashion editorial photo specifically composed for a narrow 4:5 portrait mobile website banner. Young adult woman with short loose dark brown hair, natural gesture, oversize long-sleeved white cotton button-up and sand high waist straight-leg trousers, beside a tall industrial window in a Montevideo studio, warm limewashed brick. Her head is at x=0.68 y=0.20 with breathing room and face unobstructed; the right side has beautiful hard golden lateral daylight, pale shirt is completely clear across upper-middle half, trousers and hand visible toward the right. Bottom quarter at left and across bottom is a dark quiet deep brown burgundy shadow area suitable for later text overlay. Camera backed off; three-quarter portrait, strong diagonal architecture, tactile grain and cloth, tasteful fashion magazine, warm photographic not CGI. No signage, text, logo, watermark, no layout/UI.",
+  "processing": [
+    "Bicubic",
+    "scale=800:-2",
+    "WebP quality 77"
+  ]
+}

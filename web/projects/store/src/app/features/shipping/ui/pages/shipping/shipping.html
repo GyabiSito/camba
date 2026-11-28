@@ -1,0 +1,34 @@
+<store-help-article [title]="title" [description]="description">
+  <div class="help-content">
+    @if (info; as settings) {
+      <dl class="shipping-summary">
+        <div><dt>Modalidades</dt><dd>
+          @if (settings.pickup_address && settings.delivery_cents !== null) { Retiro y envío a domicilio. }
+          @else if (settings.pickup_address) { Retiro. }
+          @else if (settings.delivery_cents !== null) { Envío a domicilio. }
+          @else { No hay modalidades publicadas. }
+        </dd></div>
+        <div><dt>Cobertura</dt><dd>No hay un listado de zonas publicado. <a routerLink="/contacto">Consultanos</a> antes de comprar si tenés dudas sobre tu localidad.</dd></div>
+        <div><dt>Costo</dt><dd>
+          @if (settings.pickup_address) { Retiro sin costo. }
+          @if (settings.delivery_cents !== null) { Envío: {{ money(settings.delivery_cents) }}. }
+          @if (!settings.pickup_address && settings.delivery_cents === null) { No hay una tarifa publicada. }
+          El total se muestra antes de confirmar el pedido.
+        </dd></div>
+      </dl>
+      <section>
+        <h2>Preparación</h2>
+        <p>Cuando se confirma el pago, Camba puede preparar el pedido. Consultá su estado desde <a routerLink="/cuenta">Mi cuenta</a> si compraste con una cuenta. No hay un plazo de preparación publicado.</p>
+      </section>
+      @if (settings.pickup_address) {
+        <section><h2>Retiro</h2><p>Retiro sin costo en <strong>{{ settings.pickup_address }}</strong>. Esperá el aviso de que tu pedido está listo antes de ir.</p></section>
+      }
+      @if (settings.delivery_cents !== null) {
+        <section><h2>Envío a domicilio</h2><p>Completá los datos de quien recibe y la dirección. El checkout suma la tarifa fija configurada al subtotal y te muestra el total en pesos uruguayos antes de confirmar.</p></section>
+      }
+      <section><h2>Seguimiento</h2><p>Te avisamos por correo cuando el pedido sale para entrega o queda listo para retirar, según la modalidad. Guardá la referencia que ves al confirmar la compra para cualquier consulta.</p></section>
+    } @else {
+      <p>No pudimos cargar las modalidades y los costos ahora. Probá recargar o <a routerLink="/contacto">contactanos</a>.</p>
+    }
+  </div>
+</store-help-article>

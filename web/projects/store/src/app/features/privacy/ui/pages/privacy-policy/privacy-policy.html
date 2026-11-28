@@ -1,0 +1,30 @@
+<store-help-article [title]="title" [description]="description">
+  @if (!fiscalName()) {
+    <p help-draft role="status">Borrador: falta completar la denominación fiscal de Camba antes de publicar este documento.</p>
+  }
+  <div class="help-content">
+    <section>
+      <h2>Responsable de tus datos</h2>
+      <p>{{ business.privacyContact }}, por {{ business.name }}@if (fiscalName(); as name) { ({{ name }}) }, RUT {{ business.rut }}, {{ business.address }}. Escribinos a <a [href]="'mailto:' + business.email">{{ business.email }}</a>.</p>
+    </section>
+    <section>
+      <h2>Qué datos usamos y por qué</h2>
+      <p>Para tu cuenta usamos nombre, correo, contraseña protegida con hash y datos de verificación y sesión. Para procesar la compra guardamos los artículos, importes, estado del pedido, nombre y correo de contacto. El teléfono es opcional. Si pedís entrega, necesitamos destinatario y domicilio para enviártela.</p>
+      <p>Usamos los datos de consultas y solicitudes para responderte y dejar constancia del trámite. Los correos de cuenta, pago, entrega y soporte sirven para completar esas gestiones. Podés elegir en tu cuenta si querés recibir recordatorios de carrito.</p>
+    </section>
+    <section>
+      <h2>Con quién compartimos datos</h2>
+      <p>Mercado Pago recibe la referencia, el importe, la moneda y los datos de la operación. Los datos de tarjeta se ingresan en Mercado Pago; Camba no los guarda. <a href="https://www.mercadopago.com.uy/privacidad/declaracion-privacidad/proteccion-datos-transferencia-internacional_32793">Mercado Pago informa que puede procesar datos fuera de Uruguay</a>.</p>
+      <p>Cuando usamos Resend, le enviamos la dirección de destino y el contenido del mensaje que debe entregar. <a href="https://resend.com/legal/dpa">Resend declara que su procesamiento principal se realiza en Estados Unidos</a>. Para entrega compartimos con el operador de envíos los datos necesarios, como destinatario y dirección. La infraestructura del sitio procesa datos para operar la tienda y no afirmamos que todo el procesamiento se realice en Uruguay.</p>
+    </section>
+    <section>
+      <h2>Cookies y conservación</h2>
+      <p>Usamos cookies de sesión y de protección de formularios para mantener el ingreso y evitar solicitudes no autorizadas. La tienda usa almacenamiento de sesión para distinguir los reintentos de pago. Conservamos datos de cuenta, compra o trámite mientras sean necesarios para su finalidad y en la medida en que debamos mantenerlos por obligaciones legales o para atender reclamos.</p>
+    </section>
+    <section>
+      <h2>Tus derechos</h2>
+      <p>Podés pedir acceso, rectificación, actualización, inclusión o supresión. <a routerLink="/contacto">Contactanos</a> o escribí a <a [href]="'mailto:' + business.email">{{ business.email }}</a> indicando qué derecho querés ejercer. Te indicaremos cómo acreditar tu identidad por un canal seguro; no adjuntes documentos de identidad, contraseñas ni datos de tarjeta al formulario general.</p>
+      <p>El plazo legal es de <strong>5 días hábiles</strong> para darte acceso, realizar el cambio que corresponda o explicar la decisión, según los <a href="https://www.impo.com.uy/bases/leyes/18331-2008/14">arts. 14</a> <a href="https://www.impo.com.uy/bases/leyes/18331-2008/15">y 15 de la Ley 18.331</a>.</p>
+    </section>
+  </div>
+</store-help-article>

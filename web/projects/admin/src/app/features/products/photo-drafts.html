@@ -1,0 +1,158 @@
+<section class="catalog-page catalog-page--work batch-page batch-page--photos">
+  <a class="back" routerLink="/productos">Volver a productos</a>
+  <nav class="batch-methods" aria-label="Métodos de carga masiva">
+    <a routerLink="/productos/carga-por-fotos" aria-current="page">Por fotos</a>
+    <a routerLink="/productos/importar">Desde CSV o XLSX</a>
+  </nav>
+  <header class="page-heading">
+    <div><h1>Carga por fotos</h1><p class="muted">Armá un grupo de fotos por producto. Cada grupo se guarda como borrador, sin publicarse.</p></div>
+  </header>
+  <ol class="batch-steps" aria-label="Etapas de la carga por fotos">
+    <li [attr.aria-current]="!preview() && result() === 0 ? 'step' : null">Preparar grupos</li>
+    <li [attr.aria-current]="preview() && !running() ? 'step' : null">Revisar fotos y datos</li>
+    <li [attr.aria-current]="preview() && running() ? 'step' : null">Confirmar borradores</li>
+    <li [attr.aria-current]="result() > 0 && !preview() ? 'step' : null">Resultado</li>
+  </ol>
+  @if (loading()) {
+    <div class="loading-block" aria-hidden="true"><span class="skeleton skeleton-line"></span><span class="skeleton skeleton-line"></span></div>
+    <p class="sr-only" role="status">Cargando categorías y marcas…</p>
+  } @else if (loadError()) {
+    <p class="callout alert" role="alert">{{ loadError() }}</p>
+    <button class="button button--quiet" type="button" (click)="load()">Reintentar</button>
+  } @else {
+    @if (interruptedDrafts.length) {
+      <section class="work-section" aria-labelledby="interrupted-drafts">
+        <h2 id="interrupted-drafts">Cargas pendientes</h2>
+        <p class="muted">Abrí el borrador para reintentar con las fotos originales o cerrar la carga, sin crear otro producto.</p>
+        <ul>
+          @for (draft of interruptedDrafts; track draft.id) {
+            <li><a [routerLink]="['/productos', draft.id]">Abrir borrador {{ draft.sku }}</a></li>
+          }
+        </ul>
+      </section>
+    }
+    @if (!preview()) {
+      <details class="work-section">
+        <summary>Completar datos en varios grupos</summary>
+        <p class="muted">Se aplican solo los valores que completes a los grupos seleccionados que todavía no tienen borrador.</p>
+        <fieldset class="plain-fieldset" [disabled]="running()">
+          <legend class="sr-only">Datos para varios grupos</legend>
+          <div class="field-grid">
+            <label class="field">Precio (UYU)<input [(ngModel)]="common.price" inputmode="decimal" maxlength="11" /></label>
+            <label class="field">Stock<input [(ngModel)]="common.stock" inputmode="numeric" maxlength="10" /></label>
+            <label class="field">Categoría
+              <select [(ngModel)]="common.category">
+                <option [ngValue]="null">No cambiar</option>
+                @for (category of categories(); track category.id) {
+                  @if (category.active) { <option [ngValue]="category.id">{{ category.name }}</option> }
+                }
+              </select>
+            </label>
+            <label class="field">Marca
+              <select [(ngModel)]="common.brand">
+                <option [ngValue]="null">No cambiar</option>
+                @for (brand of brands(); track brand.id) {
+                  @if (brand.active) { <option [ngValue]="brand.id">{{ brand.name }}</option> }
+                }
+              </select>
+            </label>
+          </div>
+          <button class="button button--quiet" type="button" (click)="applyCommon()">Aplicar a la selección</button>
+        </fieldset>
+      </details>
+    }
+
+    @if (preview()) {
+      <div class="batch-stage" role="status">
+        <h2>Vista previa</h2>
+        <p>Revisá las fotos y los datos de cada grupo. La confirmación crea borradores; no publica productos.</p>
+      </div>
+    }
+    <div class="batch-grid">
+      @for (group of groups(); track group.key) {
+        <fieldset class="batch-group" [disabled]="running()">
+          <legend>{{ group.fields.name || 'Grupo ' + group.key }}</legend>
+          @if (group.done) {
+            <p><span class="status-pill" data-status="active">Borrador preparado</span></p>
+            <p>SKU: {{ group.product?.sku }} · {{ group.product?.images?.length }} fotos</p>
+            <a class="button button--quiet" [routerLink]="['/productos', group.product?.id]">Revisar y publicar</a>
+          } @else if (preview() && !group.error && !group.uncertainCreate && !group.retryUpload) {
+            <p>{{ price(group) }} · Stock: {{ group.fields.stock }} · {{ categoryName(group.fields.category) }}</p>
+            <p>{{ group.photos.length }} {{ group.photos.length === 1 ? 'foto' : 'fotos' }}</p>
+            <ul class="photo-grid" aria-label="Vista previa de fotos">
+              @for (photo of group.photos; track photo.key) {
+                <li><img [src]="photo.url" alt="" width="120" height="120" /><span>{{ photo.file.name }}</span></li>
+              }
+            </ul>
+          } @else {
+            @if (group.product) {
+              <p>El borrador ya existe: <a [routerLink]="['/productos', group.product.id]" target="_blank" rel="noopener">{{ group.product.sku }} (abre en otra pestaña)</a>.</p>
+            } @else if (group.uncertainCreate) {
+              <a routerLink="/productos" target="_blank" rel="noopener">Buscar en productos (abre en otra pestaña)</a>
+            } @else if (!preview()) {
+              <label class="choice"><input type="checkbox" [(ngModel)]="group.checked" /> Incluir en cambios comunes</label>
+              <app-product-fields [values]="group.fields" [categories]="categories()" [brands]="brands()" />
+            }
+            @if (!preview() && !group.uncertainCreate && !group.retryUpload) {
+              <label class="field">Fotos de este producto
+                <small>JPG, PNG o WebP; hasta {{ photoLimit }} fotos por producto, de 10 MB cada una.</small>
+                <input type="file" multiple [accept]="acceptedPhotos" (change)="choose(group.key, $event)" />
+              </label>
+            }
+            @if (group.photos.length && !cleanupPending(group.upload)) {
+              <ul class="photo-grid photo-grid--pending" role="list" [attr.aria-label]="group.retryUpload ? 'Fotos pendientes' : 'Fotos seleccionadas'">
+                @for (photo of group.photos; track photo.key) {
+                  <li>
+                    @if (photo.url) { <img [src]="photo.url" alt="" width="120" height="120" /> }
+                    <span>{{ photo.file.name }}</span>
+                    @if (photo.error) { <span class="field-error">{{ photo.error }}</span> }
+                    @if (!preview() && !group.uncertainCreate && !group.retryUpload) {
+                      <button class="button button--quiet" type="button" [attr.aria-label]="'Quitar ' + photo.file.name" (click)="removePhoto(group.key, photo)">Quitar</button>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+            @if (!preview() && !group.product && !group.uncertainCreate) {
+              <button class="button button--quiet" type="button" [attr.aria-label]="'Quitar grupo ' + group.key" (click)="removeGroup(group)">Quitar grupo</button>
+            }
+            @if (active() === group.key) {
+              <div class="progress" role="status">
+                <span [id]="'group-progress-' + group.key">{{ closing() ? 'Recuperando carga…' : group.product ? 'Subiendo y optimizando fotos…' : 'Creando borrador…' }}</span>
+                <progress [attr.aria-labelledby]="'group-progress-' + group.key"></progress>
+              </div>
+            }
+            @if (group.error) { <p class="callout alert" [id]="'group-error-' + group.key" role="alert">{{ group.error }}</p> }
+            @if (group.retryUpload) {
+              @if (cleanupPending(group.upload)) {
+                <p class="callout" role="status">{{ closePendingMessage }}</p>
+              } @else if (group.photos.length) {
+                <button class="button" type="button" [attr.aria-describedby]="group.error ? 'group-error-' + group.key : null" (click)="retry(group)">Reintentar carga</button>
+              }
+              <button [class]="cleanupPending(group.upload) ? 'button' : 'button button--quiet'" type="button" (click)="closeRecovery(group)">{{ cleanupPending(group.upload) ? 'Reintentar recuperación' : 'Cerrar carga pendiente' }}</button>
+            }
+          }
+          @if (group.notice) { <p role="status">{{ group.notice }}</p> }
+        </fieldset>
+      } @empty {
+        <p class="muted">Agregá un grupo para empezar.</p>
+      }
+    </div>
+    @if (result() > 0) {
+      <div class="batch-result callout" role="status">
+        <h2>Resultado de la carga</h2>
+        <p>{{ result() }} {{ result() === 1 ? 'borrador preparado' : 'borradores preparados' }}. Todavía no se publicaron.</p>
+        <p>Próximo paso: revisá cada borrador y publicalo cuando esté listo.</p>
+      </div>
+    }
+    <div class="actions batch-actions">
+      @if (preview()) {
+        <button class="button" type="button" (click)="run()">Confirmar y crear borradores</button>
+        <button class="button button--quiet" type="button" (click)="preview.set(false)">Volver a editar</button>
+      } @else {
+        <button class="button button--quiet" type="button" [disabled]="running()" (click)="addGroup()">Agregar otro producto</button>
+        <button class="button" type="button" [disabled]="running() || pending().length === 0" (click)="check()">Revisar borradores</button>
+      }
+    </div>
+  }
+</section>

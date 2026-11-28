@@ -1,0 +1,162 @@
+<section class="catalog-page" aria-labelledby="products-title">
+  <header class="page-heading">
+    <h1 id="products-title">Productos</h1>
+    <nav class="catalog-primary-actions" aria-label="Acciones de productos">
+      <a class="button button--quiet" routerLink="/productos/importar">Carga masiva</a>
+      <a class="button product-create" routerLink="/productos/nuevo">Nuevo producto</a>
+    </nav>
+  </header>
+
+  <div class="catalog-toolbar">
+    <div class="catalog-filters" role="search" aria-label="Filtrar el catálogo">
+      <label class="catalog-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+          <circle cx="10.5" cy="10.5" r="6.5" /><path d="m15.5 15.5 4 4" />
+        </svg>
+        <span class="sr-only">Buscar por nombre o SKU</span>
+        <input type="search" maxlength="120" placeholder="Buscar por nombre o SKU" [ngModel]="q" (ngModelChange)="search($event)" />
+      </label>
+      <label>
+        <span class="sr-only">Categoría</span>
+        <select [(ngModel)]="category" (ngModelChange)="go(1)">
+          <option value="">Categoría</option>
+          @for (item of categories(); track item.id) {
+            <option [value]="item.slug">{{ item.name }}{{ item.active ? '' : ' (inactiva)' }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        <span class="sr-only">Estado</span>
+        <select [(ngModel)]="status" (ngModelChange)="go(1)">
+          <option value="">Estado</option>
+          <option value="draft">Borrador</option>
+          <option value="published">Publicado</option>
+          <option value="archived">Archivado</option>
+        </select>
+      </label>
+      <label>
+        <span class="sr-only">Disponibilidad</span>
+        <select [(ngModel)]="availability" (ngModelChange)="go(1)">
+          <option value="">Disponibilidad</option>
+          <option value="out_of_stock">Sin stock</option>
+        </select>
+      </label>
+    </div>
+
+    @if (q || category || status || availability) {
+      <button class="link-button" type="button" (click)="clearFilters()">Limpiar filtros</button>
+    }
+
+    <details class="catalog-actions">
+      <summary>Más tareas del catálogo</summary>
+      <ul>
+        <li><a routerLink="/productos/carga-por-fotos">Carga por fotos</a></li>
+        <li><a routerLink="/productos/categorias">Categorías</a></li>
+        <li><a routerLink="/productos/marcas">Marcas</a></li>
+      </ul>
+    </details>
+  </div>
+
+  @if (categoryError()) {
+    <p class="callout" role="alert">{{ categoryError() }} <button type="button" class="link-button" (click)="loadCategories()">Reintentar</button></p>
+  }
+
+  <div class="inventory" [attr.aria-busy]="loading()">
+    @if (loading()) {
+      <div class="inventory-list skeleton-list" aria-hidden="true">
+        @for (line of [1, 2, 3, 4, 5, 6, 7]; track line) {
+          <div><span class="skeleton skeleton-thumb"></span><span class="skeleton skeleton-line"></span></div>
+        }
+      </div>
+      <aside class="selection skeleton-selection" aria-hidden="true">
+        <span class="skeleton skeleton-cover"></span>
+        <span class="skeleton skeleton-line"></span>
+      </aside>
+    } @else if (error()) {
+      <div class="inventory-message" role="alert">
+        <p>{{ error() }}</p>
+        <button class="button button--quiet" type="button" (click)="retry()">Reintentar</button>
+      </div>
+    } @else if (result(); as page) {
+      @if (page.data.length > 0) {
+        <div class="inventory-list">
+          <table aria-label="Inventario de productos" role="table">
+            <thead role="rowgroup">
+              <tr role="row">
+                <th scope="col" role="columnheader" colspan="2">Producto</th>
+                <th scope="col" role="columnheader">SKU</th>
+                <th scope="col" role="columnheader">Categoría</th>
+                <th scope="col" role="columnheader">Precio</th>
+                <th scope="col" role="columnheader">Stock</th>
+                <th scope="col" role="columnheader">Estado</th>
+                <th scope="col" role="columnheader"><span class="sr-only">Acción</span></th>
+              </tr>
+            </thead>
+            <tbody role="rowgroup">
+              @for (item of page.data; track item.id) {
+                <tr role="row" [class.is-selected]="selected()?.id === item.id">
+                  <td role="cell" class="product-select">
+                    <button class="select-product" type="button" [attr.aria-pressed]="selected()?.id === item.id"
+                      [attr.aria-label]="'Seleccionar ' + (item.name || item.sku)" (click)="selected.set(item)">
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                        <rect x="1.5" y="1.5" width="13" height="13" rx="3" />
+                        @if (selected()?.id === item.id) { <path d="m4 8 2.5 2.5L12 5" /> }
+                      </svg>
+                    </button>
+                  </td>
+                  <th scope="row" role="rowheader" class="product-cell">
+                    <div class="product-identity">
+                      <span class="product-thumb">
+                        @if (photoOf(item); as photo) { <img [src]="photo.thumbnail_url" alt="" width="60" height="60" loading="lazy" /> }
+                      </span>
+                      <a [routerLink]="['/productos', item.id]">{{ item.name || 'Sin nombre' }}</a>
+                    </div>
+                  </th>
+                  <td role="cell" class="sku"><span class="mobile-label">SKU</span>{{ item.sku }}</td>
+                  <td role="cell" class="category-cell"><span class="mobile-label">Categoría</span>{{ item.category?.name || 'Sin categoría' }}</td>
+                  <td role="cell" class="price"><span class="mobile-label">Precio</span>{{ item.price_cents === null ? 'Sin precio' : formatMoney(item.price_cents) }}</td>
+                  <td role="cell" class="stock"><span class="mobile-label">Stock</span>{{ item.stock }}</td>
+                  <td role="cell" class="status-cell"><span class="mobile-label">Estado</span><span class="status-pill" [attr.data-status]="item.status">{{ labels[item.status] }}</span></td>
+                  <td role="cell" class="row-action"><a [routerLink]="['/productos', item.id]" [attr.aria-label]="'Editar ' + (item.name || item.sku)">Editar</a></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (selected(); as item) {
+          <aside class="selection" aria-label="Producto seleccionado" aria-live="polite">
+            <div class="selection-head">
+              <span class="product-thumb selection-photo">
+                @if (photoOf(item); as photo) { <img [src]="photo.thumbnail_url" [alt]="photo.alt" width="120" height="120" /> }
+              </span>
+              <div><h2>{{ item.name || 'Sin nombre' }}</h2><p>SKU: {{ item.sku }}</p></div>
+            </div>
+            <dl class="inventory-facts">
+              <div><dt>Categoría</dt><dd>{{ item.category?.name || 'Sin categoría' }}</dd></div>
+              <div><dt>Stock</dt><dd>{{ item.stock }}</dd></div>
+              <div><dt>Estado</dt><dd><span class="status-pill" [attr.data-status]="item.status">{{ labels[item.status] }}</span></dd></div>
+            </dl>
+            <a class="button" [routerLink]="['/productos', item.id]">Editar producto</a>
+          </aside>
+        }
+      } @else {
+        <div class="inventory-message">
+          @if (q || category || status || availability) {
+            <h2>No encontramos productos</h2>
+            <p>Probá con otro nombre o SKU, o cambiá los filtros.</p>
+          } @else {
+            <h2>Todavía no hay productos</h2>
+            <p>Creá un borrador para empezar el catálogo.</p>
+            <a class="button button--quiet" routerLink="/productos/nuevo">Crear borrador</a>
+          }
+        </div>
+      }
+    }
+  </div>
+
+  @if (!loading() && !error() && result(); as page) {
+    <admin-catalog-pagination [meta]="page.meta" label="Páginas de productos" (pageChange)="go($event)" />
+  } @else if (loading()) {
+    <p class="sr-only" role="status">Cargando productos…</p>
+  }
+</section>

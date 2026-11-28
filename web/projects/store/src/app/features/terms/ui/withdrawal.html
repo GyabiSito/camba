@@ -1,0 +1,62 @@
+<store-help-article title="Botón de arrepentimiento" description="Solicitá dejar sin efecto una compra en línea. No precisás iniciar sesión ni indicar un motivo.">
+  <div class="help-content withdrawal-layout">
+    @if (receipt(); as proof) {
+      <div class="shop-panel withdrawal-receipt">
+        <div role="status" aria-labelledby="withdrawal-received">
+          <h2 id="withdrawal-received" #receiptTitle tabindex="-1">Solicitud recibida</h2>
+          <p>Número de constancia: <strong>{{ proof.reference }}</strong></p>
+          <p>Recepción: <time [attr.datetime]="proof.received_at">{{ date(proof.received_at) }}</time> (hora de Uruguay).</p>
+          <p>Enviamos una copia por correo solo si la referencia y el correo coinciden con los datos de la compra.</p>
+          <p>La constancia no confirma que se haya identificado el pedido ni que se haya hecho un reintegro.</p>
+        </div>
+        <button class="button button--quiet withdrawal-print" type="button" (click)="print()">Imprimir o guardar como PDF</button>
+      </div>
+    } @else {
+      @let referenceError = form.controls.order_reference.touched && form.controls.order_reference.invalid;
+      @let emailError = form.controls.email.touched && form.controls.email.invalid;
+      <form class="shop-panel" [formGroup]="form" (ngSubmit)="submit(referenceField, emailField)" [attr.aria-busy]="busy()">
+        <fieldset class="withdrawal-fields" [disabled]="busy()">
+          <div class="field">
+            <label for="withdrawal-reference">Referencia del pedido</label>
+            <input #referenceField id="withdrawal-reference" formControlName="order_reference" maxlength="36" required
+              [attr.aria-invalid]="referenceError ? 'true' : null"
+              [attr.aria-describedby]="referenceError ? 'withdrawal-reference-error withdrawal-reference-help' : 'withdrawal-reference-help'">
+            @if (referenceError) {
+              <p class="field-error" id="withdrawal-reference-error" role="alert">La referencia no es válida.</p>
+            }
+            <p class="field-help" id="withdrawal-reference-help">Copiá la referencia completa del correo de confirmación o del detalle del pedido.</p>
+          </div>
+          <div class="field">
+            <label for="withdrawal-email">Correo de la compra</label>
+            <input #emailField id="withdrawal-email" type="email" autocomplete="email" formControlName="email" maxlength="254" required
+              [attr.aria-invalid]="emailError ? 'true' : null"
+              [attr.aria-describedby]="emailError ? 'withdrawal-email-error withdrawal-email-help' : 'withdrawal-email-help'">
+            @if (emailError) {
+              <p class="field-error" id="withdrawal-email-error" role="alert">Ingresá un correo válido.</p>
+            }
+            <p class="field-help" id="withdrawal-email-help">Si compraste con una cuenta, usá su correo verificado.</p>
+          </div>
+          @if (error()) { <p class="field-error" role="alert">{{ error() }}</p> }
+          <button class="button" type="submit">{{ busy() ? 'Enviando…' : 'Registrar solicitud' }}</button>
+        </fieldset>
+      </form>
+    }
+    <section aria-labelledby="withdrawal-next">
+      <h2 id="withdrawal-next">Qué pasa después</h2>
+      <ol>
+        <li>Guardá la constancia que aparece en pantalla.</li>
+        <li>Revisamos tu solicitud y te contactamos si necesitamos más datos.</li>
+        <li>Si corresponde, coordinamos la devolución y el reintegro.</li>
+      </ol>
+      @if (terms; as rule) {
+        <details>
+          <summary>Plazos y condiciones del retracto</summary>
+          <p>{{ rule.withdrawal }}</p>
+          <p>Podés enviar la solicitud aunque haya que revisar el plazo.</p>
+        </details>
+      }
+      <p><a routerLink="/terminos-y-condiciones" [queryParams]="terms ? { version: terms.version } : null">Ver términos y condiciones completos</a></p>
+      <p>Si necesitás ayuda, <a routerLink="/contacto">contactanos</a>.</p>
+    </section>
+  </div>
+</store-help-article>

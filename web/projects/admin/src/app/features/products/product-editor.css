@@ -1,0 +1,30 @@
+.editor-heading { align-items: center; gap: .55rem 1rem; margin-block: 0 1.15rem; }
+.editor-heading h1 { font-size: 1.85rem; letter-spacing: -.03em; }
+.editor-meta { display: flex; align-items: center; flex-wrap: wrap; gap: .45rem .65rem; min-width: 0; margin-block-start: .55rem; }
+.editor-sku { font-size: .85rem; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.editor-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; gap: 1.25rem; }
+.gallery-draft { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 1rem; }
+.gallery-draft header { display: flex; justify-content: space-between; align-items: baseline; gap: .5rem 1rem; flex-wrap: wrap; }
+.gallery-draft h2 { margin: 0; font-size: 1.15rem; }
+.gallery-draft header span { font-size: .875rem; font-variant-numeric: tabular-nums; }
+.gallery-draft h3 { margin: 0; font-size: 1rem; }
+.gallery-draft p { margin: .35rem 0 0; }
+.draft-cover { display: grid; grid-template-columns: minmax(0, 5.5rem) minmax(0, 1fr); align-items: center; gap: .8rem; margin-block-start: 1rem; }
+.draft-cover::before { content: ''; width: 100%; aspect-ratio: 4 / 5; border: 1px dashed var(--control); border-radius: .5rem; background: var(--paper); }
+.editor-toolbar { position: sticky; z-index: 2; bottom: 0; border-top: 1px solid var(--line); background: var(--paper); padding-block: .75rem max(.75rem, env(safe-area-inset-bottom)); margin-block-start: 1rem; }
+.editor-toolbar .actions { justify-content: space-between; gap: .45rem .65rem; }
+.editor-toolbar .button { min-height: 44px; }
+.editor-state-actions { display: flex; flex-wrap: wrap; gap: .45rem; }
+.archive-confirmation { margin-block: .65rem; }
+.editor-history { margin-top: 1rem; }
+
+@media (max-width: 60rem) {
+  .editor-grid { grid-template-columns: minmax(0, 1fr); gap: .85rem; }
+}
+@media (max-width: 36rem) {
+  .editor-heading h1 { font-size: 1.55rem; }
+  .editor-toolbar { margin-inline: -.4rem; padding-inline: .4rem; }
+  .editor-toolbar .actions { justify-content: start; }
+  .editor-toolbar .button { padding-inline: .65rem; }
+  .draft-cover { grid-template-columns: minmax(0, 3.85rem) minmax(0, 1fr); }
+}

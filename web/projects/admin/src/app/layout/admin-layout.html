@@ -1,0 +1,87 @@
+<a class="skip" [href]="'.' + router.url.split('#', 1)[0] + '#contenido'">Saltar al contenido</a>
+<div class="admin-layout">
+  <header class="admin-sidebar" (keydown.escape)="closeMenu(menuTrigger)">
+    <a class="wordmark" routerLink="/dashboard" aria-label="Camba, administración" (click)="closeMenu(content)">
+      <img src="/brand/camba.svg" width="92" height="43" alt="" />
+    </a>
+    <button class="menu-trigger button button--quiet" type="button" #menuTrigger
+      aria-controls="admin-nav" [attr.aria-expanded]="menuOpen()" (click)="menuOpen.set(!menuOpen())">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+      Menú
+    </button>
+    <nav class="section-nav" id="admin-nav" aria-label="Administración" [class.is-open]="menuOpen()">
+      <div class="nav-group" role="group" aria-labelledby="nav-operation">
+        <h2 id="nav-operation">Operación</h2>
+        <a routerLink="/dashboard" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="closeMenu(content)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7M5 9v11h14V9M10 20v-6h4v6" /></svg>
+          Inicio
+        </a>
+        <a routerLink="/pedidos" [class.active]="ordersActive()" [attr.aria-current]="ordersActive() ? 'page' : null" (click)="closeMenu(content)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l2 12H4L6 8Zm3 0V6a3 3 0 0 1 6 0v2" /></svg>
+          Pedidos
+        </a>
+        <a routerLink="/pedidos/arrepentimientos" [class.active]="withdrawalsActive()"
+          [attr.aria-current]="withdrawalsActive() ? 'page' : null" (click)="closeMenu(content)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6 4 10l4 4m-4-4h10a5 5 0 0 1 0 10h-3" /></svg>
+          Arrepentimientos
+        </a>
+        <a routerLink="/pedidos/avisos" [class.active]="noticesActive()" [attr.aria-current]="noticesActive() ? 'page' : null" (click)="closeMenu(content)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 6-3 7-3 9h18c0-2-3-3-3-9m-8 12a2 2 0 0 0 4 0" /></svg>
+          Avisos
+        </a>
+        <a routerLink="/usuarios" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="closeMenu(content)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="8" r="3" /><path d="M4 19v-2a5 5 0 0 1 5-5h2a5 5 0 0 1 5 5v2M16 5a3 3 0 0 1 0 6m2 2a4 4 0 0 1 2 4v2" /></svg>
+          Usuarios
+        </a>
+      </div>
+      <div class="nav-group" role="group" aria-labelledby="nav-catalog">
+        <h2 id="nav-catalog">Catálogo</h2>
+        <a routerLink="/productos" [class.active]="productsActive()"
+          [attr.aria-current]="productsActive() ? 'page' : null" (click)="closeMenu(content)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16v13H4zM3 4h18v3H3zM10 11h4" /></svg>
+          Productos
+        </a>
+        <a routerLink="/productos/categorias" [class.active]="categoriesActive()"
+          [attr.aria-current]="categoriesActive() ? 'page' : null" (click)="closeMenu(content)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z" /></svg>
+          Categorías
+        </a>
+        <a routerLink="/productos/marcas" [class.active]="brandsActive()"
+          [attr.aria-current]="brandsActive() ? 'page' : null" (click)="closeMenu(content)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h8l8 8-8 8-8-8V4Zm4 4h.01" /></svg>
+          Marcas
+        </a>
+      </div>
+      <div class="nav-group" role="group" aria-labelledby="nav-store">
+        <h2 id="nav-store">Tienda</h2>
+        <a routerLink="/portada" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="closeMenu(content)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4zM4 9h16M12 9v10" /></svg>
+          Portada
+        </a>
+        <a routerLink="/configuracion" routerLinkActive="active" ariaCurrentWhenActive="page" (click)="closeMenu(content)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 4v4m8 2v4m-6 2v4" /></svg>
+          Configuración
+        </a>
+      </div>
+    </nav>
+    <details class="account">
+      <summary [attr.aria-label]="'Opciones de ' + user()?.name" [title]="user()?.name">
+        <span class="avatar" aria-hidden="true">{{ initials() }}</span>
+        <span class="account-label">Mi sesión</span>
+        <svg class="account-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+      </summary>
+      <div class="account-panel surface">
+        <strong>{{ user()?.name }}</strong>
+        <span class="muted">{{ user()?.email }}</span>
+        <button type="button" class="button button--quiet" [disabled]="busy()" (click)="signOut()">Cerrar sesión</button>
+      </div>
+    </details>
+  </header>
+  <main id="contenido" tabindex="-1" class="admin-body" #content>
+    @if (error()) { <p role="alert" class="callout">{{ error() }}</p> }
+    @if (noticeReturn(); as params) {
+      <a class="notice-return" routerLink="/pedidos/avisos" [queryParams]="params">Volver a avisos</a>
+    }
+    <router-outlet />
+  </main>
+</div>

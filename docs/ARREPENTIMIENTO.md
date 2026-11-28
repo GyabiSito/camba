@@ -1,0 +1,25 @@
+# Compras, retracto y privacidad de Camba v2
+
+## Operación
+
+1. El comprador revisa artículos, modalidad, costo de entrega o retiro y **total en UYU**. Puede volver y corregir los datos. La compra conserva la versión y una copia del texto de los Términos; no se asigna una versión retroactiva a compras viejas. El correo de confirmación incluye el aviso escrito de retracto y un enlace a la versión guardable.
+2. Solo en Inicio, **Botón de arrepentimiento** abre `/arrepentimiento`. Pide la referencia completa y el correo. Para compras de cuenta, usá el correo verificado de quien hizo el pedido, no el contacto editable del checkout. La constancia guardable no revela si existe el pedido; solo se envía una copia si los datos coinciden. Repetir los mismos datos recupera la constancia original.
+3. En **Admin → Pedidos → Arrepentimientos**, abrí la revisión. Si el pedido existe y tiene un comprador con correo verificado, elegí **Solicitar confirmación**. El enlace se envía a ese correo, nunca al ingresado por otra persona. Dura 30 minutos y no se usa hasta que el titular pulse **Sí, hice esta solicitud**. No hace falta iniciar sesión. Se conserva la constancia original y se registra el ID del admin que solicitó la confirmación y la fecha en que el titular confirmó. Un reintento antes de vencer no genera otro correo; si vence, se puede solicitar un enlace nuevo.
+4. Si corresponde restituir el pago, gestioná el reintegro completo en Mercado Pago. En el detalle del pedido usá la consulta de pago existente y esperá la conciliación. Volvé a Arrepentimientos y elegí **Registrar reintegro confirmado**. Camba exige evidencia conciliada del pago original y su importe completo; esta pantalla **no ejecuta cobros ni reembolsos**. También se puede cerrar una revisión sin registrar un reintegro.
+
+## Fuentes y alcance
+
+- [Términos publicados de Camba](https://www.camba.com.uy/terms-conditions) y [Privacidad publicada](https://www.camba.com.uy/privacy-policy): identifican la marca, RUT, domicilio, canales, responsable de datos y plazo de cambios voluntarios. No se trasladan los límites de responsabilidad, la prohibición general de reembolso ni las promesas de medios, tarifas o plazos que no estén verificadas en v2. La cotización de v2 muestra el costo disponible y no ofrece un plazo fijo publicado.
+- [Ley 17.250, art. 16](https://www.impo.com.uy/bases/leyes/17250-2000/16) y [Ley 20.531, arts. 2](https://www.impo.com.uy/bases/leyes/20531-2026/2) [y 108](https://www.impo.com.uy/bases/leyes/20531-2026/108): fecha de vigencia, plazos, medio fehaciente, devolución y restitución. `PurchaseTerms.php` selecciona el documento versionado en `api/resources/legal/`; este define la regla que consumen checkout, Tienda y correo. Para cambiar el texto, agregá una nueva versión sin editar las anteriores. No se calcula ni rechaza un vencimiento automáticamente.
+- [Ley 18.331, arts. 14](https://www.impo.com.uy/bases/leyes/18331-2008/14), [15](https://www.impo.com.uy/bases/leyes/18331-2008/15) y [23](https://www.impo.com.uy/bases/leyes/18331-2008/23): acceso, rectificación y otras solicitudes en cinco días hábiles y condiciones para transferencias. La política dirige a Contactanos y al correo publicado.
+- [Declaración de Mercado Pago Uruguay](https://www.mercadopago.com.uy/privacidad/declaracion-privacidad/proteccion-datos-transferencia-internacional_32793) y [DPA de Resend](https://resend.com/legal/dpa): Mercado Pago informa tratamiento posible fuera del país y Resend identifica EE. UU. como centro principal de procesamiento. Esto no demuestra en qué país está alojado el entorno de producción de Camba ni en qué países se trata cada operación. La política no afirma que todo se guarde en Uruguay.
+
+La identidad pública que consume Tienda está en `environment.business`, salvo la denominación fiscal: Laravel la toma de `CAMBA_FISCAL_NAME` y expone solo el valor público. Los correos enlazan a los Términos versionados. No se incorporan credenciales al navegador.
+
+**Dato fiscal que falta:** la denominación fiscal exacta asociada al RUT 170245740012 según factura o constancia de DGI. El RUT y el nombre de la responsable de datos no permiten deducirla.
+
+## Verificación local
+
+- Ejecutá `WithdrawalOwnerConfirmationTest` con `APP_ENV=testing`, SQLite `:memory:` y correo `array`, no sobre PostgreSQL compartido. Cubre enlace válido, alterado, vencido, reemplazado, reutilizado y cambio de correo del titular.
+- En la demo local, aplicá solo la migración aditiva de confirmaciones y actualizá la imagen empaquetada de Tienda si todavía sirve la anterior. El backend y Admin leen el código por montaje; recargá el worker si ya estaba corriendo. No cambies los volúmenes.
+- Para la prueba de Mailpit, creá un pedido sintético de la cuenta A con B como contacto de checkout. Enviá una solicitud con B y otra con A. Solo A recibe copia. En Admin solicitá confirmación para el caso de B; el enlace debe llegar únicamente a A. Abrilo sin sesión, comprobá que el caso siga sin vincular y usá el botón explícito. El reintegro debe seguir bloqueado hasta conciliar evidencia total simulada.

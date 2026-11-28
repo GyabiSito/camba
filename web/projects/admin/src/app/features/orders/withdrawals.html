@@ -1,0 +1,199 @@
+@let caseReference = reference();
+@let active = selected();
+@let state = result();
+@let filtersApplied = filtering();
+@if (caseReference) {
+  <a class="ops-back ops-link withdrawal-link" [routerLink]="[]" [queryParams]="listParams()">Volver a la bandeja</a>
+}
+<header class="ops-heading withdrawal-heading">
+  <div>
+    <h1 #title tabindex="-1">{{ caseReference ? 'Detalle de solicitud' : 'Arrepentimientos' }}</h1>
+    @if (!caseReference) {
+      <p>Gestioná el reintegro en Mercado Pago. Verificá el pago desde el pedido y registrá acá la confirmación.</p>
+    }
+  </div>
+</header>
+
+@if (!caseReference) {
+  <form class="withdrawal-filters" role="search" aria-label="Filtrar solicitudes" (ngSubmit)="filter(search.value, status.value)">
+    <label class="field" for="withdrawal-search">
+      Buscar solicitudes
+      <input #search id="withdrawal-search" type="search" maxlength="120" placeholder="Constancia o referencia" [value]="filters().q" />
+    </label>
+    <div class="field">
+      <label for="withdrawal-status">Estado</label>
+      <select #status id="withdrawal-status" [ngModel]="filters().status" [ngModelOptions]="{ standalone: true }"
+        (ngModelChange)="filter(search.value, $event)">
+        <option value="">Todos los estados</option>
+        @for (option of statuses; track option.value) {
+          <option [value]="option.value">{{ option.label }}</option>
+        }
+      </select>
+    </div>
+    <button class="button button--quiet" type="submit">Buscar</button>
+    @if (filtersApplied) {
+      <a class="ops-link withdrawal-link" [routerLink]="[]">Limpiar filtros</a>
+    }
+  </form>
+}
+
+@if (feedback(); as outcome) {
+  @if (!caseReference || outcome.reference === caseReference) {
+    <p class="callout withdrawal-feedback withdrawal-outcome" [attr.role]="outcome.error ? 'alert' : 'status'">{{ outcome.text }}</p>
+  }
+}
+
+@if (state?.status === 'loading') {
+  <camba-operation-loading label="Cargando solicitudes" [rows]="3" />
+} @else if (state?.status === 'error') {
+  <div class="callout withdrawal-feedback" role="alert">
+    <p>{{ state.message }}</p>
+    <button type="button" class="button button--quiet" (click)="retry()">Reintentar</button>
+  </div>
+} @else if (state?.status === 'loaded') {
+  @if (caseReference) {
+    @if (active; as item) {
+      <section class="surface withdrawal-detail" aria-label="Datos de la solicitud">
+        <div class="withdrawal-detail-top">
+          <span class="ops-state" [attr.data-tone]="item.status">{{ statusLabels[item.status] }}</span>
+          <time [attr.datetime]="item.received_at">{{ date(item.received_at) }} (Uruguay)</time>
+        </div>
+        <dl class="withdrawal-facts">
+          <div>
+            <dt>Constancia</dt>
+            <dd class="withdrawal-value">
+              <span class="numeric">{{ item.reference }}</span>
+              <button class="button button--quiet" type="button" (click)="copy(item)">Copiar constancia</button>
+            </dd>
+          </div>
+          <div>
+            <dt>Referencia del pedido</dt>
+            <dd class="withdrawal-value">
+              <span class="numeric">{{ item.order_reference }}</span>
+              @if (item.order_matched) {
+                <a class="button button--quiet" [routerLink]="['/pedidos', item.order_reference]" [queryParams]="orderParams()">Ver pedido</a>
+              } @else {
+                <span class="muted">Pedido no identificado</span>
+              }
+            </dd>
+          </div>
+          <div><dt>Correo de la solicitud</dt><dd>{{ item.email }}</dd></div>
+          @if (item.confirmation_requested_at) {
+            <div><dt>Confirmación solicitada</dt><dd>{{ date(item.confirmation_requested_at) }} · {{ item.confirmation_requested_by_admin_id ? 'Admin #' + item.confirmation_requested_by_admin_id : 'Usuario #' + item.confirmation_requested_by }}</dd></div>
+          }
+          @if (item.confirmation_confirmed_at) {
+            <div><dt>Titular confirmó</dt><dd>{{ date(item.confirmation_confirmed_at) }} (Uruguay)</dd></div>
+          }
+        </dl>
+
+        @if (item.refund_reference) {
+          <div class="withdrawal-next withdrawal-confirmed">
+            <h2>Reintegro confirmado</h2>
+            <p><span class="numeric">{{ item.refund_reference }}</span> · <time [attr.datetime]="item.refund_confirmed_at">{{ date(item.refund_confirmed_at) }}</time></p>
+          </div>
+        } @else {
+          <div class="withdrawal-next">
+            @if (item.status === 'received') {
+              <h2>Empezá por abrir la revisión</h2>
+              <button type="button" class="button" [disabled]="busy()" (click)="act(item, 'review', title)">Abrir revisión</button>
+            } @else if (item.status === 'reviewing' && !item.order_matched) {
+              <h2>Solicitud sin pedido vinculado</h2>
+              @if (item.confirmation_pending) {
+                <p>Le pedimos al titular que confirme la solicitud. No registres un reintegro hasta vincular el pedido.</p>
+                <button type="button" class="button button--quiet" [disabled]="busy()" (click)="retry()">Actualizar solicitud</button>
+              } @else if (item.can_request_confirmation) {
+                <p>Podés enviarle un enlace al correo verificado del titular. El pedido se vincula solo si confirma.</p>
+                <button type="button" class="button" [disabled]="busy()" (click)="act(item, 'request_confirmation', title)">Solicitar confirmación</button>
+              } @else {
+                <p>Los datos no se pudieron verificar. Podés revisar y cerrar el caso, pero no registrar un reintegro desde esta solicitud.</p>
+              }
+            } @else if (refundVerified()) {
+              <h2>Reintegro total verificado</h2>
+              <p>Registrá la confirmación para que quede asociada a la solicitud. Esta acción no mueve dinero.</p>
+              <button type="button" class="button" [disabled]="busy()" (click)="act(item, 'confirm_refund', title)">Registrar reintegro confirmado</button>
+            } @else if (item.order_matched) {
+              @if (!refund() || refund()?.status === 'loading') {
+                <camba-operation-loading label="Consultando la verificación del pago" [rows]="1" />
+              } @else {
+                <h2>Falta verificar el reintegro total</h2>
+                <p>Entrá en el pedido, solicitá la verificación del pago y volvé a esta solicitud.</p>
+                @if (refund()?.status === 'error') {
+                  <p class="ops-error" role="alert">No pudimos consultar el pago. Podés reintentar desde el pedido.</p>
+                }
+              }
+            } @else {
+              <h2>Cerrada sin reintegro registrado</h2>
+            }
+          </div>
+          @if (item.status === 'received' || item.status === 'reviewing') {
+            <div class="withdrawal-close">
+              <button class="button button--quiet" type="button" #close [disabled]="busy()"
+                aria-controls="withdrawal-close-confirm" [attr.aria-expanded]="closeReference() === item.reference"
+                (click)="closeReference.set(item.reference)">Cerrar sin reintegro</button>
+              <div id="withdrawal-close-confirm" [hidden]="closeReference() !== item.reference" class="callout withdrawal-confirm">
+                <p>Se cerrará la solicitud sin registrar un reintegro. ¿Querés continuar?</p>
+                <div class="ops-actions">
+                  <button type="button" class="button" [disabled]="busy()" (click)="act(item, 'close', title)">Confirmar cierre</button>
+                  <button type="button" class="button button--quiet" [disabled]="busy()" (click)="closeReference.set(''); close.focus()">Cancelar</button>
+                </div>
+              </div>
+            </div>
+          }
+        }
+      </section>
+    } @else {
+      <div class="ops-empty"><h2>No encontramos la solicitud</h2><p>Volvé a la bandeja y verificá el número de constancia.</p></div>
+    }
+  } @else {
+    @if (filters().q && state.value.meta.last_page > 1) {
+      <p class="filter-scope">La búsqueda revisa hasta 75 solicitudes por bloque. Usá la paginación para continuar.</p>
+    }
+    @if (matches().length) {
+      <table class="withdrawal-table" role="table" aria-label="Solicitudes de arrepentimiento">
+        <thead role="rowgroup">
+          <tr role="row">
+            <th scope="col" role="columnheader">Estado</th>
+            <th scope="col" role="columnheader">Fecha (Uruguay)</th>
+            <th scope="col" role="columnheader">Referencia del pedido</th>
+            <th scope="col" role="columnheader">Constancia</th>
+            <th scope="col" role="columnheader"><span class="sr-only">Acción</span></th>
+          </tr>
+        </thead>
+        <tbody role="rowgroup">
+          @for (item of matches(); track item.reference) {
+            <tr role="row">
+              <td role="cell"><span class="ops-state" [attr.data-tone]="item.status">{{ statusLabels[item.status] }}</span></td>
+              <td role="cell">
+                <span class="mobile-label" aria-hidden="true">Fecha (Uruguay)</span>
+                <time class="numeric" [attr.datetime]="item.received_at">{{ date(item.received_at) }}</time>
+              </td>
+              <td role="cell">
+                <span class="mobile-label" aria-hidden="true">Referencia del pedido</span>
+                <span class="numeric">{{ item.order_reference }}</span>
+                @if (!item.order_matched) { <small>Pedido no identificado</small> }
+              </td>
+              <td role="cell">
+                <span class="mobile-label" aria-hidden="true">Constancia</span>
+                <span class="numeric" [id]="'case-' + item.reference">{{ item.reference }}</span>
+              </td>
+              <td role="cell">
+                <a class="button button--quiet" [routerLink]="[]" [queryParams]="{ ...listParams(), solicitud: item.reference }"
+                  [attr.aria-describedby]="'case-' + item.reference">Abrir solicitud</a>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else if (!filtersApplied && !state.value.meta.total) {
+      <div class="ops-empty"><h2>Todavía no hay solicitudes</h2><p>Las solicitudes de arrepentimiento aparecerán acá cuando se reciban.</p></div>
+    } @else {
+      <div class="ops-empty">
+        <h2>{{ filtersApplied ? 'Sin resultados' : 'No hay solicitudes en esta página' }}</h2>
+        @if (filtersApplied) {
+          <p>{{ filters().q && state.value.meta.last_page > 1 ? 'No encontramos solicitudes con esos filtros en este bloque.' : 'No encontramos solicitudes con esos filtros.' }}</p>
+        }
+      </div>
+    }
+    <camba-operation-pager [info]="state.value.meta" singular="solicitud" plural="solicitudes" [showTotal]="!filters().q && (filtersApplied || !!state.value.meta.total)" />
+  }
+}

@@ -1,0 +1,31 @@
+@import '../../shared/src/design.css';
+
+:root {
+  --paper: #f8f4ee;
+  --rail: #f0e7df;
+  --surface: #fffdf9;
+  --ink: #2d2424;
+  --muted: #665956;
+  --line: #e2d6ce;
+  --control: #98867e;
+  --action: #772334;
+  --action-hover: #5d1728;
+  --accent: #f2dde1;
+  --forest: var(--action);
+  --danger: #962b3a;
+  --success-bg: #e4ede3;
+  --success-ink: #2e5039;
+  --warning-bg: #f7e9d0;
+  --warning-ink: #73490d;
+}
+
+input:not([type='checkbox'], [type='radio'], [type='file'], [type='range']), select, textarea {
+  border-color: var(--control);
+}
+
+.button:not(:disabled):hover { background: var(--action-hover); }
+.button--quiet { border-color: var(--control); }
+.button--quiet:not(:disabled):hover { color: var(--action); background: var(--accent); }
+.callout[role='alert'] { background: #fff3f3; }
+:focus-visible { outline-color: var(--action); }
+::selection { background: var(--accent); color: var(--ink); }

@@ -1,0 +1,61 @@
+<header class="ops-heading">
+  <div><h1>Usuarios</h1><p>Consultá las cuentas compradoras registradas.</p></div>
+</header>
+
+<form class="ops-filters customer-search" role="search" aria-label="Buscar clientes" (submit)="search($event, term.value)">
+  <label class="field">
+    Buscar por nombre o correo
+    <input #term type="search" maxlength="120" [value]="params().q" />
+  </label>
+  <button class="button button--quiet" type="submit">Buscar</button>
+  @if (params().q) { <a class="ops-link" routerLink="/usuarios">Limpiar búsqueda</a> }
+</form>
+
+@if (result(); as state) {
+  @switch (state.status) {
+    @case ('loading') { <camba-operation-loading label="Cargando usuarios" /> }
+    @case ('error') {
+      <div class="callout ops-error" role="alert">
+        <p>{{ state.message }}</p><button class="button button--quiet" type="button" (click)="retry()">Reintentar</button>
+      </div>
+    }
+    @case ('loaded') {
+      @if (state.value.data.length) {
+        <table class="customer-table customer-directory" role="table" aria-label="Clientes registrados">
+          <thead role="rowgroup"><tr role="row">
+            <th role="columnheader" scope="col">Cliente</th><th role="columnheader" scope="col">Verificación</th>
+            <th role="columnheader" scope="col">Registro</th><th role="columnheader" scope="col">Pedidos</th>
+            <th role="columnheader" scope="col">Último pedido</th><th role="columnheader" scope="col"><span class="sr-only">Ficha</span></th>
+          </tr></thead>
+          <tbody role="rowgroup">
+            @for (customer of state.value.data; track customer.id) {
+              <tr role="row">
+                <td role="cell" class="customer-identity"><strong>{{ customer.name }}</strong><span>{{ customer.email }}</span></td>
+                <td role="cell"><span class="ops-state" [class.ops-state--good]="customer.email_verified">
+                  {{ customer.email_verified ? 'Verificado' : 'Sin verificar' }}
+                </span></td>
+                <td role="cell"><span class="customer-field">Registro</span><time [attr.datetime]="customer.created_at">{{ date(customer.created_at) }}</time></td>
+                <td role="cell"><span class="customer-field">Pedidos</span><span class="numeric">{{ customer.orders_count }}</span></td>
+                <td role="cell"><span class="customer-field">Último pedido</span>
+                  @if (customer.last_order_at; as instant) {
+                    <time [attr.datetime]="instant">{{ date(instant) }}</time>
+                  } @else { <span>Sin pedidos</span> }
+                </td>
+                <td role="cell" class="customer-action">
+                  <a class="button button--quiet" [routerLink]="['/usuarios', customer.id]" [queryParams]="detailParams()"
+                    [attr.aria-label]="'Ver ficha de ' + customer.name">Ver ficha</a>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      } @else {
+        <div class="ops-empty"><h2>{{ params().q ? 'No encontramos clientes con esa búsqueda'
+          : state.value.meta.total ? 'No hay clientes en esta página' : 'Todavía no hay clientes registrados' }}</h2>
+          @if (params().q) { <p>Probá con otro nombre o correo.</p> }
+        </div>
+      }
+      <camba-operation-pager [info]="state.value.meta" singular="cliente" plural="clientes" />
+    }
+  }
+}

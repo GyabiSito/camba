@@ -1,0 +1,240 @@
+.order-row {
+  display: grid;
+  grid-template-columns: minmax(9rem, 1.35fr) minmax(8rem, 1fr) minmax(9rem, 1.2fr) minmax(5.75rem, 0.8fr) minmax(6.5rem, 0.75fr);
+  gap: 0.65rem 1.2rem;
+  align-items: center;
+  padding: 0.7rem 0.7rem;
+  border-block-start: 1px solid var(--line);
+}
+.order-labels {
+  font-size: 0.875rem;
+  font-weight: 750;
+}
+.order-reference {
+  display: grid;
+  gap: 0.05rem;
+  justify-items: start;
+}
+.order-reference a {
+  overflow-wrap: anywhere;
+}
+.order-reference > span,
+.mobile-label,
+.notice-date {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.order-cell,
+.order-reference {
+  min-inline-size: 0;
+}
+.order-status-band {
+  display: grid;
+  justify-items: start;
+  align-content: start;
+  gap: 0.35rem;
+  min-inline-size: 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 0.55rem;
+  background: var(--surface);
+}
+.order-status-band--payment {
+  border-block-start: 2px solid var(--action, var(--forest));
+}
+.order-status-band--fulfilment {
+  border-block-start: 2px solid var(--warning-ink, var(--muted));
+}
+.order-band-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.order-identity {
+  display: grid;
+  justify-items: start;
+  gap: 0.2rem;
+  max-inline-size: 42rem;
+  margin-block-start: 0.55rem;
+  padding: 0.65rem 0.8rem;
+  border-block: 1px solid var(--line);
+  background: var(--surface);
+}
+.order-identity > span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.order-identity .order-id {
+  font-size: 1.05rem;
+  line-height: 1.45;
+}
+.mobile-label {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.order-id {
+  overflow-wrap: anywhere;
+}
+
+.order-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  grid-template-areas: 'items delivery' 'payment delivery';
+  grid-template-rows: min-content auto;
+}
+.order-summary {
+  grid-area: items;
+}
+.order-payment {
+  grid-area: payment;
+}
+.order-main {
+  padding-inline-end: clamp(1.25rem, 3vw, 2.5rem);
+}
+.ops-aside {
+  grid-area: delivery;
+  min-inline-size: 0;
+  padding-inline-start: clamp(1.25rem, 3vw, 2.5rem);
+  border-inline-start: 1px solid var(--line);
+}
+.ops-section {
+  border-block-start: 1px solid var(--line);
+  padding-block: 1.25rem 1.65rem;
+  min-inline-size: 0;
+}
+.ops-section-heading {
+  display: flex;
+  align-items: start;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.ops-section .button {
+  margin-block-start: 0.65rem;
+}
+.order-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.55rem 1rem;
+  align-items: baseline;
+  border-block-end: 1px solid var(--line);
+  padding-block: 0.65rem;
+}
+.order-line div {
+  display: grid;
+  gap: 0.1rem;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.order-line .numeric {
+  flex: 0 1 auto;
+  text-align: end;
+}
+.ops-facts {
+  display: grid;
+  gap: 0.55rem;
+  margin-block: 0.8rem 1.15rem;
+}
+.ops-facts div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.35rem 1rem;
+  flex-wrap: wrap;
+}
+.ops-facts dd {
+  margin: 0;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.ops-facts .total {
+  border-block-start: 1px solid var(--line);
+  padding-block-start: 0.5rem;
+  font-weight: 800;
+}
+.ops-issues {
+  margin-block: 0;
+  padding-inline-start: 1.2rem;
+}
+.contact-details {
+  display: grid;
+  gap: 0.1rem;
+  font-style: normal;
+  overflow-wrap: anywhere;
+}
+.contact-details > a {
+  display: inline-block;
+  justify-self: start;
+}
+.ops-form {
+  display: grid;
+  gap: 0.7rem;
+  margin-block: 1rem 0;
+}
+.ops-form > button {
+  justify-self: start;
+}
+.ops-timeline li {
+  display: grid;
+  border-block-start: 1px solid var(--line);
+  padding-block: 0.6rem;
+}
+.ops-timeline p {
+  margin: 0.3rem 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 46rem) {
+  .order-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'items' 'delivery' 'payment';
+  }
+  .order-main,
+  .ops-aside {
+    border: 0;
+    padding: 0;
+  }
+  .order-labels {
+    display: none;
+  }
+  .order-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.42rem 1rem;
+    padding-inline: 0;
+  }
+  .order-reference {
+    grid-column: 1 / -1;
+  }
+  .order-cell {
+    display: grid;
+    align-content: start;
+    gap: 0.08rem;
+  }
+  .mobile-label {
+    position: static;
+    inline-size: auto;
+    block-size: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 30rem) {
+  .order-status-band {
+    padding: 0.45rem;
+  }
+  .order-identity {
+    max-inline-size: 100%;
+    padding-inline: 0;
+  }
+  .order-identity .order-id {
+    font-size: 0.95rem;
+  }
+}

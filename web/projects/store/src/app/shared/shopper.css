@@ -1,0 +1,239 @@
+:host {
+  display: block;
+}
+.shop-workspace {
+  max-width: 74rem;
+  margin-inline: auto;
+  padding: clamp(1rem, 3vw, 3rem);
+  padding-block: clamp(2rem, 5vw, 4.5rem);
+}
+.narrow {
+  max-width: 39rem;
+}
+.shop-workspace.verification-result {
+  padding-block-end: 0;
+}
+.shop-workspace :is(h1, h2, h3, p, ul, dl) {
+  margin-block: 0;
+}
+.shop-workspace h1 {
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  line-height: 1.06;
+  letter-spacing: -0.033em;
+  text-wrap: balance;
+}
+.shop-workspace h2 {
+  font-size: 1.3rem;
+  letter-spacing: -0.018em;
+}
+.shop-workspace h3 {
+  font-size: 1.04rem;
+}
+.shop-workspace p {
+  max-width: 68ch;
+  overflow-wrap: anywhere;
+}
+.shop-workspace a:not(.button) {
+  color: var(--forest);
+  text-underline-offset: 0.16em;
+}
+.page-header {
+  display: grid;
+  gap: 0.55rem;
+  margin-block-end: 2rem;
+}
+.shop-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(1.4rem, 4vw, 4rem);
+}
+.shop-panel {
+  display: grid;
+  gap: 1.15rem;
+  padding: clamp(1rem, 3vw, 1.85rem);
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.stack {
+  display: grid;
+  gap: 1rem;
+}
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem 1rem;
+}
+.span-row {
+  grid-column: 1 / -1;
+}
+.actions {
+  display: flex;
+  gap: 0.7rem 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.actions .button {
+  max-width: 100%;
+  text-wrap: balance;
+}
+:host .field {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+:host .field :is(input, select) {
+  width: 100%;
+  min-width: 0;
+}
+:host fieldset {
+  min-width: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+:host legend {
+  margin: 0 0 0.85rem;
+  padding: 0;
+  font-weight: 650;
+}
+:host :is(input[type='radio'], input[type='checkbox']) {
+  accent-color: var(--forest);
+}
+.choice {
+  display: flex;
+  gap: 0.7rem;
+  align-items: baseline;
+  min-height: 2.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  cursor: pointer;
+}
+.choice:has(:checked) {
+  background: var(--accent);
+  border-color: var(--forest);
+}
+.choice small {
+  display: block;
+  margin-top: 0.22rem;
+  color: var(--muted);
+}
+.line-list {
+  list-style: none;
+  padding: 0;
+}
+.line-list > li {
+  padding-block: 0.9rem;
+  border-block-end: 1px solid var(--line);
+}
+.line-list > li:first-child {
+  border-block-start: 1px solid var(--line);
+}
+.line-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.line-head > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.money {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.totals {
+  display: grid;
+  gap: 0.6rem;
+}
+.totals > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.totals dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.total {
+  font-weight: 750;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+.listed {
+  padding-block: 0.85rem;
+  border-block-end: 1px solid var(--line);
+}
+.notice {
+  display: grid;
+  gap: 0.6rem;
+  padding: 0.9rem 1rem;
+  border-radius: 0.65rem;
+  background: var(--accent);
+}
+.problem {
+  color: var(--danger);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.state-chip {
+  width: fit-content;
+  padding: 0.36rem 0.65rem;
+  border-radius: 0.5rem;
+  color: var(--forest);
+  background: var(--accent);
+  font-size: 0.91rem;
+  font-weight: 650;
+}
+.shop-skeleton {
+  display: grid;
+  gap: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.25rem;
+}
+.shop-skeleton i {
+  display: block;
+  height: 1rem;
+  background: var(--accent);
+  border-radius: 0.25rem;
+}
+.shop-skeleton i:last-child {
+  width: 60%;
+}
+.shop-workspace summary {
+  padding-block: 0.9rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+  font-weight: 650;
+}
+.shop-workspace details {
+  border-top: 1px solid var(--line);
+}
+.shop-workspace details:last-child {
+  border-bottom: 1px solid var(--line);
+}
+.shop-workspace details[open] {
+  padding-bottom: 1rem;
+}
+.quantity {
+  max-width: 9rem;
+}
+.small {
+  font-size: 0.9rem;
+}
+@media (max-width: 44rem) {
+  .shop-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 32rem) {
+  .pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -1,0 +1,16 @@
+@import '../../shared/src/design.css';
+
+app-root:not(.home-store) {
+  .store-body :focus-visible { outline-color: var(--home-action); }
+  .store-body h1 {
+    font-family: var(--display);
+    font-weight: 400;
+    text-wrap: balance;
+  }
+  .store-body .button { border-radius: .25rem; }
+  .store-body .button:not(.button--quiet, :disabled):hover { background: var(--home-brand); }
+  .store-body :is(input:not([type='radio'], [type='checkbox']), select, textarea) {
+    border-color: #9a837d;
+    border-radius: .25rem;
+  }
+}

@@ -1,0 +1,5008 @@
+{
+  "tool": "comp-spec",
+  "version": 1,
+  "createdAt": "2026-11-18T18:59:01.403Z",
+  "comp": ".impeccable/mocks/mesa-catalogo.png",
+  "warnings": [],
+  "uncoveredInkCells": [
+    "A7"
+  ],
+  "compSize": {
+    "width": 1586,
+    "height": 992
+  },
+  "aspect": 1.5988,
+  "orientation": "landscape",
+  "palette": [
+    {
+      "hex": "#f6f6f5",
+      "coverage": 0.9686
+    },
+    {
+      "hex": "#1a1a17",
+      "coverage": 0.0137
+    },
+    {
+      "hex": "#b7b7b4",
+      "coverage": 0.0076
+    },
+    {
+      "hex": "#284e38",
+      "coverage": 0.006
+    },
+    {
+      "hex": "#444441",
+      "coverage": 0.0041
+    }
+  ],
+  "bands": [
+    {
+      "y": 0.05,
+      "strength": 0.2445
+    },
+    {
+      "y": 0.1375,
+      "strength": 0.3812
+    },
+    {
+      "y": 0.1875,
+      "strength": 0.3465
+    },
+    {
+      "y": 0.325,
+      "strength": 0.2327
+    },
+    {
+      "y": 0.4,
+      "strength": 0.3625
+    },
+    {
+      "y": 0.4625,
+      "strength": 0.2762
+    },
+    {
+      "y": 0.5375,
+      "strength": 0.3353
+    },
+    {
+      "y": 0.6125,
+      "strength": 0.2752
+    },
+    {
+      "y": 0.675,
+      "strength": 0.2287
+    },
+    {
+      "y": 0.75,
+      "strength": 0.2821
+    },
+    {
+      "y": 0.8375,
+      "strength": 0.2901
+    }
+  ],
+  "regions": [
+    {
+      "id": "top-bar",
+      "kind": "chrome",
+      "note": "Header strip",
+      "grid": "A0:J0",
+      "snap": false,
+      "box": {
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 0.0796
+      },
+      "px": {
+        "x": 0,
+        "y": 0,
+        "w": 1586,
+        "h": 79
+      },
+      "aspect": 20.0759,
+      "palette": [
+        {
+          "hex": "#f8f8f7",
+          "coverage": 0.928
+        },
+        {
+          "hex": "#dbd8cc",
+          "coverage": 0.0483
+        },
+        {
+          "hex": "#292a1f",
+          "coverage": 0.0141
+        },
+        {
+          "hex": "#a5adaa",
+          "coverage": 0.0057
+        },
+        {
+          "hex": "#515147",
+          "coverage": 0.0039
+        }
+      ],
+      "detail": {
+        "energy": 13.9233
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "wordmark",
+      "kind": "text",
+      "note": "Visible text reading Camba",
+      "grid": "A0:B0",
+      "snap": false,
+      "box": {
+        "x": 0.0448,
+        "y": 0.0181,
+        "w": 0.0801,
+        "h": 0.0433
+      },
+      "px": {
+        "x": 71,
+        "y": 18,
+        "w": 127,
+        "h": 43
+      },
+      "aspect": 2.9535,
+      "palette": [
+        {
+          "hex": "#f7f7f5",
+          "coverage": 0.7271
+        },
+        {
+          "hex": "#2a2c1f",
+          "coverage": 0.2
+        },
+        {
+          "hex": "#cfceca",
+          "coverage": 0.0341
+        },
+        {
+          "hex": "#9c9d91",
+          "coverage": 0.0233
+        },
+        {
+          "hex": "#66665d",
+          "coverage": 0.0155
+        }
+      ],
+      "detail": {
+        "energy": 27.4712
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "nav-products",
+      "kind": "control",
+      "note": "Interactive control labeled Productos",
+      "grid": "D0:E0",
+      "snap": false,
+      "box": {
+        "x": 0.3726,
+        "y": 0.0181,
+        "w": 0.0769,
+        "h": 0.0585
+      },
+      "px": {
+        "x": 591,
+        "y": 18,
+        "w": 122,
+        "h": 58
+      },
+      "aspect": 2.1034,
+      "palette": [
+        {
+          "hex": "#f8f8f5",
+          "coverage": 0.849
+        },
+        {
+          "hex": "#191b11",
+          "coverage": 0.0532
+        },
+        {
+          "hex": "#093e28",
+          "coverage": 0.052
+        },
+        {
+          "hex": "#4b4d41",
+          "coverage": 0.0235
+        },
+        {
+          "hex": "#cbc9c2",
+          "coverage": 0.0223
+        }
+      ],
+      "detail": {
+        "energy": 19.2787
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "nav-orders",
+      "kind": "control",
+      "note": "Interactive control labeled Pedidos",
+      "grid": "E0:F0",
+      "snap": false,
+      "box": {
+        "x": 0.4691,
+        "y": 0.0181,
+        "w": 0.0555,
+        "h": 0.0433
+      },
+      "px": {
+        "x": 744,
+        "y": 18,
+        "w": 88,
+        "h": 43
+      },
+      "aspect": 2.0465,
+      "palette": [
+        {
+          "hex": "#f8f7f5",
+          "coverage": 0.8795
+        },
+        {
+          "hex": "#35352f",
+          "coverage": 0.0402
+        },
+        {
+          "hex": "#70706b",
+          "coverage": 0.0379
+        },
+        {
+          "hex": "#b7b6b4",
+          "coverage": 0.0335
+        },
+        {
+          "hex": "#181810",
+          "coverage": 0.0089
+        }
+      ],
+      "detail": {
+        "energy": 17.6207
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "nav-settings",
+      "kind": "control",
+      "note": "Interactive control labeled Configuración",
+      "grid": "F0:G0",
+      "snap": false,
+      "box": {
+        "x": 0.5485,
+        "y": 0.0181,
+        "w": 0.1009,
+        "h": 0.0433
+      },
+      "px": {
+        "x": 870,
+        "y": 18,
+        "w": 160,
+        "h": 43
+      },
+      "aspect": 3.7209,
+      "palette": [
+        {
+          "hex": "#f7f7f5",
+          "coverage": 0.8883
+        },
+        {
+          "hex": "#201f1b",
+          "coverage": 0.0434
+        },
+        {
+          "hex": "#6d6c67",
+          "coverage": 0.0323
+        },
+        {
+          "hex": "#c1c1bc",
+          "coverage": 0.0223
+        },
+        {
+          "hex": "#44443b",
+          "coverage": 0.0136
+        }
+      ],
+      "detail": {
+        "energy": 27.282
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "account",
+      "kind": "control",
+      "note": "Interactive control labeled Account initials",
+      "grid": "J0:J0",
+      "snap": false,
+      "box": {
+        "x": 0.9256,
+        "y": 0.0151,
+        "w": 0.0284,
+        "h": 0.0444
+      },
+      "px": {
+        "x": 1468,
+        "y": 15,
+        "w": 45,
+        "h": 44
+      },
+      "aspect": 1.0227,
+      "palette": [
+        {
+          "hex": "#ecebe0",
+          "coverage": 0.9333
+        },
+        {
+          "hex": "#38362e",
+          "coverage": 0.0356
+        },
+        {
+          "hex": "#bcbcb0",
+          "coverage": 0.0178
+        },
+        {
+          "hex": "#585850",
+          "coverage": 0.0089
+        },
+        {
+          "hex": "#787878",
+          "coverage": 0.0044
+        }
+      ],
+      "detail": {
+        "energy": 5.6689
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "new-product",
+      "kind": "control",
+      "note": "Interactive control labeled Nuevo producto",
+      "grid": "I1:J1",
+      "snap": false,
+      "box": {
+        "x": 0.8348,
+        "y": 0.1361,
+        "w": 0.1375,
+        "h": 0.0494
+      },
+      "px": {
+        "x": 1324,
+        "y": 135,
+        "w": 218,
+        "h": 49
+      },
+      "aspect": 4.449,
+      "palette": [
+        {
+          "hex": "#274e38",
+          "coverage": 0.811
+        },
+        {
+          "hex": "#f0f4f1",
+          "coverage": 0.1002
+        },
+        {
+          "hex": "#85a595",
+          "coverage": 0.0727
+        },
+        {
+          "hex": "#b8ccbf",
+          "coverage": 0.0121
+        },
+        {
+          "hex": "#5e826b",
+          "coverage": 0.004
+        }
+      ],
+      "detail": {
+        "energy": 28.3839
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "search",
+      "kind": "control",
+      "note": "Interactive control labeled Buscar por nombre o SKU",
+      "grid": "A2:D2",
+      "snap": false,
+      "box": {
+        "x": 0.029,
+        "y": 0.2147,
+        "w": 0.3203,
+        "h": 0.0484
+      },
+      "px": {
+        "x": 46,
+        "y": 213,
+        "w": 508,
+        "h": 48
+      },
+      "aspect": 10.5833,
+      "palette": [
+        {
+          "hex": "#f4f3f0",
+          "coverage": 0.9454
+        },
+        {
+          "hex": "#b3b2ab",
+          "coverage": 0.0291
+        },
+        {
+          "hex": "#76756b",
+          "coverage": 0.0247
+        },
+        {
+          "hex": "#181818",
+          "coverage": 0.0007
+        }
+      ],
+      "detail": {
+        "energy": 18.299
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "category",
+      "kind": "control",
+      "note": "Interactive control labeled Categoría",
+      "grid": "D2:F2",
+      "snap": false,
+      "box": {
+        "x": 0.3575,
+        "y": 0.2147,
+        "w": 0.1614,
+        "h": 0.0484
+      },
+      "px": {
+        "x": 567,
+        "y": 213,
+        "w": 256,
+        "h": 48
+      },
+      "aspect": 5.3333,
+      "palette": [
+        {
+          "hex": "#f3f3f0",
+          "coverage": 0.9416
+        },
+        {
+          "hex": "#bdbcb6",
+          "coverage": 0.0226
+        },
+        {
+          "hex": "#171616",
+          "coverage": 0.0197
+        },
+        {
+          "hex": "#4e4e4e",
+          "coverage": 0.0109
+        },
+        {
+          "hex": "#8a8888",
+          "coverage": 0.0051
+        }
+      ],
+      "detail": {
+        "energy": 25.9203
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "status",
+      "kind": "control",
+      "note": "Interactive control labeled Estado",
+      "grid": "F2:G2",
+      "snap": false,
+      "box": {
+        "x": 0.5277,
+        "y": 0.2147,
+        "w": 0.1658,
+        "h": 0.0484
+      },
+      "px": {
+        "x": 837,
+        "y": 213,
+        "w": 263,
+        "h": 48
+      },
+      "aspect": 5.4792,
+      "palette": [
+        {
+          "hex": "#f8f8f6",
+          "coverage": 0.8364
+        },
+        {
+          "hex": "#d5d5ca",
+          "coverage": 0.1358
+        },
+        {
+          "hex": "#454444",
+          "coverage": 0.0135
+        },
+        {
+          "hex": "#828282",
+          "coverage": 0.0078
+        },
+        {
+          "hex": "#0c0a0a",
+          "coverage": 0.0064
+        }
+      ],
+      "detail": {
+        "energy": 20.1202
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "page-title",
+      "kind": "text",
+      "note": "Visible text reading Productos",
+      "grid": "A1:B1",
+      "snap": false,
+      "box": {
+        "x": 0.029,
+        "y": 0.1341,
+        "w": 0.1526,
+        "h": 0.0554
+      },
+      "px": {
+        "x": 46,
+        "y": 133,
+        "w": 242,
+        "h": 55
+      },
+      "aspect": 4.4,
+      "palette": [
+        {
+          "hex": "#f7f7f5",
+          "coverage": 0.7603
+        },
+        {
+          "hex": "#2b2e21",
+          "coverage": 0.1984
+        },
+        {
+          "hex": "#c6c7c0",
+          "coverage": 0.0229
+        },
+        {
+          "hex": "#4d4e4d",
+          "coverage": 0.0092
+        },
+        {
+          "hex": "#9b9a96",
+          "coverage": 0.0092
+        }
+      ],
+      "detail": {
+        "energy": 38.1378
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "table-topline",
+      "kind": "chrome",
+      "note": "Table framing rule",
+      "grid": "A2:J3",
+      "snap": false,
+      "box": {
+        "x": 0.0271,
+        "y": 0.2994,
+        "w": 0.9464,
+        "h": 0.002
+      },
+      "px": {
+        "x": 43,
+        "y": 297,
+        "w": 1501,
+        "h": 2
+      },
+      "aspect": 750.5,
+      "palette": [
+        {
+          "hex": "#f0efeb",
+          "coverage": 1
+        }
+      ],
+      "detail": {
+        "energy": 10.3911
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "detail-divider",
+      "kind": "chrome",
+      "note": "Details panel divider",
+      "grid": "H3:H8",
+      "snap": false,
+      "box": {
+        "x": 0.7314,
+        "y": 0.3004,
+        "w": 0.0013,
+        "h": 0.5927
+      },
+      "px": {
+        "x": 1160,
+        "y": 298,
+        "w": 2,
+        "h": 588
+      },
+      "aspect": 0.0034,
+      "palette": [
+        {
+          "hex": "#e8e6df",
+          "coverage": 1
+        }
+      ],
+      "detail": {
+        "energy": 0.1066
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "selection-band",
+      "kind": "chrome",
+      "note": "Selected row",
+      "grid": "A4:H5",
+      "snap": false,
+      "box": {
+        "x": 0.0227,
+        "y": 0.4315,
+        "w": 0.7024,
+        "h": 0.0746
+      },
+      "px": {
+        "x": 36,
+        "y": 428,
+        "w": 1114,
+        "h": 74
+      },
+      "aspect": 15.0541,
+      "palette": [
+        {
+          "hex": "#e9e8e8",
+          "coverage": 0.9491
+        },
+        {
+          "hex": "#1a1a19",
+          "coverage": 0.0301
+        },
+        {
+          "hex": "#bbbdb8",
+          "coverage": 0.0098
+        },
+        {
+          "hex": "#8e8e8b",
+          "coverage": 0.006
+        },
+        {
+          "hex": "#2f5542",
+          "coverage": 0.005
+        }
+      ],
+      "detail": {
+        "energy": 20.4915
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "head-product",
+      "kind": "text",
+      "note": "Visible text reading Producto",
+      "grid": "A3:B3",
+      "coverBox": {
+        "x": 0,
+        "y": 0.3,
+        "w": 0.2,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.0605,
+        "y": 0.3125,
+        "w": 0.0567,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 96,
+        "y": 310,
+        "w": 90,
+        "h": 30
+      },
+      "aspect": 3,
+      "palette": [
+        {
+          "hex": "#f6f5f1",
+          "coverage": 0.835
+        },
+        {
+          "hex": "#0e0d0d",
+          "coverage": 0.0774
+        },
+        {
+          "hex": "#c1c4be",
+          "coverage": 0.037
+        },
+        {
+          "hex": "#5a5856",
+          "coverage": 0.0337
+        },
+        {
+          "hex": "#85827b",
+          "coverage": 0.0168
+        }
+      ],
+      "detail": {
+        "energy": 24.6253
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "head-sku",
+      "kind": "text",
+      "note": "Visible text reading SKU",
+      "grid": "C3:D3",
+      "snap": false,
+      "box": {
+        "x": 0.2762,
+        "y": 0.3135,
+        "w": 0.0555,
+        "h": 0.0252
+      },
+      "px": {
+        "x": 438,
+        "y": 311,
+        "w": 88,
+        "h": 25
+      },
+      "aspect": 3.52,
+      "palette": [
+        {
+          "hex": "#f7f7f5",
+          "coverage": 0.8889
+        },
+        {
+          "hex": "#111111",
+          "coverage": 0.0481
+        },
+        {
+          "hex": "#cec8c4",
+          "coverage": 0.0296
+        },
+        {
+          "hex": "#92928c",
+          "coverage": 0.0296
+        },
+        {
+          "hex": "#585848",
+          "coverage": 0.0037
+        }
+      ],
+      "detail": {
+        "energy": 15.9027
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "head-category",
+      "kind": "text",
+      "note": "Visible text reading Categoría",
+      "grid": "D3:D3",
+      "coverBox": {
+        "x": 0.3,
+        "y": 0.3,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.3493,
+        "y": 0.379,
+        "w": 0.0511,
+        "h": 0.0212
+      },
+      "px": {
+        "x": 554,
+        "y": 376,
+        "w": 81,
+        "h": 21
+      },
+      "aspect": 3.8571,
+      "palette": [
+        {
+          "hex": "#f6f6f3",
+          "coverage": 0.8022
+        },
+        {
+          "hex": "#939392",
+          "coverage": 0.0769
+        },
+        {
+          "hex": "#343133",
+          "coverage": 0.0495
+        },
+        {
+          "hex": "#0d0d0d",
+          "coverage": 0.0385
+        },
+        {
+          "hex": "#555555",
+          "coverage": 0.033
+        }
+      ],
+      "detail": {
+        "energy": 31.4939
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "head-price",
+      "kind": "text",
+      "note": "Visible text reading Precio",
+      "grid": "E3:E3",
+      "coverBox": {
+        "x": 0.4,
+        "y": 0.3,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.4451,
+        "y": 0.3125,
+        "w": 0.0454,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 706,
+        "y": 310,
+        "w": 72,
+        "h": 30
+      },
+      "aspect": 2.4,
+      "palette": [
+        {
+          "hex": "#f6f6f3",
+          "coverage": 0.8729
+        },
+        {
+          "hex": "#0c0b0b",
+          "coverage": 0.0466
+        },
+        {
+          "hex": "#6d6d6d",
+          "coverage": 0.0297
+        },
+        {
+          "hex": "#c8c6c1",
+          "coverage": 0.0297
+        },
+        {
+          "hex": "#323232",
+          "coverage": 0.0212
+        }
+      ],
+      "detail": {
+        "energy": 17.3318
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "head-stock",
+      "kind": "text",
+      "note": "Visible text reading Stock",
+      "grid": "F3:F3",
+      "coverBox": {
+        "x": 0.5,
+        "y": 0.3,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.5378,
+        "y": 0.3125,
+        "w": 0.0416,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 853,
+        "y": 310,
+        "w": 66,
+        "h": 30
+      },
+      "aspect": 2.2,
+      "palette": [
+        {
+          "hex": "#f7f7f3",
+          "coverage": 0.8525
+        },
+        {
+          "hex": "#161512",
+          "coverage": 0.0829
+        },
+        {
+          "hex": "#cecac4",
+          "coverage": 0.0369
+        },
+        {
+          "hex": "#38382d",
+          "coverage": 0.0138
+        },
+        {
+          "hex": "#73736d",
+          "coverage": 0.0138
+        }
+      ],
+      "detail": {
+        "energy": 17.0137
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "head-status",
+      "kind": "text",
+      "note": "Visible text reading Estado",
+      "grid": "G3:G3",
+      "coverBox": {
+        "x": 0.6,
+        "y": 0.3,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.6003,
+        "y": 0.379,
+        "w": 0.0757,
+        "h": 0.0212
+      },
+      "px": {
+        "x": 952,
+        "y": 376,
+        "w": 120,
+        "h": 21
+      },
+      "aspect": 5.7143,
+      "palette": [
+        {
+          "hex": "#e5e9db",
+          "coverage": 0.781
+        },
+        {
+          "hex": "#163816",
+          "coverage": 0.0839
+        },
+        {
+          "hex": "#587657",
+          "coverage": 0.0511
+        },
+        {
+          "hex": "#a9c6a9",
+          "coverage": 0.0474
+        },
+        {
+          "hex": "#2d582d",
+          "coverage": 0.0365
+        }
+      ],
+      "detail": {
+        "energy": 34.2881
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "row-rule-cotton",
+      "kind": "chrome",
+      "note": "Row border",
+      "grid": "A3:H3",
+      "snap": false,
+      "box": {
+        "x": 0.0227,
+        "y": 0.3579,
+        "w": 0.7018,
+        "h": 0.001
+      },
+      "px": {
+        "x": 36,
+        "y": 355,
+        "w": 1113,
+        "h": 1
+      },
+      "aspect": 1113,
+      "palette": [
+        {
+          "hex": "#d8d8d8",
+          "coverage": 1
+        }
+      ],
+      "detail": {
+        "energy": 0.3305
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "select-cotton",
+      "kind": "control",
+      "note": "Interactive control labeled Selection checkbox",
+      "grid": "A3:A4",
+      "snap": false,
+      "box": {
+        "x": 0.0347,
+        "y": 0.38,
+        "w": 0.0151,
+        "h": 0.0282
+      },
+      "px": {
+        "x": 55,
+        "y": 377,
+        "w": 24,
+        "h": 28
+      },
+      "aspect": 0.8571,
+      "palette": [
+        {
+          "hex": "#f7f7f3",
+          "coverage": 0.8625
+        },
+        {
+          "hex": "#cacac6",
+          "coverage": 0.1
+        },
+        {
+          "hex": "#989888",
+          "coverage": 0.025
+        },
+        {
+          "hex": "#787878",
+          "coverage": 0.0125
+        }
+      ],
+      "detail": {
+        "energy": 6.3631
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "image-cotton",
+      "kind": "plate",
+      "note": "Photograph of a white cotton shirt on pale gray studio ground",
+      "grid": "A3:B4",
+      "snap": false,
+      "box": {
+        "x": 0.0687,
+        "y": 0.3629,
+        "w": 0.0404,
+        "h": 0.0635
+      },
+      "px": {
+        "x": 109,
+        "y": 360,
+        "w": 64,
+        "h": 63
+      },
+      "aspect": 1.0159,
+      "palette": [
+        {
+          "hex": "#e7e6e7",
+          "coverage": 0.9221
+        },
+        {
+          "hex": "#bab9bb",
+          "coverage": 0.0736
+        },
+        {
+          "hex": "#a0a0b0",
+          "coverage": 0.0043
+        }
+      ],
+      "detail": {
+        "energy": 3.629
+      },
+      "medium": "raster",
+      "plate": "assets/plates/image-cotton.png",
+      "text": null
+    },
+    {
+      "id": "name-cotton",
+      "kind": "text",
+      "note": "Visible text reading Camisa de algodón",
+      "grid": "B3:C3",
+      "coverBox": {
+        "x": 0.1,
+        "y": 0.3,
+        "w": 0.2,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.123,
+        "y": 0.379,
+        "w": 0.1097,
+        "h": 0.0212
+      },
+      "px": {
+        "x": 195,
+        "y": 376,
+        "w": 174,
+        "h": 21
+      },
+      "aspect": 8.2857,
+      "palette": [
+        {
+          "hex": "#f7f6f4",
+          "coverage": 0.7557
+        },
+        {
+          "hex": "#0b0b0b",
+          "coverage": 0.117
+        },
+        {
+          "hex": "#373637",
+          "coverage": 0.0509
+        },
+        {
+          "hex": "#686966",
+          "coverage": 0.0458
+        },
+        {
+          "hex": "#bcbdbb",
+          "coverage": 0.0305
+        }
+      ],
+      "detail": {
+        "energy": 67.4182
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "sku-cotton",
+      "kind": "text",
+      "note": "Visible text reading CAM-001",
+      "grid": "C3:D4",
+      "snap": false,
+      "box": {
+        "x": 0.2755,
+        "y": 0.38,
+        "w": 0.0599,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 437,
+        "y": 377,
+        "w": 95,
+        "h": 30
+      },
+      "aspect": 3.1667,
+      "palette": [
+        {
+          "hex": "#f6f6f3",
+          "coverage": 0.8738
+        },
+        {
+          "hex": "#161515",
+          "coverage": 0.0473
+        },
+        {
+          "hex": "#5b5b5a",
+          "coverage": 0.0315
+        },
+        {
+          "hex": "#949492",
+          "coverage": 0.0252
+        },
+        {
+          "hex": "#313128",
+          "coverage": 0.0221
+        }
+      ],
+      "detail": {
+        "energy": 24.6156
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "cat-cotton",
+      "kind": "text",
+      "note": "Visible text reading Camisas",
+      "grid": "D3:E4",
+      "snap": false,
+      "box": {
+        "x": 0.3512,
+        "y": 0.38,
+        "w": 0.0908,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 557,
+        "y": 377,
+        "w": 144,
+        "h": 30
+      },
+      "aspect": 4.8,
+      "palette": [
+        {
+          "hex": "#f7f7f5",
+          "coverage": 0.9245
+        },
+        {
+          "hex": "#171817",
+          "coverage": 0.0294
+        },
+        {
+          "hex": "#9a9a98",
+          "coverage": 0.021
+        },
+        {
+          "hex": "#464646",
+          "coverage": 0.0147
+        },
+        {
+          "hex": "#72726b",
+          "coverage": 0.0105
+        }
+      ],
+      "detail": {
+        "energy": 22.3874
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "price-cotton",
+      "kind": "text",
+      "note": "Visible text reading UYU 2.190",
+      "grid": "E3:F4",
+      "snap": false,
+      "box": {
+        "x": 0.4502,
+        "y": 0.38,
+        "w": 0.0858,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 714,
+        "y": 377,
+        "w": 136,
+        "h": 30
+      },
+      "aspect": 4.5333,
+      "palette": [
+        {
+          "hex": "#f7f7f3",
+          "coverage": 0.8717
+        },
+        {
+          "hex": "#0d0d0d",
+          "coverage": 0.0522
+        },
+        {
+          "hex": "#565754",
+          "coverage": 0.0283
+        },
+        {
+          "hex": "#8c8b89",
+          "coverage": 0.0239
+        },
+        {
+          "hex": "#b4b4b4",
+          "coverage": 0.0239
+        }
+      ],
+      "detail": {
+        "energy": 27.8161
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "stock-cotton",
+      "kind": "text",
+      "note": "Visible text reading 24",
+      "grid": "F3:F4",
+      "snap": false,
+      "box": {
+        "x": 0.5448,
+        "y": 0.38,
+        "w": 0.0378,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 864,
+        "y": 377,
+        "w": 60,
+        "h": 30
+      },
+      "aspect": 2,
+      "palette": [
+        {
+          "hex": "#f8f7f5",
+          "coverage": 0.935
+        },
+        {
+          "hex": "#100e0e",
+          "coverage": 0.04
+        },
+        {
+          "hex": "#53534d",
+          "coverage": 0.015
+        },
+        {
+          "hex": "#888888",
+          "coverage": 0.005
+        },
+        {
+          "hex": "#c8c8c8",
+          "coverage": 0.005
+        }
+      ],
+      "detail": {
+        "energy": 7.6903
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "state-cotton",
+      "kind": "control",
+      "note": "Interactive control labeled Publicado",
+      "grid": "F3:G4",
+      "snap": false,
+      "box": {
+        "x": 0.5933,
+        "y": 0.375,
+        "w": 0.087,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 941,
+        "y": 372,
+        "w": 138,
+        "h": 36
+      },
+      "aspect": 3.8333,
+      "palette": [
+        {
+          "hex": "#e8ece1",
+          "coverage": 0.883
+        },
+        {
+          "hex": "#c2d6c1",
+          "coverage": 0.0366
+        },
+        {
+          "hex": "#30582f",
+          "coverage": 0.0347
+        },
+        {
+          "hex": "#9ab797",
+          "coverage": 0.0274
+        },
+        {
+          "hex": "#0d330e",
+          "coverage": 0.0183
+        }
+      ],
+      "detail": {
+        "energy": 20.0803
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "menu-cotton",
+      "kind": "control",
+      "note": "Interactive control labeled Row actions",
+      "grid": "H3:H3",
+      "coverBox": {
+        "x": 0.7,
+        "y": 0.3,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.7566,
+        "y": 0.3427,
+        "w": 0.0435,
+        "h": 0.0575
+      },
+      "px": {
+        "x": 1200,
+        "y": 340,
+        "w": 69,
+        "h": 57
+      },
+      "aspect": 1.2105,
+      "palette": [
+        {
+          "hex": "#23231f",
+          "coverage": 0.5995
+        },
+        {
+          "hex": "#e9e8e7",
+          "coverage": 0.3936
+        },
+        {
+          "hex": "#788078",
+          "coverage": 0.0046
+        },
+        {
+          "hex": "#b8b8a8",
+          "coverage": 0.0023
+        }
+      ],
+      "detail": {
+        "energy": 5.5235
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "row-rule-plain",
+      "kind": "chrome",
+      "note": "Row border",
+      "grid": "A4:H4",
+      "snap": false,
+      "box": {
+        "x": 0.0227,
+        "y": 0.4325,
+        "w": 0.7018,
+        "h": 0.001
+      },
+      "px": {
+        "x": 36,
+        "y": 429,
+        "w": 1113,
+        "h": 1
+      },
+      "aspect": 1113,
+      "palette": [
+        {
+          "hex": "#dad9d8",
+          "coverage": 1
+        }
+      ],
+      "detail": {
+        "energy": 0.354
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "select-plain",
+      "kind": "control",
+      "note": "Interactive control labeled Selection checkbox",
+      "grid": "A4:A4",
+      "snap": false,
+      "box": {
+        "x": 0.0347,
+        "y": 0.4546,
+        "w": 0.0151,
+        "h": 0.0282
+      },
+      "px": {
+        "x": 55,
+        "y": 451,
+        "w": 24,
+        "h": 28
+      },
+      "aspect": 0.8571,
+      "palette": [
+        {
+          "hex": "#244e38",
+          "coverage": 0.525
+        },
+        {
+          "hex": "#ebede7",
+          "coverage": 0.4125
+        },
+        {
+          "hex": "#b3c3b8",
+          "coverage": 0.0375
+        },
+        {
+          "hex": "#688078",
+          "coverage": 0.025
+        }
+      ],
+      "detail": {
+        "energy": 9.03
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "image-plain",
+      "kind": "plate",
+      "note": "Photograph of a black plain t-shirt on pale gray studio ground",
+      "grid": "A4:B5",
+      "snap": false,
+      "box": {
+        "x": 0.0687,
+        "y": 0.4375,
+        "w": 0.0404,
+        "h": 0.0635
+      },
+      "px": {
+        "x": 109,
+        "y": 434,
+        "w": 64,
+        "h": 63
+      },
+      "aspect": 1.0159,
+      "palette": [
+        {
+          "hex": "#e8e8e7",
+          "coverage": 0.6169
+        },
+        {
+          "hex": "#222221",
+          "coverage": 0.3485
+        },
+        {
+          "hex": "#7e7e7b",
+          "coverage": 0.0238
+        },
+        {
+          "hex": "#c8c3c3",
+          "coverage": 0.0065
+        },
+        {
+          "hex": "#504848",
+          "coverage": 0.0043
+        }
+      ],
+      "detail": {
+        "energy": 6.4719
+      },
+      "medium": "raster",
+      "plate": "assets/plates/image-plain.png",
+      "text": null
+    },
+    {
+      "id": "name-plain",
+      "kind": "text",
+      "note": "Visible text reading Remera lisa",
+      "grid": "B4:C4",
+      "snap": false,
+      "box": {
+        "x": 0.1267,
+        "y": 0.4546,
+        "w": 0.1406,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 201,
+        "y": 451,
+        "w": 223,
+        "h": 30
+      },
+      "aspect": 7.4333,
+      "palette": [
+        {
+          "hex": "#e8e8e7",
+          "coverage": 0.8917
+        },
+        {
+          "hex": "#101010",
+          "coverage": 0.0535
+        },
+        {
+          "hex": "#abada6",
+          "coverage": 0.0241
+        },
+        {
+          "hex": "#4f504d",
+          "coverage": 0.016
+        },
+        {
+          "hex": "#777872",
+          "coverage": 0.0147
+        }
+      ],
+      "detail": {
+        "energy": 29.9786
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "sku-plain",
+      "kind": "text",
+      "note": "Visible text reading REM-002",
+      "grid": "C4:D4",
+      "snap": false,
+      "box": {
+        "x": 0.2755,
+        "y": 0.4546,
+        "w": 0.0599,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 437,
+        "y": 451,
+        "w": 95,
+        "h": 30
+      },
+      "aspect": 3.1667,
+      "palette": [
+        {
+          "hex": "#eaeae8",
+          "coverage": 0.8621
+        },
+        {
+          "hex": "#171716",
+          "coverage": 0.0627
+        },
+        {
+          "hex": "#515151",
+          "coverage": 0.0345
+        },
+        {
+          "hex": "#8c8d8c",
+          "coverage": 0.0282
+        },
+        {
+          "hex": "#c0c8bc",
+          "coverage": 0.0125
+        }
+      ],
+      "detail": {
+        "energy": 26.6967
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "cat-plain",
+      "kind": "text",
+      "note": "Visible text reading Remeras",
+      "grid": "D4:E4",
+      "snap": false,
+      "box": {
+        "x": 0.3512,
+        "y": 0.4546,
+        "w": 0.0908,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 557,
+        "y": 451,
+        "w": 144,
+        "h": 30
+      },
+      "aspect": 4.8,
+      "palette": [
+        {
+          "hex": "#e9e9e8",
+          "coverage": 0.9081
+        },
+        {
+          "hex": "#141414",
+          "coverage": 0.0313
+        },
+        {
+          "hex": "#838580",
+          "coverage": 0.0251
+        },
+        {
+          "hex": "#4a4a4a",
+          "coverage": 0.0188
+        },
+        {
+          "hex": "#babab4",
+          "coverage": 0.0167
+        }
+      ],
+      "detail": {
+        "energy": 23.6907
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "price-plain",
+      "kind": "text",
+      "note": "Visible text reading UYU 890",
+      "grid": "E4:F4",
+      "snap": false,
+      "box": {
+        "x": 0.4502,
+        "y": 0.4546,
+        "w": 0.0858,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 714,
+        "y": 451,
+        "w": 136,
+        "h": 30
+      },
+      "aspect": 4.5333,
+      "palette": [
+        {
+          "hex": "#e8e9e7",
+          "coverage": 0.9009
+        },
+        {
+          "hex": "#0d0d0d",
+          "coverage": 0.0286
+        },
+        {
+          "hex": "#888e88",
+          "coverage": 0.0286
+        },
+        {
+          "hex": "#b8bbb7",
+          "coverage": 0.0242
+        },
+        {
+          "hex": "#4c4c4c",
+          "coverage": 0.0176
+        }
+      ],
+      "detail": {
+        "energy": 24.589
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "stock-plain",
+      "kind": "text",
+      "note": "Visible text reading 12",
+      "grid": "F4:F4",
+      "snap": false,
+      "box": {
+        "x": 0.5448,
+        "y": 0.4546,
+        "w": 0.0378,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 864,
+        "y": 451,
+        "w": 60,
+        "h": 30
+      },
+      "aspect": 2,
+      "palette": [
+        {
+          "hex": "#e9e9e9",
+          "coverage": 0.95
+        },
+        {
+          "hex": "#b8bcb4",
+          "coverage": 0.02
+        },
+        {
+          "hex": "#8d938d",
+          "coverage": 0.015
+        },
+        {
+          "hex": "#181818",
+          "coverage": 0.01
+        },
+        {
+          "hex": "#585858",
+          "coverage": 0.005
+        }
+      ],
+      "detail": {
+        "energy": 6.9755
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "state-plain",
+      "kind": "control",
+      "note": "Interactive control labeled Borrador",
+      "grid": "F4:G4",
+      "snap": false,
+      "box": {
+        "x": 0.5933,
+        "y": 0.4496,
+        "w": 0.087,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 941,
+        "y": 446,
+        "w": 138,
+        "h": 36
+      },
+      "aspect": 3.8333,
+      "palette": [
+        {
+          "hex": "#e9e9e8",
+          "coverage": 0.8836
+        },
+        {
+          "hex": "#131313",
+          "coverage": 0.0491
+        },
+        {
+          "hex": "#808081",
+          "coverage": 0.0309
+        },
+        {
+          "hex": "#494746",
+          "coverage": 0.0291
+        },
+        {
+          "hex": "#acb0ac",
+          "coverage": 0.0073
+        }
+      ],
+      "detail": {
+        "energy": 22.8678
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "menu-plain",
+      "kind": "control",
+      "note": "Interactive control labeled Row actions",
+      "grid": "G4:H4",
+      "snap": false,
+      "box": {
+        "x": 0.6986,
+        "y": 0.4506,
+        "w": 0.0189,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 1108,
+        "y": 447,
+        "w": 30,
+        "h": 36
+      },
+      "aspect": 0.8333,
+      "palette": [
+        {
+          "hex": "#e8e8e7",
+          "coverage": 0.95
+        },
+        {
+          "hex": "#282828",
+          "coverage": 0.0167
+        },
+        {
+          "hex": "#707068",
+          "coverage": 0.0167
+        },
+        {
+          "hex": "#b0b0a8",
+          "coverage": 0.0167
+        }
+      ],
+      "detail": {
+        "energy": 2.4379
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "row-rule-straight",
+      "kind": "chrome",
+      "note": "Row border",
+      "grid": "A5:H5",
+      "snap": false,
+      "box": {
+        "x": 0.0227,
+        "y": 0.5081,
+        "w": 0.7018,
+        "h": 0.001
+      },
+      "px": {
+        "x": 36,
+        "y": 504,
+        "w": 1113,
+        "h": 1
+      },
+      "aspect": 1113,
+      "palette": [
+        {
+          "hex": "#e8e8e8",
+          "coverage": 1
+        }
+      ],
+      "detail": {
+        "energy": 0.2552
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "select-straight",
+      "kind": "control",
+      "note": "Interactive control labeled Selection checkbox",
+      "grid": "A5:A5",
+      "snap": false,
+      "box": {
+        "x": 0.0347,
+        "y": 0.5302,
+        "w": 0.0151,
+        "h": 0.0282
+      },
+      "px": {
+        "x": 55,
+        "y": 526,
+        "w": 24,
+        "h": 28
+      },
+      "aspect": 0.8571,
+      "palette": [
+        {
+          "hex": "#f5f5f0",
+          "coverage": 0.8625
+        },
+        {
+          "hex": "#88887d",
+          "coverage": 0.075
+        },
+        {
+          "hex": "#cecec8",
+          "coverage": 0.0625
+        }
+      ],
+      "detail": {
+        "energy": 6.4015
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "image-straight",
+      "kind": "plate",
+      "note": "Photograph of a beige straight-leg pants on pale gray studio ground",
+      "grid": "A5:B5",
+      "snap": false,
+      "box": {
+        "x": 0.0687,
+        "y": 0.5131,
+        "w": 0.0404,
+        "h": 0.0635
+      },
+      "px": {
+        "x": 109,
+        "y": 509,
+        "w": 64,
+        "h": 63
+      },
+      "aspect": 1.0159,
+      "palette": [
+        {
+          "hex": "#ebebeb",
+          "coverage": 0.6818
+        },
+        {
+          "hex": "#c8c0b0",
+          "coverage": 0.3182
+        }
+      ],
+      "detail": {
+        "energy": 2.6348
+      },
+      "medium": "raster",
+      "plate": "assets/plates/image-straight.png",
+      "text": null
+    },
+    {
+      "id": "name-straight",
+      "kind": "text",
+      "note": "Visible text reading Pantalón recto",
+      "grid": "B5:C5",
+      "snap": false,
+      "box": {
+        "x": 0.1267,
+        "y": 0.5302,
+        "w": 0.1406,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 201,
+        "y": 526,
+        "w": 223,
+        "h": 30
+      },
+      "aspect": 7.4333,
+      "palette": [
+        {
+          "hex": "#f7f7f6",
+          "coverage": 0.8807
+        },
+        {
+          "hex": "#0e0e0e",
+          "coverage": 0.0563
+        },
+        {
+          "hex": "#3d3d3d",
+          "coverage": 0.0295
+        },
+        {
+          "hex": "#c4c3c1",
+          "coverage": 0.0201
+        },
+        {
+          "hex": "#8e928e",
+          "coverage": 0.0134
+        }
+      ],
+      "detail": {
+        "energy": 39.103
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "sku-straight",
+      "kind": "text",
+      "note": "Visible text reading PAN-003",
+      "grid": "C5:D5",
+      "snap": false,
+      "box": {
+        "x": 0.2755,
+        "y": 0.5302,
+        "w": 0.0599,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 437,
+        "y": 526,
+        "w": 95,
+        "h": 30
+      },
+      "aspect": 3.1667,
+      "palette": [
+        {
+          "hex": "#f7f7f4",
+          "coverage": 0.827
+        },
+        {
+          "hex": "#a4a5a2",
+          "coverage": 0.0597
+        },
+        {
+          "hex": "#121111",
+          "coverage": 0.0566
+        },
+        {
+          "hex": "#626362",
+          "coverage": 0.044
+        },
+        {
+          "hex": "#3c3838",
+          "coverage": 0.0126
+        }
+      ],
+      "detail": {
+        "energy": 26.7933
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "cat-straight",
+      "kind": "text",
+      "note": "Visible text reading Pantalones",
+      "grid": "D5:D5",
+      "coverBox": {
+        "x": 0.3,
+        "y": 0.5,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.3493,
+        "y": 0.5302,
+        "w": 0.0511,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 554,
+        "y": 526,
+        "w": 81,
+        "h": 30
+      },
+      "aspect": 2.7,
+      "palette": [
+        {
+          "hex": "#f6f6f4",
+          "coverage": 0.8476
+        },
+        {
+          "hex": "#a2a09e",
+          "coverage": 0.0781
+        },
+        {
+          "hex": "#141413",
+          "coverage": 0.0483
+        },
+        {
+          "hex": "#3e3e3e",
+          "coverage": 0.0186
+        },
+        {
+          "hex": "#707070",
+          "coverage": 0.0074
+        }
+      ],
+      "detail": {
+        "energy": 24.154
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "price-straight",
+      "kind": "text",
+      "note": "Visible text reading UYU 2.590",
+      "grid": "E5:E5",
+      "coverBox": {
+        "x": 0.4,
+        "y": 0.5,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.4451,
+        "y": 0.5302,
+        "w": 0.0549,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 706,
+        "y": 526,
+        "w": 87,
+        "h": 30
+      },
+      "aspect": 2.9,
+      "palette": [
+        {
+          "hex": "#f7f7f4",
+          "coverage": 0.8345
+        },
+        {
+          "hex": "#100f10",
+          "coverage": 0.0621
+        },
+        {
+          "hex": "#717070",
+          "coverage": 0.0483
+        },
+        {
+          "hex": "#ababaa",
+          "coverage": 0.0483
+        },
+        {
+          "hex": "#383838",
+          "coverage": 0.0069
+        }
+      ],
+      "detail": {
+        "energy": 23.3882
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "stock-straight",
+      "kind": "text",
+      "note": "Visible text reading 0",
+      "grid": "F5:F5",
+      "snap": false,
+      "box": {
+        "x": 0.5448,
+        "y": 0.5302,
+        "w": 0.0378,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 864,
+        "y": 526,
+        "w": 60,
+        "h": 30
+      },
+      "aspect": 2,
+      "palette": [
+        {
+          "hex": "#f8f8f7",
+          "coverage": 0.955
+        },
+        {
+          "hex": "#151512",
+          "coverage": 0.025
+        },
+        {
+          "hex": "#404040",
+          "coverage": 0.01
+        },
+        {
+          "hex": "#a8a8a8",
+          "coverage": 0.01
+        }
+      ],
+      "detail": {
+        "energy": 4.9613
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "state-straight",
+      "kind": "control",
+      "note": "Interactive control labeled Archivado",
+      "grid": "F5:G5",
+      "snap": false,
+      "box": {
+        "x": 0.5933,
+        "y": 0.5252,
+        "w": 0.087,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 941,
+        "y": 521,
+        "w": 138,
+        "h": 36
+      },
+      "aspect": 3.8333,
+      "palette": [
+        {
+          "hex": "#f8e6de",
+          "coverage": 0.846
+        },
+        {
+          "hex": "#7f1813",
+          "coverage": 0.0489
+        },
+        {
+          "hex": "#e1b8b1",
+          "coverage": 0.0453
+        },
+        {
+          "hex": "#a9544f",
+          "coverage": 0.0308
+        },
+        {
+          "hex": "#c9847d",
+          "coverage": 0.029
+        }
+      ],
+      "detail": {
+        "energy": 24.7693
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "menu-straight",
+      "kind": "control",
+      "note": "Interactive control labeled Row actions",
+      "grid": "H5:H5",
+      "coverBox": {
+        "x": 0.7,
+        "y": 0.5,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.7491,
+        "y": 0.5484,
+        "w": 0.0511,
+        "h": 0.0423
+      },
+      "px": {
+        "x": 1188,
+        "y": 544,
+        "w": 81,
+        "h": 42
+      },
+      "aspect": 1.9286,
+      "palette": [
+        {
+          "hex": "#f8f7f5",
+          "coverage": 0.9057
+        },
+        {
+          "hex": "#373730",
+          "coverage": 0.0323
+        },
+        {
+          "hex": "#6b6a6b",
+          "coverage": 0.027
+        },
+        {
+          "hex": "#0f0f11",
+          "coverage": 0.0189
+        },
+        {
+          "hex": "#c8c8c3",
+          "coverage": 0.0162
+        }
+      ],
+      "detail": {
+        "energy": 15.3801
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "row-rule-classic",
+      "kind": "chrome",
+      "note": "Row border",
+      "grid": "A5:H5",
+      "snap": false,
+      "box": {
+        "x": 0.0227,
+        "y": 0.5796,
+        "w": 0.7018,
+        "h": 0.001
+      },
+      "px": {
+        "x": 36,
+        "y": 575,
+        "w": 1113,
+        "h": 1
+      },
+      "aspect": 1113,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 1
+        }
+      ],
+      "detail": {
+        "energy": 0.1779
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "select-classic",
+      "kind": "control",
+      "note": "Interactive control labeled Selection checkbox",
+      "grid": "A6:A6",
+      "coverBox": {
+        "x": 0,
+        "y": 0.6,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.0681,
+        "y": 0.5998,
+        "w": 0.0322,
+        "h": 0.0998
+      },
+      "px": {
+        "x": 108,
+        "y": 595,
+        "w": 51,
+        "h": 99
+      },
+      "aspect": 0.5152,
+      "palette": [
+        {
+          "hex": "#eeedeb",
+          "coverage": 0.4901
+        },
+        {
+          "hex": "#242939",
+          "coverage": 0.2837
+        },
+        {
+          "hex": "#b2b2b1",
+          "coverage": 0.1903
+        },
+        {
+          "hex": "#8f8e8f",
+          "coverage": 0.0251
+        },
+        {
+          "hex": "#68686d",
+          "coverage": 0.0108
+        }
+      ],
+      "detail": {
+        "energy": 4.194
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "image-classic",
+      "kind": "plate",
+      "note": "Photograph of a navy classic shirt on pale gray studio ground",
+      "grid": "A5:B6",
+      "snap": false,
+      "box": {
+        "x": 0.0687,
+        "y": 0.5847,
+        "w": 0.0404,
+        "h": 0.0635
+      },
+      "px": {
+        "x": 109,
+        "y": 580,
+        "w": 64,
+        "h": 63
+      },
+      "aspect": 1.0159,
+      "palette": [
+        {
+          "hex": "#edeceb",
+          "coverage": 0.5696
+        },
+        {
+          "hex": "#212638",
+          "coverage": 0.3761
+        },
+        {
+          "hex": "#989999",
+          "coverage": 0.0283
+        },
+        {
+          "hex": "#111d1d",
+          "coverage": 0.0196
+        },
+        {
+          "hex": "#48484d",
+          "coverage": 0.0065
+        }
+      ],
+      "detail": {
+        "energy": 6.9502
+      },
+      "medium": "raster",
+      "plate": "assets/plates/image-classic.png",
+      "text": null
+    },
+    {
+      "id": "name-classic",
+      "kind": "text",
+      "note": "Visible text reading Camisa clásica",
+      "grid": "B6:B6",
+      "coverBox": {
+        "x": 0.1,
+        "y": 0.6,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.123,
+        "y": 0.5998,
+        "w": 0.0776,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 195,
+        "y": 595,
+        "w": 123,
+        "h": 30
+      },
+      "aspect": 4.1,
+      "palette": [
+        {
+          "hex": "#f7f7f5",
+          "coverage": 0.7789
+        },
+        {
+          "hex": "#101010",
+          "coverage": 0.0885
+        },
+        {
+          "hex": "#4b4947",
+          "coverage": 0.059
+        },
+        {
+          "hex": "#817f80",
+          "coverage": 0.059
+        },
+        {
+          "hex": "#bbbdb8",
+          "coverage": 0.0147
+        }
+      ],
+      "detail": {
+        "energy": 40.0232
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "sku-classic",
+      "kind": "text",
+      "note": "Visible text reading CAM-004",
+      "grid": "C6:C6",
+      "coverBox": {
+        "x": 0.2,
+        "y": 0.6,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.1999,
+        "y": 0.6724,
+        "w": 0.0378,
+        "h": 0.0272
+      },
+      "px": {
+        "x": 317,
+        "y": 667,
+        "w": 60,
+        "h": 27
+      },
+      "aspect": 2.2222,
+      "palette": [
+        {
+          "hex": "#f6f6f4",
+          "coverage": 0.767
+        },
+        {
+          "hex": "#111010",
+          "coverage": 0.1193
+        },
+        {
+          "hex": "#7d7d7a",
+          "coverage": 0.0795
+        },
+        {
+          "hex": "#585853",
+          "coverage": 0.017
+        },
+        {
+          "hex": "#d3cdc8",
+          "coverage": 0.017
+        }
+      ],
+      "detail": {
+        "energy": 23.5633
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "cat-classic",
+      "kind": "text",
+      "note": "Visible text reading Camisas",
+      "grid": "D6:D6",
+      "coverBox": {
+        "x": 0.3,
+        "y": 0.6,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.3493,
+        "y": 0.5998,
+        "w": 0.0511,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 554,
+        "y": 595,
+        "w": 81,
+        "h": 30
+      },
+      "aspect": 2.7,
+      "palette": [
+        {
+          "hex": "#f7f7f5",
+          "coverage": 0.8421
+        },
+        {
+          "hex": "#403f3f",
+          "coverage": 0.0677
+        },
+        {
+          "hex": "#0f0f0e",
+          "coverage": 0.0414
+        },
+        {
+          "hex": "#aaa8a8",
+          "coverage": 0.0338
+        },
+        {
+          "hex": "#70706c",
+          "coverage": 0.015
+        }
+      ],
+      "detail": {
+        "energy": 23.6397
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "price-classic",
+      "kind": "text",
+      "note": "Visible text reading UYU 2.290",
+      "grid": "E6:E6",
+      "coverBox": {
+        "x": 0.4,
+        "y": 0.6,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.4489,
+        "y": 0.6724,
+        "w": 0.0511,
+        "h": 0.0272
+      },
+      "px": {
+        "x": 712,
+        "y": 667,
+        "w": 81,
+        "h": 27
+      },
+      "aspect": 3,
+      "palette": [
+        {
+          "hex": "#f7f6f3",
+          "coverage": 0.8306
+        },
+        {
+          "hex": "#131413",
+          "coverage": 0.062
+        },
+        {
+          "hex": "#5f5f5f",
+          "coverage": 0.0496
+        },
+        {
+          "hex": "#ababa9",
+          "coverage": 0.0496
+        },
+        {
+          "hex": "#788070",
+          "coverage": 0.0083
+        }
+      ],
+      "detail": {
+        "energy": 28.8686
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "stock-classic",
+      "kind": "text",
+      "note": "Visible text reading 18",
+      "grid": "F6:F6",
+      "snap": false,
+      "box": {
+        "x": 0.5448,
+        "y": 0.6018,
+        "w": 0.0378,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 864,
+        "y": 597,
+        "w": 60,
+        "h": 30
+      },
+      "aspect": 2,
+      "palette": [
+        {
+          "hex": "#f8f8f6",
+          "coverage": 0.92
+        },
+        {
+          "hex": "#0d0a0d",
+          "coverage": 0.035
+        },
+        {
+          "hex": "#b0b0ac",
+          "coverage": 0.02
+        },
+        {
+          "hex": "#434343",
+          "coverage": 0.015
+        },
+        {
+          "hex": "#808080",
+          "coverage": 0.01
+        }
+      ],
+      "detail": {
+        "energy": 8.3697
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "state-classic",
+      "kind": "control",
+      "note": "Interactive control labeled Publicado",
+      "grid": "G6:G6",
+      "coverBox": {
+        "x": 0.6,
+        "y": 0.6,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.6003,
+        "y": 0.6724,
+        "w": 0.0757,
+        "h": 0.0272
+      },
+      "px": {
+        "x": 952,
+        "y": 667,
+        "w": 120,
+        "h": 27
+      },
+      "aspect": 4.4444,
+      "palette": [
+        {
+          "hex": "#e4e9db",
+          "coverage": 0.8764
+        },
+        {
+          "hex": "#0f3911",
+          "coverage": 0.0632
+        },
+        {
+          "hex": "#88aa88",
+          "coverage": 0.0259
+        },
+        {
+          "hex": "#406d3d",
+          "coverage": 0.0172
+        },
+        {
+          "hex": "#bdd5b8",
+          "coverage": 0.0172
+        }
+      ],
+      "detail": {
+        "energy": 26.0818
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "menu-classic",
+      "kind": "control",
+      "note": "Interactive control labeled Row actions",
+      "grid": "H6:H6",
+      "coverBox": {
+        "x": 0.7,
+        "y": 0.6,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.7491,
+        "y": 0.6058,
+        "w": 0.0511,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 1188,
+        "y": 601,
+        "w": 81,
+        "h": 36
+      },
+      "aspect": 2.25,
+      "palette": [
+        {
+          "hex": "#f8f7f4",
+          "coverage": 0.8719
+        },
+        {
+          "hex": "#4e4d4d",
+          "coverage": 0.0562
+        },
+        {
+          "hex": "#171617",
+          "coverage": 0.05
+        },
+        {
+          "hex": "#c8c8c8",
+          "coverage": 0.0125
+        },
+        {
+          "hex": "#9d9d9d",
+          "coverage": 0.0094
+        }
+      ],
+      "detail": {
+        "energy": 15.8787
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "row-rule-pocket",
+      "kind": "chrome",
+      "note": "Row border",
+      "grid": "A6:H6",
+      "snap": false,
+      "box": {
+        "x": 0.0227,
+        "y": 0.6532,
+        "w": 0.7018,
+        "h": 0.001
+      },
+      "px": {
+        "x": 36,
+        "y": 648,
+        "w": 1113,
+        "h": 1
+      },
+      "aspect": 1113,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 1
+        }
+      ],
+      "detail": {
+        "energy": 0.2494
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "select-pocket",
+      "kind": "control",
+      "note": "Interactive control labeled Selection checkbox",
+      "grid": "A6:A7",
+      "snap": false,
+      "box": {
+        "x": 0.0347,
+        "y": 0.6754,
+        "w": 0.0151,
+        "h": 0.0282
+      },
+      "px": {
+        "x": 55,
+        "y": 670,
+        "w": 24,
+        "h": 28
+      },
+      "aspect": 0.8571,
+      "palette": [
+        {
+          "hex": "#f8f8f4",
+          "coverage": 0.825
+        },
+        {
+          "hex": "#cfcfc8",
+          "coverage": 0.1375
+        },
+        {
+          "hex": "#939388",
+          "coverage": 0.0375
+        }
+      ],
+      "detail": {
+        "energy": 5.5798
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "image-pocket",
+      "kind": "plate",
+      "note": "Photograph of a gray pocket t-shirt on pale gray studio ground",
+      "grid": "A6:B7",
+      "snap": false,
+      "box": {
+        "x": 0.0687,
+        "y": 0.6583,
+        "w": 0.0404,
+        "h": 0.0635
+      },
+      "px": {
+        "x": 109,
+        "y": 653,
+        "w": 64,
+        "h": 63
+      },
+      "aspect": 1.0159,
+      "palette": [
+        {
+          "hex": "#ecebea",
+          "coverage": 0.6558
+        },
+        {
+          "hex": "#b2b2b1",
+          "coverage": 0.3355
+        },
+        {
+          "hex": "#7c7878",
+          "coverage": 0.0087
+        }
+      ],
+      "detail": {
+        "energy": 3.2312
+      },
+      "medium": "raster",
+      "plate": "assets/plates/image-pocket.png",
+      "text": null
+    },
+    {
+      "id": "name-pocket",
+      "kind": "text",
+      "note": "Visible text reading Remera con bolsillo",
+      "grid": "B6:C7",
+      "snap": false,
+      "box": {
+        "x": 0.1267,
+        "y": 0.6754,
+        "w": 0.1406,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 201,
+        "y": 670,
+        "w": 223,
+        "h": 30
+      },
+      "aspect": 7.4333,
+      "palette": [
+        {
+          "hex": "#f7f7f5",
+          "coverage": 0.8453
+        },
+        {
+          "hex": "#111010",
+          "coverage": 0.0706
+        },
+        {
+          "hex": "#646462",
+          "coverage": 0.0421
+        },
+        {
+          "hex": "#c1c2c0",
+          "coverage": 0.0217
+        },
+        {
+          "hex": "#9c9997",
+          "coverage": 0.0204
+        }
+      ],
+      "detail": {
+        "energy": 52.9959
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "sku-pocket",
+      "kind": "text",
+      "note": "Visible text reading REM-005",
+      "grid": "C6:D7",
+      "snap": false,
+      "box": {
+        "x": 0.2755,
+        "y": 0.6754,
+        "w": 0.0599,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 437,
+        "y": 670,
+        "w": 95,
+        "h": 30
+      },
+      "aspect": 3.1667,
+      "palette": [
+        {
+          "hex": "#f7f7f4",
+          "coverage": 0.8433
+        },
+        {
+          "hex": "#141313",
+          "coverage": 0.0596
+        },
+        {
+          "hex": "#afb0ad",
+          "coverage": 0.0502
+        },
+        {
+          "hex": "#424040",
+          "coverage": 0.0251
+        },
+        {
+          "hex": "#61615a",
+          "coverage": 0.0219
+        }
+      ],
+      "detail": {
+        "energy": 27.0472
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "cat-pocket",
+      "kind": "text",
+      "note": "Visible text reading Remeras",
+      "grid": "D6:E7",
+      "snap": false,
+      "box": {
+        "x": 0.3512,
+        "y": 0.6754,
+        "w": 0.0908,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 557,
+        "y": 670,
+        "w": 144,
+        "h": 30
+      },
+      "aspect": 4.8,
+      "palette": [
+        {
+          "hex": "#f7f7f6",
+          "coverage": 0.9184
+        },
+        {
+          "hex": "#161614",
+          "coverage": 0.0272
+        },
+        {
+          "hex": "#81817f",
+          "coverage": 0.023
+        },
+        {
+          "hex": "#c2c2c0",
+          "coverage": 0.0209
+        },
+        {
+          "hex": "#4b4b48",
+          "coverage": 0.0105
+        }
+      ],
+      "detail": {
+        "energy": 24.3029
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "price-pocket",
+      "kind": "text",
+      "note": "Visible text reading UYU 990",
+      "grid": "E6:F7",
+      "snap": false,
+      "box": {
+        "x": 0.4502,
+        "y": 0.6754,
+        "w": 0.0858,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 714,
+        "y": 670,
+        "w": 136,
+        "h": 30
+      },
+      "aspect": 4.5333,
+      "palette": [
+        {
+          "hex": "#f7f7f5",
+          "coverage": 0.9214
+        },
+        {
+          "hex": "#111111",
+          "coverage": 0.0306
+        },
+        {
+          "hex": "#bab6b6",
+          "coverage": 0.0197
+        },
+        {
+          "hex": "#908e8e",
+          "coverage": 0.0175
+        },
+        {
+          "hex": "#484848",
+          "coverage": 0.0109
+        }
+      ],
+      "detail": {
+        "energy": 25.5636
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "stock-pocket",
+      "kind": "text",
+      "note": "Visible text reading 7",
+      "grid": "F6:F7",
+      "snap": false,
+      "box": {
+        "x": 0.5448,
+        "y": 0.6754,
+        "w": 0.0378,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 864,
+        "y": 670,
+        "w": 60,
+        "h": 30
+      },
+      "aspect": 2,
+      "palette": [
+        {
+          "hex": "#f8f8f7",
+          "coverage": 0.975
+        },
+        {
+          "hex": "#080808",
+          "coverage": 0.01
+        },
+        {
+          "hex": "#d8d0c8",
+          "coverage": 0.01
+        },
+        {
+          "hex": "#a8a8a8",
+          "coverage": 0.005
+        }
+      ],
+      "detail": {
+        "energy": 3.3912
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "state-pocket",
+      "kind": "control",
+      "note": "Interactive control labeled Publicado",
+      "grid": "F6:G7",
+      "snap": false,
+      "box": {
+        "x": 0.5933,
+        "y": 0.6704,
+        "w": 0.087,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 941,
+        "y": 665,
+        "w": 138,
+        "h": 36
+      },
+      "aspect": 3.8333,
+      "palette": [
+        {
+          "hex": "#e9ebe0",
+          "coverage": 0.8881
+        },
+        {
+          "hex": "#99b297",
+          "coverage": 0.0477
+        },
+        {
+          "hex": "#2a5728",
+          "coverage": 0.0239
+        },
+        {
+          "hex": "#557855",
+          "coverage": 0.022
+        },
+        {
+          "hex": "#183d1a",
+          "coverage": 0.0183
+        }
+      ],
+      "detail": {
+        "energy": 19.8743
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "menu-pocket",
+      "kind": "control",
+      "note": "Interactive control labeled Row actions",
+      "grid": "G6:H7",
+      "snap": false,
+      "box": {
+        "x": 0.6986,
+        "y": 0.6714,
+        "w": 0.0189,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 1108,
+        "y": 666,
+        "w": 30,
+        "h": 36
+      },
+      "aspect": 0.8333,
+      "palette": [
+        {
+          "hex": "#f8f8f6",
+          "coverage": 0.95
+        },
+        {
+          "hex": "#434343",
+          "coverage": 0.025
+        },
+        {
+          "hex": "#a3a39d",
+          "coverage": 0.025
+        }
+      ],
+      "detail": {
+        "energy": 2.5218
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "row-rule-twill",
+      "kind": "chrome",
+      "note": "Row border",
+      "grid": "A7:H7",
+      "snap": false,
+      "box": {
+        "x": 0.0227,
+        "y": 0.7268,
+        "w": 0.7018,
+        "h": 0.001
+      },
+      "px": {
+        "x": 36,
+        "y": 721,
+        "w": 1113,
+        "h": 1
+      },
+      "aspect": 1113,
+      "palette": [
+        {
+          "hex": "#f8f8f7",
+          "coverage": 1
+        }
+      ],
+      "detail": {
+        "energy": 0.2007
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "select-twill",
+      "kind": "control",
+      "note": "Interactive control labeled Selection checkbox",
+      "grid": "A7:A7",
+      "snap": false,
+      "box": {
+        "x": 0.0347,
+        "y": 0.75,
+        "w": 0.0151,
+        "h": 0.0282
+      },
+      "px": {
+        "x": 55,
+        "y": 744,
+        "w": 24,
+        "h": 28
+      },
+      "aspect": 0.8571,
+      "palette": [
+        {
+          "hex": "#f8f8f3",
+          "coverage": 0.8375
+        },
+        {
+          "hex": "#8a8a7f",
+          "coverage": 0.0875
+        },
+        {
+          "hex": "#adada8",
+          "coverage": 0.075
+        }
+      ],
+      "detail": {
+        "energy": 4.3465
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "image-twill",
+      "kind": "plate",
+      "note": "Photograph of a black twill pants on pale gray studio ground",
+      "grid": "A7:B7",
+      "snap": false,
+      "box": {
+        "x": 0.0687,
+        "y": 0.7319,
+        "w": 0.0404,
+        "h": 0.0635
+      },
+      "px": {
+        "x": 109,
+        "y": 726,
+        "w": 64,
+        "h": 63
+      },
+      "aspect": 1.0159,
+      "palette": [
+        {
+          "hex": "#ebeae9",
+          "coverage": 0.6551
+        },
+        {
+          "hex": "#20201f",
+          "coverage": 0.2928
+        },
+        {
+          "hex": "#9f9f9d",
+          "coverage": 0.0282
+        },
+        {
+          "hex": "#6a6a68",
+          "coverage": 0.0174
+        },
+        {
+          "hex": "#cdcdc3",
+          "coverage": 0.0065
+        }
+      ],
+      "detail": {
+        "energy": 7.2184
+      },
+      "medium": "raster",
+      "plate": "assets/plates/image-twill.png",
+      "text": null
+    },
+    {
+      "id": "name-twill",
+      "kind": "text",
+      "note": "Visible text reading Pantalón de sarga",
+      "grid": "B7:C7",
+      "snap": false,
+      "box": {
+        "x": 0.1267,
+        "y": 0.749,
+        "w": 0.1406,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 201,
+        "y": 743,
+        "w": 223,
+        "h": 30
+      },
+      "aspect": 7.4333,
+      "palette": [
+        {
+          "hex": "#f7f7f5",
+          "coverage": 0.8409
+        },
+        {
+          "hex": "#101010",
+          "coverage": 0.0816
+        },
+        {
+          "hex": "#494b49",
+          "coverage": 0.0294
+        },
+        {
+          "hex": "#7e7e7d",
+          "coverage": 0.0267
+        },
+        {
+          "hex": "#bab9b7",
+          "coverage": 0.0214
+        }
+      ],
+      "detail": {
+        "energy": 50.6493
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "sku-twill",
+      "kind": "text",
+      "note": "Visible text reading PAN-006",
+      "grid": "C7:D7",
+      "snap": false,
+      "box": {
+        "x": 0.2755,
+        "y": 0.749,
+        "w": 0.0599,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 437,
+        "y": 743,
+        "w": 95,
+        "h": 30
+      },
+      "aspect": 3.1667,
+      "palette": [
+        {
+          "hex": "#f7f7f5",
+          "coverage": 0.8339
+        },
+        {
+          "hex": "#535151",
+          "coverage": 0.0439
+        },
+        {
+          "hex": "#969593",
+          "coverage": 0.0439
+        },
+        {
+          "hex": "#111111",
+          "coverage": 0.0439
+        },
+        {
+          "hex": "#c9c9c8",
+          "coverage": 0.0345
+        }
+      ],
+      "detail": {
+        "energy": 26.7914
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "cat-twill",
+      "kind": "text",
+      "note": "Visible text reading Pantalones",
+      "grid": "D7:D7",
+      "coverBox": {
+        "x": 0.3,
+        "y": 0.7,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.3493,
+        "y": 0.7419,
+        "w": 0.0511,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 554,
+        "y": 736,
+        "w": 81,
+        "h": 30
+      },
+      "aspect": 2.7,
+      "palette": [
+        {
+          "hex": "#f6f6f4",
+          "coverage": 0.8333
+        },
+        {
+          "hex": "#131111",
+          "coverage": 0.0778
+        },
+        {
+          "hex": "#605f5f",
+          "coverage": 0.0444
+        },
+        {
+          "hex": "#acaaa8",
+          "coverage": 0.0296
+        },
+        {
+          "hex": "#404034",
+          "coverage": 0.0148
+        }
+      ],
+      "detail": {
+        "energy": 23.7756
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "price-twill",
+      "kind": "text",
+      "note": "Visible text reading UYU 2.790",
+      "grid": "E7:E7",
+      "coverBox": {
+        "x": 0.4,
+        "y": 0.7,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.4489,
+        "y": 0.7419,
+        "w": 0.0511,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 712,
+        "y": 736,
+        "w": 81,
+        "h": 30
+      },
+      "aspect": 2.7,
+      "palette": [
+        {
+          "hex": "#f7f7f5",
+          "coverage": 0.8315
+        },
+        {
+          "hex": "#0b0b0a",
+          "coverage": 0.0899
+        },
+        {
+          "hex": "#343432",
+          "coverage": 0.0412
+        },
+        {
+          "hex": "#c8c8c8",
+          "coverage": 0.0187
+        },
+        {
+          "hex": "#929892",
+          "coverage": 0.0187
+        }
+      ],
+      "detail": {
+        "energy": 22.1334
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "stock-twill",
+      "kind": "text",
+      "note": "Visible text reading 5",
+      "grid": "F7:F7",
+      "snap": false,
+      "box": {
+        "x": 0.5448,
+        "y": 0.749,
+        "w": 0.0378,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 864,
+        "y": 743,
+        "w": 60,
+        "h": 30
+      },
+      "aspect": 2,
+      "palette": [
+        {
+          "hex": "#f8f8f7",
+          "coverage": 0.975
+        },
+        {
+          "hex": "#b4b0b0",
+          "coverage": 0.02
+        },
+        {
+          "hex": "#786868",
+          "coverage": 0.005
+        }
+      ],
+      "detail": {
+        "energy": 4.6614
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "state-twill",
+      "kind": "control",
+      "note": "Interactive control labeled Borrador",
+      "grid": "F7:G7",
+      "snap": false,
+      "box": {
+        "x": 0.5933,
+        "y": 0.744,
+        "w": 0.087,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 941,
+        "y": 738,
+        "w": 138,
+        "h": 36
+      },
+      "aspect": 3.8333,
+      "palette": [
+        {
+          "hex": "#ededec",
+          "coverage": 0.8947
+        },
+        {
+          "hex": "#5c5c5b",
+          "coverage": 0.0454
+        },
+        {
+          "hex": "#171616",
+          "coverage": 0.0363
+        },
+        {
+          "hex": "#3c3c36",
+          "coverage": 0.0145
+        },
+        {
+          "hex": "#959292",
+          "coverage": 0.0091
+        }
+      ],
+      "detail": {
+        "energy": 23.3866
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "menu-twill",
+      "kind": "control",
+      "note": "Interactive control labeled Row actions",
+      "grid": "G7:H7",
+      "snap": false,
+      "box": {
+        "x": 0.6986,
+        "y": 0.745,
+        "w": 0.0189,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 1108,
+        "y": 739,
+        "w": 30,
+        "h": 36
+      },
+      "aspect": 0.8333,
+      "palette": [
+        {
+          "hex": "#f8f8f6",
+          "coverage": 0.9667
+        },
+        {
+          "hex": "#080808",
+          "coverage": 0.025
+        },
+        {
+          "hex": "#a8a8a8",
+          "coverage": 0.0083
+        }
+      ],
+      "detail": {
+        "energy": 2.4937
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "row-rule-over",
+      "kind": "chrome",
+      "note": "Row border",
+      "grid": "A7:H7",
+      "snap": false,
+      "box": {
+        "x": 0.0227,
+        "y": 0.7984,
+        "w": 0.7018,
+        "h": 0.001
+      },
+      "px": {
+        "x": 36,
+        "y": 792,
+        "w": 1113,
+        "h": 1
+      },
+      "aspect": 1113,
+      "palette": [
+        {
+          "hex": "#f8f8f7",
+          "coverage": 1
+        }
+      ],
+      "detail": {
+        "energy": 0.285
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "select-over",
+      "kind": "control",
+      "note": "Interactive control labeled Selection checkbox",
+      "grid": "A8:A8",
+      "snap": false,
+      "box": {
+        "x": 0.0347,
+        "y": 0.8206,
+        "w": 0.0151,
+        "h": 0.0282
+      },
+      "px": {
+        "x": 55,
+        "y": 814,
+        "w": 24,
+        "h": 28
+      },
+      "aspect": 0.8571,
+      "palette": [
+        {
+          "hex": "#f7f7f2",
+          "coverage": 0.925
+        },
+        {
+          "hex": "#9d9d9b",
+          "coverage": 0.075
+        }
+      ],
+      "detail": {
+        "energy": 2.92
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "image-over",
+      "kind": "plate",
+      "note": "Photograph of a ecru oversized t-shirt on pale gray studio ground",
+      "grid": "A8:B8",
+      "snap": false,
+      "box": {
+        "x": 0.0687,
+        "y": 0.8034,
+        "w": 0.0404,
+        "h": 0.0635
+      },
+      "px": {
+        "x": 109,
+        "y": 797,
+        "w": 64,
+        "h": 63
+      },
+      "aspect": 1.0159,
+      "palette": [
+        {
+          "hex": "#e7e5e1",
+          "coverage": 0.9654
+        },
+        {
+          "hex": "#c8bab6",
+          "coverage": 0.0216
+        },
+        {
+          "hex": "#a5a090",
+          "coverage": 0.013
+        }
+      ],
+      "detail": {
+        "energy": 2.6096
+      },
+      "medium": "raster",
+      "plate": "assets/plates/image-over.png",
+      "text": null
+    },
+    {
+      "id": "name-over",
+      "kind": "text",
+      "note": "Visible text reading Remera oversize",
+      "grid": "B8:C8",
+      "snap": false,
+      "box": {
+        "x": 0.1267,
+        "y": 0.8206,
+        "w": 0.1406,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 201,
+        "y": 814,
+        "w": 223,
+        "h": 30
+      },
+      "aspect": 7.4333,
+      "palette": [
+        {
+          "hex": "#f7f7f6",
+          "coverage": 0.836
+        },
+        {
+          "hex": "#0e0e0e",
+          "coverage": 0.0813
+        },
+        {
+          "hex": "#b2b2b0",
+          "coverage": 0.0467
+        },
+        {
+          "hex": "#454542",
+          "coverage": 0.02
+        },
+        {
+          "hex": "#777873",
+          "coverage": 0.016
+        }
+      ],
+      "detail": {
+        "energy": 45.5218
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "sku-over",
+      "kind": "text",
+      "note": "Visible text reading REM-007",
+      "grid": "C8:D8",
+      "snap": false,
+      "box": {
+        "x": 0.2755,
+        "y": 0.8206,
+        "w": 0.0599,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 437,
+        "y": 814,
+        "w": 95,
+        "h": 30
+      },
+      "aspect": 3.1667,
+      "palette": [
+        {
+          "hex": "#f6f6f5",
+          "coverage": 0.8774
+        },
+        {
+          "hex": "#181814",
+          "coverage": 0.0566
+        },
+        {
+          "hex": "#7c7a7a",
+          "coverage": 0.0283
+        },
+        {
+          "hex": "#484646",
+          "coverage": 0.022
+        },
+        {
+          "hex": "#a5a29b",
+          "coverage": 0.0157
+        }
+      ],
+      "detail": {
+        "energy": 21.0317
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "cat-over",
+      "kind": "text",
+      "note": "Visible text reading Remeras",
+      "grid": "D8:D8",
+      "coverBox": {
+        "x": 0.3,
+        "y": 0.8,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.3493,
+        "y": 0.8125,
+        "w": 0.0511,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 554,
+        "y": 806,
+        "w": 81,
+        "h": 30
+      },
+      "aspect": 2.7,
+      "palette": [
+        {
+          "hex": "#f7f7f5",
+          "coverage": 0.8333
+        },
+        {
+          "hex": "#c7c3c5",
+          "coverage": 0.053
+        },
+        {
+          "hex": "#939794",
+          "coverage": 0.0492
+        },
+        {
+          "hex": "#0c0c0c",
+          "coverage": 0.0341
+        },
+        {
+          "hex": "#6c6c6c",
+          "coverage": 0.0303
+        }
+      ],
+      "detail": {
+        "energy": 25.1092
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "price-over",
+      "kind": "text",
+      "note": "Visible text reading UYU 1.090",
+      "grid": "E8:F8",
+      "snap": false,
+      "box": {
+        "x": 0.4502,
+        "y": 0.8206,
+        "w": 0.0858,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 714,
+        "y": 814,
+        "w": 136,
+        "h": 30
+      },
+      "aspect": 4.5333,
+      "palette": [
+        {
+          "hex": "#f7f7f5",
+          "coverage": 0.8886
+        },
+        {
+          "hex": "#101111",
+          "coverage": 0.0524
+        },
+        {
+          "hex": "#5d5b5b",
+          "coverage": 0.0306
+        },
+        {
+          "hex": "#9d9b9b",
+          "coverage": 0.0218
+        },
+        {
+          "hex": "#383333",
+          "coverage": 0.0066
+        }
+      ],
+      "detail": {
+        "energy": 25.9011
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "stock-over",
+      "kind": "text",
+      "note": "Visible text reading 0",
+      "grid": "F8:F8",
+      "snap": false,
+      "box": {
+        "x": 0.5448,
+        "y": 0.8206,
+        "w": 0.0378,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 864,
+        "y": 814,
+        "w": 60,
+        "h": 30
+      },
+      "aspect": 2,
+      "palette": [
+        {
+          "hex": "#f8f8f7",
+          "coverage": 0.97
+        },
+        {
+          "hex": "#181818",
+          "coverage": 0.025
+        },
+        {
+          "hex": "#484848",
+          "coverage": 0.005
+        }
+      ],
+      "detail": {
+        "energy": 4.2145
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "state-over",
+      "kind": "control",
+      "note": "Interactive control labeled Archivado",
+      "grid": "F8:G8",
+      "snap": false,
+      "box": {
+        "x": 0.5933,
+        "y": 0.8155,
+        "w": 0.087,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 941,
+        "y": 809,
+        "w": 138,
+        "h": 36
+      },
+      "aspect": 3.8333,
+      "palette": [
+        {
+          "hex": "#f7e8e0",
+          "coverage": 0.8803
+        },
+        {
+          "hex": "#be827d",
+          "coverage": 0.046
+        },
+        {
+          "hex": "#801210",
+          "coverage": 0.035
+        },
+        {
+          "hex": "#ab5e57",
+          "coverage": 0.0203
+        },
+        {
+          "hex": "#9a3d36",
+          "coverage": 0.0184
+        }
+      ],
+      "detail": {
+        "energy": 24.5357
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "menu-over",
+      "kind": "control",
+      "note": "Interactive control labeled Row actions",
+      "grid": "G8:H8",
+      "snap": false,
+      "box": {
+        "x": 0.6986,
+        "y": 0.8165,
+        "w": 0.0189,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 1108,
+        "y": 810,
+        "w": 30,
+        "h": 36
+      },
+      "aspect": 0.8333,
+      "palette": [
+        {
+          "hex": "#f8f8f6",
+          "coverage": 0.925
+        },
+        {
+          "hex": "#cecece",
+          "coverage": 0.0417
+        },
+        {
+          "hex": "#504040",
+          "coverage": 0.0167
+        },
+        {
+          "hex": "#b0b0b0",
+          "coverage": 0.0167
+        }
+      ],
+      "detail": {
+        "energy": 2.5032
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "detail-photo",
+      "kind": "plate",
+      "note": "Photograph of the selected black plain t-shirt on pale gray studio ground",
+      "grid": "H3:I4",
+      "snap": false,
+      "box": {
+        "x": 0.7528,
+        "y": 0.3367,
+        "w": 0.0763,
+        "h": 0.122
+      },
+      "px": {
+        "x": 1194,
+        "y": 334,
+        "w": 121,
+        "h": 121
+      },
+      "aspect": 1,
+      "palette": [
+        {
+          "hex": "#eae9e9",
+          "coverage": 0.603
+        },
+        {
+          "hex": "#21211e",
+          "coverage": 0.3804
+        },
+        {
+          "hex": "#aeaca6",
+          "coverage": 0.0119
+        },
+        {
+          "hex": "#75786d",
+          "coverage": 0.0036
+        },
+        {
+          "hex": "#505050",
+          "coverage": 0.0012
+        }
+      ],
+      "detail": {
+        "energy": 7.0398
+      },
+      "medium": "raster",
+      "plate": "assets/plates/detail-photo.png",
+      "text": null
+    },
+    {
+      "id": "detail-title",
+      "kind": "text",
+      "note": "Visible text reading Remera lisa",
+      "grid": "I3:J3",
+      "snap": false,
+      "box": {
+        "x": 0.8411,
+        "y": 0.3357,
+        "w": 0.1223,
+        "h": 0.0292
+      },
+      "px": {
+        "x": 1334,
+        "y": 333,
+        "w": 194,
+        "h": 29
+      },
+      "aspect": 6.6897,
+      "palette": [
+        {
+          "hex": "#f7f7f5",
+          "coverage": 0.8012
+        },
+        {
+          "hex": "#0d0d0c",
+          "coverage": 0.1495
+        },
+        {
+          "hex": "#7f7e7e",
+          "coverage": 0.02
+        },
+        {
+          "hex": "#42463e",
+          "coverage": 0.0154
+        },
+        {
+          "hex": "#babcba",
+          "coverage": 0.0139
+        }
+      ],
+      "detail": {
+        "energy": 52.1527
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "detail-sku",
+      "kind": "text",
+      "note": "Visible text reading SKU: REM-002",
+      "grid": "I3:J4",
+      "snap": false,
+      "box": {
+        "x": 0.8411,
+        "y": 0.374,
+        "w": 0.1148,
+        "h": 0.0262
+      },
+      "px": {
+        "x": 1334,
+        "y": 371,
+        "w": 182,
+        "h": 26
+      },
+      "aspect": 7,
+      "palette": [
+        {
+          "hex": "#f7f7f5",
+          "coverage": 0.8889
+        },
+        {
+          "hex": "#b1b1ad",
+          "coverage": 0.0437
+        },
+        {
+          "hex": "#6c6a64",
+          "coverage": 0.0273
+        },
+        {
+          "hex": "#393937",
+          "coverage": 0.02
+        },
+        {
+          "hex": "#22211b",
+          "coverage": 0.02
+        }
+      ],
+      "detail": {
+        "energy": 37.2527
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "detail-category-label",
+      "kind": "text",
+      "note": "Visible text reading Posición",
+      "grid": "H5:I5",
+      "snap": false,
+      "box": {
+        "x": 0.7686,
+        "y": 0.502,
+        "w": 0.0921,
+        "h": 0.0282
+      },
+      "px": {
+        "x": 1219,
+        "y": 498,
+        "w": 146,
+        "h": 28
+      },
+      "aspect": 5.2143,
+      "palette": [
+        {
+          "hex": "#f7f7f6",
+          "coverage": 0.918
+        },
+        {
+          "hex": "#959696",
+          "coverage": 0.0348
+        },
+        {
+          "hex": "#303232",
+          "coverage": 0.0205
+        },
+        {
+          "hex": "#0a0a0a",
+          "coverage": 0.0184
+        },
+        {
+          "hex": "#605c5c",
+          "coverage": 0.0082
+        }
+      ],
+      "detail": {
+        "energy": 25.5154
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "detail-category-value",
+      "kind": "text",
+      "note": "Visible text reading 2",
+      "grid": "I5:J5",
+      "snap": false,
+      "box": {
+        "x": 0.8934,
+        "y": 0.502,
+        "w": 0.0782,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 1417,
+        "y": 498,
+        "w": 124,
+        "h": 30
+      },
+      "aspect": 4.1333,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 0.9881
+        },
+        {
+          "hex": "#b8b8b8",
+          "coverage": 0.0071
+        },
+        {
+          "hex": "#404040",
+          "coverage": 0.0048
+        }
+      ],
+      "detail": {
+        "energy": 4.2744
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "detail-category-rule",
+      "kind": "chrome",
+      "note": "Detail field separator",
+      "grid": "H5:J5",
+      "snap": false,
+      "box": {
+        "x": 0.7535,
+        "y": 0.5423,
+        "w": 0.2194,
+        "h": 0.001
+      },
+      "px": {
+        "x": 1195,
+        "y": 538,
+        "w": 348,
+        "h": 1
+      },
+      "aspect": 348,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 1
+        }
+      ],
+      "detail": {
+        "energy": 0.1624
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "detail-stock-label",
+      "kind": "text",
+      "note": "Visible text reading Stock",
+      "grid": "H5:I5",
+      "snap": false,
+      "box": {
+        "x": 0.7686,
+        "y": 0.5605,
+        "w": 0.0921,
+        "h": 0.0282
+      },
+      "px": {
+        "x": 1219,
+        "y": 556,
+        "w": 146,
+        "h": 28
+      },
+      "aspect": 5.2143,
+      "palette": [
+        {
+          "hex": "#f7f7f6",
+          "coverage": 0.9429
+        },
+        {
+          "hex": "#131313",
+          "coverage": 0.0245
+        },
+        {
+          "hex": "#5e5e56",
+          "coverage": 0.0163
+        },
+        {
+          "hex": "#c2c5c5",
+          "coverage": 0.0102
+        },
+        {
+          "hex": "#9da39d",
+          "coverage": 0.0061
+        }
+      ],
+      "detail": {
+        "energy": 18.4064
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "detail-stock-value",
+      "kind": "text",
+      "note": "Visible text reading 12",
+      "grid": "I5:J5",
+      "snap": false,
+      "box": {
+        "x": 0.8934,
+        "y": 0.5605,
+        "w": 0.0782,
+        "h": 0.0302
+      },
+      "px": {
+        "x": 1417,
+        "y": 556,
+        "w": 124,
+        "h": 30
+      },
+      "aspect": 4.1333,
+      "palette": [
+        {
+          "hex": "#f8f8f7",
+          "coverage": 0.9738
+        },
+        {
+          "hex": "#282828",
+          "coverage": 0.0095
+        },
+        {
+          "hex": "#5d5858",
+          "coverage": 0.0071
+        },
+        {
+          "hex": "#989898",
+          "coverage": 0.0048
+        },
+        {
+          "hex": "#d8d0d0",
+          "coverage": 0.0048
+        }
+      ],
+      "detail": {
+        "energy": 7.3234
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "detail-stock-rule",
+      "kind": "chrome",
+      "note": "Detail field separator",
+      "grid": "H6:J6",
+      "snap": false,
+      "box": {
+        "x": 0.7535,
+        "y": 0.6008,
+        "w": 0.2194,
+        "h": 0.001
+      },
+      "px": {
+        "x": 1195,
+        "y": 596,
+        "w": 348,
+        "h": 1
+      },
+      "aspect": 348,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 1
+        }
+      ],
+      "detail": {
+        "energy": 0.1223
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "detail-status-label",
+      "kind": "text",
+      "note": "Visible text reading Estado",
+      "grid": "H6:I6",
+      "snap": false,
+      "box": {
+        "x": 0.7686,
+        "y": 0.6149,
+        "w": 0.0921,
+        "h": 0.0282
+      },
+      "px": {
+        "x": 1219,
+        "y": 610,
+        "w": 146,
+        "h": 28
+      },
+      "aspect": 5.2143,
+      "palette": [
+        {
+          "hex": "#f7f7f6",
+          "coverage": 0.9134
+        },
+        {
+          "hex": "#0d0d0d",
+          "coverage": 0.0351
+        },
+        {
+          "hex": "#413f3f",
+          "coverage": 0.0247
+        },
+        {
+          "hex": "#787878",
+          "coverage": 0.0144
+        },
+        {
+          "hex": "#bdbdbb",
+          "coverage": 0.0124
+        }
+      ],
+      "detail": {
+        "energy": 21.883
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "detail-status-value",
+      "kind": "text",
+      "note": "Visible text reading Borrador",
+      "grid": "J6:J6",
+      "coverBox": {
+        "x": 0.9,
+        "y": 0.6,
+        "w": 0.1,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.8997,
+        "y": 0.6058,
+        "w": 0.0681,
+        "h": 0.0363
+      },
+      "px": {
+        "x": 1427,
+        "y": 601,
+        "w": 108,
+        "h": 36
+      },
+      "aspect": 3,
+      "palette": [
+        {
+          "hex": "#ebeae9",
+          "coverage": 0.8611
+        },
+        {
+          "hex": "#0d0c0b",
+          "coverage": 0.0648
+        },
+        {
+          "hex": "#a3a1a0",
+          "coverage": 0.0417
+        },
+        {
+          "hex": "#30302e",
+          "coverage": 0.0185
+        },
+        {
+          "hex": "#5d5b5d",
+          "coverage": 0.0139
+        }
+      ],
+      "detail": {
+        "energy": 24.8931
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "detail-status-rule",
+      "kind": "chrome",
+      "note": "Detail field separator",
+      "grid": "H6:J6",
+      "snap": false,
+      "box": {
+        "x": 0.7535,
+        "y": 0.6552,
+        "w": 0.2194,
+        "h": 0.001
+      },
+      "px": {
+        "x": 1195,
+        "y": 650,
+        "w": 348,
+        "h": 1
+      },
+      "aspect": 348,
+      "palette": [
+        {
+          "hex": "#f8f8f8",
+          "coverage": 1
+        }
+      ],
+      "detail": {
+        "energy": 0.1976
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "detail-open",
+      "kind": "control",
+      "note": "Interactive control labeled Abrir producto",
+      "grid": "H7:J7",
+      "coverBox": {
+        "x": 0.7,
+        "y": 0.7,
+        "w": 0.3,
+        "h": 0.1
+      },
+      "box": {
+        "x": 0.7491,
+        "y": 0.6996,
+        "w": 0.2308,
+        "h": 0.0605
+      },
+      "px": {
+        "x": 1188,
+        "y": 694,
+        "w": 366,
+        "h": 60
+      },
+      "aspect": 6.1,
+      "palette": [
+        {
+          "hex": "#f8f8f4",
+          "coverage": 0.8605
+        },
+        {
+          "hex": "#888885",
+          "coverage": 0.1025
+        },
+        {
+          "hex": "#121211",
+          "coverage": 0.0202
+        },
+        {
+          "hex": "#4b4b47",
+          "coverage": 0.0091
+        },
+        {
+          "hex": "#bbbdb4",
+          "coverage": 0.0078
+        }
+      ],
+      "detail": {
+        "energy": 26.9829
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "footer-rule",
+      "kind": "chrome",
+      "note": "Results separator",
+      "grid": "A9:J9",
+      "snap": false,
+      "box": {
+        "x": 0.0271,
+        "y": 0.9093,
+        "w": 0.9458,
+        "h": 0.001
+      },
+      "px": {
+        "x": 43,
+        "y": 902,
+        "w": 1500,
+        "h": 1
+      },
+      "aspect": 1500,
+      "palette": [
+        {
+          "hex": "#f8f8ee",
+          "coverage": 1
+        }
+      ],
+      "detail": {
+        "energy": 0.2553
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "result-count",
+      "kind": "text",
+      "note": "Visible text reading 7 resultados",
+      "grid": "A9:B9",
+      "snap": false,
+      "box": {
+        "x": 0.0296,
+        "y": 0.9325,
+        "w": 0.1047,
+        "h": 0.0323
+      },
+      "px": {
+        "x": 47,
+        "y": 925,
+        "w": 166,
+        "h": 32
+      },
+      "aspect": 5.1875,
+      "palette": [
+        {
+          "hex": "#f7f7f6",
+          "coverage": 0.8891
+        },
+        {
+          "hex": "#111110",
+          "coverage": 0.0555
+        },
+        {
+          "hex": "#a0a0a0",
+          "coverage": 0.031
+        },
+        {
+          "hex": "#525252",
+          "coverage": 0.0131
+        },
+        {
+          "hex": "#71786f",
+          "coverage": 0.0114
+        }
+      ],
+      "detail": {
+        "energy": 30.1513
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "page-previous",
+      "kind": "control",
+      "note": "Interactive control labeled Previous page",
+      "grid": "I9:I9",
+      "snap": false,
+      "box": {
+        "x": 0.8714,
+        "y": 0.9254,
+        "w": 0.0271,
+        "h": 0.0444
+      },
+      "px": {
+        "x": 1382,
+        "y": 918,
+        "w": 43,
+        "h": 44
+      },
+      "aspect": 0.9773,
+      "palette": [
+        {
+          "hex": "#f4f3e9",
+          "coverage": 0.9778
+        },
+        {
+          "hex": "#c8c3bd",
+          "coverage": 0.0133
+        },
+        {
+          "hex": "#282820",
+          "coverage": 0.0089
+        }
+      ],
+      "detail": {
+        "energy": 3.1871
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "page-current",
+      "kind": "control",
+      "note": "Interactive control labeled 1",
+      "grid": "J9:J9",
+      "snap": false,
+      "box": {
+        "x": 0.9073,
+        "y": 0.9254,
+        "w": 0.0271,
+        "h": 0.0444
+      },
+      "px": {
+        "x": 1439,
+        "y": 918,
+        "w": 43,
+        "h": 44
+      },
+      "aspect": 0.9773,
+      "palette": [
+        {
+          "hex": "#254d37",
+          "coverage": 0.7511
+        },
+        {
+          "hex": "#f4f5f2",
+          "coverage": 0.1867
+        },
+        {
+          "hex": "#799887",
+          "coverage": 0.0578
+        },
+        {
+          "hex": "#a8b8b8",
+          "coverage": 0.0044
+        }
+      ],
+      "detail": {
+        "energy": 7.0969
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    },
+    {
+      "id": "page-next",
+      "kind": "control",
+      "note": "Interactive control labeled Next page",
+      "grid": "J9:J9",
+      "snap": false,
+      "box": {
+        "x": 0.9439,
+        "y": 0.9254,
+        "w": 0.0271,
+        "h": 0.0444
+      },
+      "px": {
+        "x": 1497,
+        "y": 918,
+        "w": 43,
+        "h": 44
+      },
+      "aspect": 0.9773,
+      "palette": [
+        {
+          "hex": "#f4f3e9",
+          "coverage": 0.9822
+        },
+        {
+          "hex": "#404038",
+          "coverage": 0.0089
+        },
+        {
+          "hex": "#a8a8a0",
+          "coverage": 0.0089
+        }
+      ],
+      "detail": {
+        "energy": 3.304
+      },
+      "medium": "semantic",
+      "plate": null,
+      "text": null
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+.catalog-page { container-type: inline-size; }
+.inventory table { width: 100%; border-collapse: collapse; text-align: left; font-variant-numeric: tabular-nums; }
+.inventory th, .inventory td { border-bottom: 1px solid var(--line); padding: .4rem .55rem; }
+.inventory thead th { padding-block: 1.05rem; font-weight: 650; }
+.inventory tbody tr:last-child > * { border-bottom-color: transparent; }
+
+@container (inline-size <= 35em) {
+  .inventory table, .inventory tbody { display: block; }
+  .inventory thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .inventory tbody tr {
+    display: grid; grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr);
+    gap: .45rem .7rem; padding: .65rem; border-bottom: 1px solid var(--line);
+  }
+  .inventory tbody th, .inventory tbody td { border: 0; padding: 0; min-width: 0; }
+  .mobile-label { position: static; display: block; width: auto; height: auto; margin: 0; clip-path: none; font-size: .82rem; color: var(--muted); }
+}

@@ -1,0 +1,209 @@
+<div class="detail">
+  <a class="back" routerLink="/tienda" [queryParams]="backParams()">
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.75"
+    >
+      <path d="M20 12H5m6-6-6 6 6 6" />
+    </svg>
+    Volver a la tienda
+  </a>
+
+  @if (product(); as item) {
+    <article class="product" aria-labelledby="product-name">
+      <div class="gallery">
+        <store-product-photo
+          class="main-photo"
+          [photo]="item.images[activePhoto()]"
+          [name]="item.name"
+          [priority]="true"
+        />
+        @if (item.images.length > 1) {
+          <div class="thumbnails" role="group" aria-label="Fotos del producto">
+            @for (image of item.images; track image.id; let index = $index) {
+              <button
+                class="thumbnail"
+                type="button"
+                [attr.aria-label]="'Ver foto ' + (index + 1)"
+                [attr.aria-pressed]="index === activePhoto()"
+                (click)="activePhoto.set(index)"
+              >
+                <store-product-photo
+                  [photo]="image"
+                  [name]="item.name"
+                  variant="thumb"
+                  [decorative]="true"
+                />
+              </button>
+            }
+          </div>
+        }
+      </div>
+      <div class="product-info">
+        <h1 id="product-name">{{ item.name }}</h1>
+        @if (item.description; as description) {
+          <p class="description">{{ description }}</p>
+        }
+        <div class="purchase">
+          <p class="price">{{ amount(item.price_cents) }}</p>
+          <p class="availability" [class.available]="item.in_stock">
+            {{ item.in_stock ? 'En stock' : 'Sin stock' }}
+          </p>
+          @if (item.in_stock) {
+            <div class="quantity-field">
+              <label for="product-quantity">Cantidad</label>
+              <input
+                id="product-quantity"
+                class="field"
+                type="number"
+                min="1"
+                [max]="item.stock"
+                step="1"
+                inputmode="numeric"
+                [value]="quantity() ?? 1"
+                [disabled]="cart().kind === 'working'"
+                aria-describedby="product-quantity-note"
+                (change)="setQuantity($event, item.stock)"
+              />
+              <span id="product-quantity-note"
+                >Si cambiás la cantidad, se guarda como el total de esta prenda en tu carrito.
+                Máximo: {{ item.stock }}.</span
+              >
+            </div>
+            <button
+              #cartTrigger
+              type="button"
+              class="button"
+              [attr.aria-disabled]="cart().kind === 'working' ? 'true' : null"
+              (click)="add(item, cartDialog)"
+            >
+              {{
+                cart().kind === 'working'
+                  ? 'Guardando…'
+                  : quantity() === null
+                    ? 'Agregar al carrito'
+                    : 'Guardar cantidad en el carrito'
+              }}
+            </button>
+            @if (cart(); as state) {
+              @if (state.kind === 'done') {
+                <div class="cart-feedback" role="status">
+                  <p>{{ state.message }}</p>
+                  <a routerLink="/carrito">Ver carrito</a>
+                </div>
+              } @else if (state.kind === 'error') {
+                <p class="callout cart-feedback" role="alert">{{ state.message }}</p>
+              }
+            }
+            <dialog
+              #cartDialog
+              class="cart-dialog"
+              aria-labelledby="cart-dialog-title"
+              (close)="cartTrigger.focus()"
+              (keydown)="cycleCartFocus($event, closeButton, cartLink)"
+            >
+              <button
+                #closeButton
+                class="cart-dialog-close"
+                type="button"
+                aria-label="Cerrar"
+                (click)="cartDialog.close()"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                >
+                  <path d="m6 6 12 12M18 6 6 18" />
+                </svg>
+              </button>
+              <div class="cart-dialog-heading">
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                >
+                  <path d="m6 12 4 4 8-8" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                <h2 id="cart-dialog-title">
+                  {{ confirmation()?.updated ? 'Carrito actualizado' : 'Agregado al carrito' }}
+                </h2>
+              </div>
+              @if (confirmation(); as confirmed) {
+                <div class="cart-dialog-item">
+                  <store-product-photo
+                    [photo]="item.images[0]"
+                    [name]="confirmed.product.name"
+                    [decorative]="true"
+                    variant="thumb"
+                  />
+                  <div>
+                    <p>{{ confirmed.product.name }}</p>
+                    <p class="cart-dialog-meta">Cantidad: {{ confirmed.quantity }}</p>
+                    <p class="cart-dialog-meta">
+                      {{ amount(confirmed.product.price_cents) }} por unidad
+                    </p>
+                  </div>
+                </div>
+              }
+              <div class="cart-dialog-actions">
+                <button
+                  autofocus
+                  class="button cart-dialog-secondary"
+                  type="button"
+                  (click)="cartDialog.close()"
+                >
+                  Seguir comprando
+                </button>
+                <a #cartLink class="button" routerLink="/carrito">Ver carrito</a>
+              </div>
+            </dialog>
+          } @else {
+            <p class="stock-note">Este producto no está disponible para comprar por ahora.</p>
+          }
+        </div>
+        <dl class="attributes">
+          <div>
+            <dt>Categoría</dt>
+            <dd>
+              <a routerLink="/tienda" [queryParams]="{ category: item.category.slug }">{{
+                item.category.name
+              }}</a>
+            </dd>
+          </div>
+          @if (item.brand; as brand) {
+            <div>
+              <dt>Marca</dt>
+              <dd>
+                <a routerLink="/tienda" [queryParams]="{ brand: brand.slug }">{{ brand.name }}</a>
+              </dd>
+            </div>
+          }
+          <div>
+            <dt>Código</dt>
+            <dd>{{ item.sku }}</dd>
+          </div>
+        </dl>
+      </div>
+    </article>
+  } @else {
+    <section class="surface detail-error" aria-labelledby="detail-error-title">
+      @if (result().kind === 'missing') {
+        <h1 id="detail-error-title">Este producto no está disponible</h1>
+        <p>Puede que el enlace ya no exista. Podés seguir buscando en la tienda.</p>
+        <a class="button" routerLink="/tienda" [queryParams]="backParams()">Ver productos</a>
+      } @else {
+        <h1 id="detail-error-title">No pudimos cargar el producto</h1>
+        <p>Volvé a intentar en unos instantes.</p>
+        <a class="button button--quiet" [href]="retryUrl()">Volver a intentar</a>
+      }
+    </section>
+  }
+</div>

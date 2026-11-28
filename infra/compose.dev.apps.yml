@@ -1,0 +1,156 @@
+x-api: &api-runtime
+  image: camba-dev-php-pg
+  build:
+    context: ../api
+    target: development
+  working_dir: /var/www/html
+  networks:
+    - default
+    - postgres-private
+  volumes:
+    - ../api:/var/www/html
+    - api-vendor:/var/www/html/vendor
+    - api-storage:/var/www/html/storage
+    - ../api/storage/logs/pagos:/var/www/html/storage/logs/pagos
+    - api-bootstrap-cache:/var/www/html/bootstrap/cache
+    - ../web/projects/admin/public/demo:/demo-assets:ro
+    - ./dev/postgres/role-health.php:/camba-dev/role-health.php:ro
+  environment:
+    APP_ENV: local
+    APP_LOCALE: es
+    APP_KEY: ${CAMBA_DEV_APP_KEY:?Generate a dedicated local Laravel APP_KEY}
+    APP_URL: ${CAMBA_DEV_APP_URL:-http://127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200}}
+    ADMIN_URL: http://127.0.0.1:${CAMBA_DEV_ADMIN_PORT:-4300}
+    CAMBA_PUBLIC_CONTACT_EMAIL:
+    CAMBA_PUBLIC_CONTACT_PHONE:
+    SANCTUM_STATEFUL_DOMAINS: ${CAMBA_DEV_STATEFUL_DOMAINS:-127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200},localhost:${CAMBA_DEV_STORE_PORT:-4200},127.0.0.1:${CAMBA_DEV_ADMIN_PORT:-4300},localhost:${CAMBA_DEV_ADMIN_PORT:-4300}}
+    DB_CONNECTION: pgsql
+    DB_URL: ''
+    DB_HOST: postgres
+    DB_PORT: '5432'
+    DB_DATABASE: camba_demo
+    DB_USERNAME: camba
+    DB_PASSWORD: ${CAMBA_DEV_DB_PASSWORD:-camba-local-db}
+    REDIS_HOST: redis
+    REDIS_CLIENT: phpredis
+    CACHE_STORE: redis
+    QUEUE_CONNECTION: redis
+    SESSION_DRIVER: redis
+    SESSION_SECURE_COOKIE: 'false'
+    MAIL_MAILER: smtp
+    MAIL_URL: smtp://mailpit:1025
+    MAIL_HOST: mailpit
+    MAIL_PORT: '1025'
+    CAMBA_MP_LIVE: 'false'
+    CAMBA_MP_CHECKOUT_ORDERS: ${CAMBA_DEV_MP_CHECKOUT_ORDERS:-false}
+
+x-web: &web-runtime
+  image: node:24.20.0-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e
+  working_dir: /workspace
+  environment:
+    CAMBA_DEV_API_ORIGIN: http://api:8000
+    NG_ALLOWED_HOSTS: '127.0.0.1,localhost'
+  depends_on:
+    api:
+      condition: service_healthy
+  healthcheck:
+    test: [CMD, node, -e, "fetch('http://127.0.0.1:4200/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+    interval: 5s
+    timeout: 4s
+    retries: 25
+    start_period: 25s
+
+services:
+  api:
+    <<: *api-runtime
+    ports:
+      - '127.0.0.1:${CAMBA_DEV_API_PORT:-8000}:8000'
+    # Preserve Compose variables in the server subprocess when Laravel detects api/.env.
+    command:
+      - sh
+      - -ec
+      - >-
+        mkdir -p storage/app/private storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs/pagos
+        && composer install --no-interaction --prefer-dist
+        && php artisan storage:link --quiet
+        && php artisan migrate --force
+        && exec php artisan serve --host=0.0.0.0 --port=8000 --no-reload
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    healthcheck:
+      test: [CMD, php, -r, "exit(@file_get_contents('http://127.0.0.1:8000/ready') === false ? 1 : 0);"]
+      interval: 5s
+      timeout: 4s
+      retries: 20
+      start_period: 20s
+
+  worker:
+    <<: *api-runtime
+    command: [php, artisan, 'queue:work', redis, '--timeout=90', '--tries=3']
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, php, /camba-dev/role-health.php, 'queue:work']
+      interval: 15s
+      timeout: 5s
+      retries: 8
+
+  scheduler:
+    <<: *api-runtime
+    command: [php, artisan, 'schedule:work']
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, php, /camba-dev/role-health.php, 'schedule:work']
+      interval: 15s
+      timeout: 5s
+      retries: 8
+
+  store:
+    image: camba-dev-store-editorial
+    build:
+      context: ../web
+      target: store-editorial-local
+      args:
+        CAMBA_DEV_ENABLE_PAYMENTS: ${CAMBA_DEV_ENABLE_PAYMENTS:-true}
+    environment:
+      CAMBA_SSR_API_ORIGIN: http://api:8000
+      CAMBA_PUBLIC_STORE_ORIGIN: ${CAMBA_DEV_APP_URL:-http://127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200}}
+      CAMBA_DEV_NGROK_ORIGIN: ${CAMBA_DEV_APP_URL:-}
+      NG_ALLOWED_HOSTS: '127.0.0.1,localhost'
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:${CAMBA_DEV_STORE_PORT:-4200}:4000'
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 4s
+      retries: 25
+
+  admin:
+    <<: *web-runtime
+    command: [sh, -ec, 'npm ci --ignore-scripts && npm exec -- ng serve admin --host 0.0.0.0 --port 4200 --proxy-config proxy.conf.cjs --poll 1500']
+    ports:
+      - '127.0.0.1:${CAMBA_DEV_ADMIN_PORT:-4300}:4200'
+    volumes:
+      - ../web:/workspace
+      - admin-node:/workspace/node_modules
+      - admin-cache:/workspace/.angular
+
+volumes:
+  api-vendor:
+  api-storage:
+  api-bootstrap-cache:
+  store-node:
+  admin-node:
+  store-cache:
+  admin-cache:

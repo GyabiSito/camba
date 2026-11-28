@@ -1,0 +1,17 @@
+services:
+  api:
+    networks:
+      edge:
+        aliases: ["${CAMBA_EDGE_ALIAS_PREFIX:?Set the approved edge alias prefix}-api"]
+  store:
+    networks:
+      edge:
+        aliases: ["${CAMBA_EDGE_ALIAS_PREFIX:?Set the approved edge alias prefix}-store"]
+  admin:
+    networks:
+      edge:
+        aliases: ["${CAMBA_EDGE_ALIAS_PREFIX:?Set the approved edge alias prefix}-admin"]
+networks:
+  edge:
+    external: true
+    name: ${CAMBA_EDGE_NETWORK:?Set the existing Camba edge network}

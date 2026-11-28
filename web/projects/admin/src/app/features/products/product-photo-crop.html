@@ -1,0 +1,39 @@
+<dialog #dialog aria-labelledby="product-crop-title" aria-describedby="product-crop-help" (cancel)="cancel($event)">
+  <header>
+    <h2 id="product-crop-title">Recortar foto</h2>
+    <p id="product-crop-help">Ajustá el encuadre vertical 4:5 de la Tienda.</p>
+  </header>
+  <div class="crop-body">
+    <figure>
+      <div class="crop-frame" [class.crop-frame--loading]="loading()" [attr.aria-busy]="loading()">
+        <canvas #preview [hidden]="loading() || !!error()" width="320" height="400" role="img" aria-label="Vista previa del recorte"
+          (pointerdown)="beginDrag($event)" (pointermove)="moveDrag($event)" (pointerup)="endDrag($event)"
+          (pointercancel)="endDrag($event)" (lostpointercapture)="endDrag($event)"></canvas>
+      </div>
+      <figcaption role="status">Foto {{ index() + 1 }} de {{ sources().length }}</figcaption>
+    </figure>
+    <div>
+      @if (loading()) { <p role="status">Preparando vista previa…</p> }
+      @if (error()) { <p class="crop-error" role="alert">{{ error() }}</p> }
+      <fieldset [disabled]="loading() || encoding() || !!error()">
+        <legend>Encuadre</legend>
+        <p>Arrastrá la foto o usá los controles.</p>
+        <label>Zoom <output>{{ zoom() }} %</output>
+          <input type="range" min="100" max="350" step="5" aria-label="Zoom" [value]="zoom()" (input)="adjust('zoom', $event)" />
+        </label>
+        <label>Desplazamiento horizontal
+          <input type="range" min="0" max="100" aria-label="Desplazamiento horizontal" [value]="x()" (input)="adjust('x', $event)" />
+        </label>
+        <label>Desplazamiento vertical
+          <input type="range" min="0" max="100" aria-label="Desplazamiento vertical" [value]="y()" (input)="adjust('y', $event)" />
+        </label>
+      </fieldset>
+    </div>
+  </div>
+  <footer>
+    <button class="button button--quiet" type="button" (click)="cancel()">Cancelar</button>
+    <button class="button" type="button" [disabled]="loading() || encoding() || !!error()" (click)="useCrop()">
+      {{ encoding() ? 'Preparando…' : 'Usar recorte' }}
+    </button>
+  </footer>
+</dialog>

@@ -1,0 +1,14 @@
+{
+  "source": "Built-in ImageGen",
+  "use": "Demo only. Approve or replace before publication.",
+  "inputs": [
+    "assets/plates/image-cotton.png",
+    "assets/plates/image-straight.png"
+  ],
+  "prompt": "Use case: product-mockup, faithfulness is essential. Art direct an original standalone LANDSCAPE 7:5 fashion editorial photograph, full-body. Reference 1 is the exact white demo shirt: preserve its regular loose proportions, optical white cotton, chest pocket on wearer's left with patch shape and position visible, pointed collar, plain matching button placket and long button cuffs. Reference 2 is the exact demo pants: preserve their light stone-sand color, pleats, one button with belt loops, clean straight wide leg not tapered, flat plain hem. One adult woman with short brown hair wearing BOTH presented garments exactly, no new embellishments, relaxed cuffs closed, shirt half tucked so pocket and front pant construction read. She walks through the atelier, with lightly limewashed warm dirty cream brick and original factory door, late light cast diagonally on the floor by the windows. Frame head, shoes and both garments completely, model centered at 52 percent with modest headroom. Flat unbranded brown leather shoes. Physically natural cloth folds, magazine fashion studio, warm brown shadows and daylight yet exactly maintain fabric colors and cut. Frame as candid profile three quarter towards right, only one subject, no props in front of her. No text, logos, watermark, layouts.",
+  "processing": [
+    "Bicubic",
+    "scale=1200:-2",
+    "WebP quality 80"
+  ]
+}

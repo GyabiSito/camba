@@ -1,0 +1,20 @@
+:host { display: block; }
+
+.support-page {
+  max-inline-size: 68rem;
+  margin-inline: auto;
+  padding-block: clamp(2.6rem, 7vw, 6rem) clamp(3rem, 7vw, 6rem);
+  overflow-wrap: anywhere;
+}
+
+.support-heading { margin-block-end: clamp(1.8rem, 5vw, 3.5rem); }
+.support-page h1 {
+  color: var(--ink);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 400;
+  text-wrap: balance;
+}
+.support-page h1 { font-size: clamp(2.55rem, 6vw, 4.6rem); letter-spacing: -.032em; line-height: 1.06; }
+.support-page h2 { font-size: clamp(1.5rem, 3vw, 2.05rem); line-height: 1.15; }
+.support-page p { max-inline-size: 68ch; margin: .7rem 0 0; line-height: 1.65; }
+.support-heading p { color: var(--muted); }

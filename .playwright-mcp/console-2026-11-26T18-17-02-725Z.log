@@ -1,0 +1,17 @@
+[    3513ms] [ERROR] Executing inline event handler violates the following Content Security Policy directive 'script-src 'nonce-f98FTifLJd5QmqEr23DdOA' 'strict-dynamic' 'report-sample' 'unsafe-eval' 'unsafe-inline' https: http:'. Note that 'unsafe-inline' is ignored if either a hash or nonce value is present in the source list. The action has been blocked. @ https://www.google.com/search?q=local&rlz=1C1FKPE_esUY1179UY1179&oq=local&gs_lcrp=EgZjaHJvbWUyBggAEEUYOdIBBzM2NGowajeoAgCwAgA&sourceid=chrome&source=chrome.ob&ie=UTF-8&sei=T3gIa9zqMODB5OUPuoMg:1
+[    5771ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:4200/favicon.ico:1
+[    6601ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:4200/api/v1/auth/me:1
+[   31888ms] [WARNING] [Fields] cardNumber - Value of property 'fontSize' should be a string. Ignoring... @ https://secure-fields.mercadopago.com/:1
+[   31896ms] [WARNING] MercadoPago.js - No length configuration provided. Either length or allowedLengths must be specified. @ https://secure-fields.mercadopago.com/:1
+[   31897ms] [WARNING] [Fields] expirationDate - Value of property 'fontSize' should be a string. Ignoring... @ https://secure-fields.mercadopago.com/:1
+[   31898ms] [WARNING] MercadoPago.js - No length configuration provided. Either length or allowedLengths must be specified. @ https://secure-fields.mercadopago.com/:1
+[   31898ms] [WARNING] MercadoPago.js - invalid property settings for expirationDate. Only available for securityCode and cardNumber @ https://secure-fields.mercadopago.com/:1
+[   31898ms] [WARNING] [Fields] securityCode - Value of property 'fontSize' should be a string. Ignoring... @ https://secure-fields.mercadopago.com/:1
+[   31903ms] [WARNING] MercadoPago.js - No length configuration provided. Either length or allowedLengths must be specified. @ https://secure-fields.mercadopago.com/:1
+[   31903ms] [WARNING] MercadoPago.js - invalid property settings for expirationDate. Only available for securityCode and cardNumber @ https://secure-fields.mercadopago.com/:1
+[   40120ms] [WARNING] MercadoPago.js - No length configuration provided. Either length or allowedLengths must be specified. @ https://secure-fields.mercadopago.com/:1
+[   40125ms] [WARNING] MercadoPago.js - No length configuration provided. Either length or allowedLengths must be specified. @ https://secure-fields.mercadopago.com/:1
+[   42644ms] [WARNING] MercadoPago.js - invalid property settings for expirationDate. Only available for securityCode and cardNumber @ https://secure-fields.mercadopago.com/:1
+[   42785ms] [WARNING] MercadoPago.js - invalid property settings for expirationDate. Only available for securityCode and cardNumber @ https://secure-fields.mercadopago.com/:1
+[   48162ms] [INFO] /checkout_off/review/loaded props: {"last_four_digits_card_number":"3704","recommended":false,"checkout_flow_id":"840c9446-80c3-43ba-9f50-6f66ab7eec13","payment_method_id":"visa","payment_method_type":"Visa","review_context_flow":"payment","time_spent":23134} {name: TrackBuilder} @ https://assets.mlstatic.com/frontend-assets/px-checkout-frontend/app.c267f15d.js:2
+[   54264ms] [INFO] /checkout_off/review/payment_intent props: {"review_context_flow":"standard","new_card_flow_migration":true,"payment_method_id":"visa","card_number":"3704","checkout_flow_id":"840c9446-80c3-43ba-9f50-6f66ab7eec13"} {name: TrackBuilder} @ https://assets.mlstatic.com/frontend-assets/px-checkout-frontend/app.c267f15d.js:2

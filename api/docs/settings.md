@@ -1,0 +1,12 @@
+# Operational settings
+
+- `GET /api/v1/store-info` exposes public business and delivery information, including `free_delivery_minimum_cents` for the cart. The minimum is an integer when free delivery and delivery are enabled, `null` otherwise. Reaching it does not confirm coverage. Public channels come from `CAMBA_PUBLIC_CONTACT_EMAIL` and `CAMBA_PUBLIC_CONTACT_PHONE` in Laravel runtime configuration, never from the internal settings record. A missing or invalid public channel is `null` and does not suppress the other channel.
+- `GET /api/v1/admin/settings` returns all effective operational settings. The admin session must be verified.
+- `PATCH /api/v1/admin/settings` changes only supplied fields through a first-party cookie session with CSRF. Unknown keys and wrong types are rejected. For example, `{"support_email":"help@example.test","delivery_cents":null}` changes the **internal contact form recipient** and disables delivery, even if the runtime fallback has a rate. The stored `support_phone` remains private for compatibility.
+- `GET /api/v1/admin/settings/history` is newest-first with 25 changes per page. Each row includes the operator ID, timestamp, and before/after effective settings. Repeating an identical patch does not create a new audit row.
+
+Checkout reads the same effective pickup/delivery values before quoting and reserving. Initially it falls back to `CAMBA_PICKUP_ADDRESS` and `CAMBA_DELIVERY_CENTS` until an admin sets those fields. Setting an option to null explicitly disables it.
+
+In **Configuración → Envío y retiro**, use **Activar envío gratis desde un monto** and **Monto mínimo (UYU)**. Installations default to `free_delivery_enabled: false` and `free_delivery_minimum_cents: null`, with no migration. The PATCH API accepts a boolean and positive integer cents; if the effective flag is enabled, a positive minimum is required. Disabling it does not erase the previously saved minimum unless it is sent as null. The rule only affects available delivery quotes with a validated destination, never pickup or past orders.
+
+The reminder toggles start off. Configured defaults are payment 10 minutes before reservation expiry, cart 24 hours after abandonment, low stock at 3 units, and fulfilment notice at 24 hours. Persisting these switches does not send a notification; the scheduler/workers implement delivery separately. No provider token, SMTP password or application secret can be read or edited here.

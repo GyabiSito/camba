@@ -1,0 +1,9 @@
+{
+    "source":  "atelier-hero-wide.webp.json",
+    "use":  "Demo only. Approve or replace before publication.",
+    "inputs":  [
+
+               ],
+    "prompt":  "Use case: ads-marketing. Create a single original, photographic fashion editorial web hero, landscape ultra wide ~ 2.3:1. Montevideo atelier in an old converted industrial building: muted warm bone limewashed brick, tall multipane sash window on far right; raw dark red-brown painted brick in shadow fills the LEFT 52 percent with subtle rich material and no high contrast shapes, intentionally empty for later web headline. A single stylish young adult woman with short dark-brown loose hair, in a loose crisp ivory classic button-up with long sleeves and high-waisted sand wide straight-leg pleated trousers stands at about 73 percent from left, head fully visible with headroom, wears it with casual sleeves rolled once, side-on, looking toward the window not camera, one hand casually almost in pocket. Frame head to knees, the top and waist silhouette unobscured. Vivid narrow diagonal amber afternoon daylight from right traces the cloth and window-sill, quiet indirect ambience remains on left. Photographic fashion campaign by a small independent brand, rich analog detail, realistic not over-smoothed, tactile grain, near-black oxblood shadows and warm daylight, editorial not stock photography, no signage, no text, no words, no logo, no watermark, no collage.",
+    "processing":  "scale=1100:-2"
+}

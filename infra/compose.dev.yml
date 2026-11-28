@@ -1,0 +1,50 @@
+name: camba-demo-pg
+
+services:
+  postgres:
+    # The pinned official image contains PostgreSQL 18.7.
+    image: postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
+    environment:
+      POSTGRES_DB: camba_demo
+      POSTGRES_USER: camba
+      POSTGRES_PASSWORD: ${CAMBA_DEV_DB_PASSWORD:-camba-local-db}
+    networks:
+      - postgres-private
+    volumes:
+      - postgres-demo:/var/lib/postgresql
+      - ./dev/postgres/create-test-databases.sql:/docker-entrypoint-initdb.d/10-test-databases.sql:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 3s
+      timeout: 5s
+      retries: 25
+
+  redis:
+    image: redis:7.2.16-alpine3.21
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.31.5
+    ports:
+      - '127.0.0.1:${CAMBA_DEV_MAIL_UI_PORT:-8025}:8025'
+    environment:
+      MP_DATABASE: /data/mailpit.db
+    volumes:
+      - mailpit-data:/data
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+
+volumes:
+  postgres-demo:
+  redis-data:
+  mailpit-data:
+
+networks:
+  postgres-private:
+    internal: true

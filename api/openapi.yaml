@@ -1,0 +1,1813 @@
+openapi: 3.1.0
+info:
+  title: Camba API
+  version: 0.1.0
+paths:
+  /up:
+    get:
+      operationId: liveness
+      description: Framework liveness, not database or queue readiness.
+      responses:
+        '200': { description: Application is running }
+  /sanctum/csrf-cookie:
+    get:
+      operationId: initializeCsrfCookie
+      description: Obtain the session and XSRF-TOKEN cookies. Same-origin write requests send the decoded XSRF-TOKEN in X-XSRF-TOKEN.
+      responses:
+        '204': { description: CSRF cookie initialized }
+  /api/v1/auth/register:
+    post:
+      operationId: registerBuyer
+      description: Creates an unverified buyer only. Role input is rejected; this does not log the buyer in. If verification_queued is false, the account still exists and the buyer can sign in to request another verification email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, password_confirmation]
+              properties:
+                name: { type: string, maxLength: 120 }
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, format: password, minLength: 12, description: Maximum 72 UTF-8 bytes }
+                password_confirmation: { type: string, format: password }
+              not:
+                required: [role]
+      responses:
+        '201': { $ref: '#/components/responses/UserEnvelope' }
+        '400': { description: First-party session is unavailable }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid fields or duplicate email }
+        '429': { description: Too many requests }
+  /api/v1/auth/login:
+    post:
+      operationId: signIn
+      description: First-party browser session only. Send the stateful origin and CSRF header with the cookie.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, format: password, description: Maximum 72 UTF-8 bytes }
+      responses:
+        '204': { description: Authenticated with a regenerated session }
+        '400': { description: First-party session is unavailable }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid fields or credentials }
+        '429': { description: Too many requests }
+  /api/v1/auth/me:
+    get:
+      operationId: getSessionUser
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/UserEnvelope' }
+        '401': { description: No authenticated session }
+  /api/v1/admin/session:
+    get:
+      operationId: getAdminSession
+      description: Returns the administrator authenticated by the separate Admin guard.
+      security: [{ adminSessionCookie: [] }]
+      responses:
+        '200':
+          description: Administrator name and email
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [name, email]
+                    properties:
+                      name: { type: string }
+                      email: { type: string, format: email }
+        '401': { description: No authenticated session }
+  /api/v1/admin/auth/csrf-cookie:
+    get:
+      operationId: initializeAdminCsrfCookie
+      description: Obtain the dedicated Admin session and CAMBA-ADMIN-XSRF-TOKEN cookies.
+      responses:
+        '204': { description: Admin CSRF cookie initialized }
+        '404': { description: Admin is unavailable on this production host }
+  /api/v1/admin/auth/login:
+    post:
+      operationId: signInAdmin
+      description: Authenticates only credentials stored in admins. Send the decoded Admin CSRF token as X-XSRF-TOKEN.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+                password: { type: string, format: password, description: Maximum 72 UTF-8 bytes }
+      responses:
+        '204': { description: Admin authenticated with a regenerated session }
+        '419': { description: Missing or invalid Admin CSRF token }
+        '422': { description: Invalid fields or Admin credentials }
+        '429': { description: Too many requests }
+  /api/v1/admin/auth/logout:
+    post:
+      operationId: signOutAdmin
+      security: [{ adminSessionCookie: [] }]
+      responses:
+        '204': { description: Admin session ended; Store session unaffected }
+        '401': { description: No authenticated Admin session }
+        '419': { description: Missing or invalid Admin CSRF token }
+  /api/v1/auth/forgot-password:
+    post:
+      operationId: requestPasswordReset
+      description: Requests a reset from a first-party session without indicating whether the email belongs to an account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email, maxLength: 254 }
+      responses:
+        '202': { description: Request accepted }
+        '400': { description: First-party session is unavailable }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid email format }
+        '429': { description: Too many requests }
+  /api/v1/auth/reset-password:
+    post:
+      operationId: resetPassword
+      description: Consumes the protected context from the reset email's link and invalidates the account's prior sessions. The server resolves the account; do not submit an email address.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password, password_confirmation]
+              properties:
+                token: { type: string, maxLength: 1024, description: Opaque value of the reset link fragment's reset parameter }
+                password: { type: string, format: password, minLength: 12, description: Maximum 72 UTF-8 bytes }
+                password_confirmation: { type: string, format: password }
+      responses:
+        '204': { description: Password changed }
+        '400': { description: First-party session is unavailable }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: 'Invalid fields or an invalid, expired, or already used reset link' }
+        '429': { description: Too many requests }
+  /api/v1/auth/logout:
+    post:
+      operationId: signOut
+      security: [{ sessionCookie: [] }]
+      responses:
+        '204': { description: Session invalidated }
+        '401': { description: No authenticated session }
+        '419': { description: Missing or invalid CSRF token }
+  /api/v1/auth/email/verification-notification:
+    post:
+      operationId: resendVerification
+      description: Queues a verification email for the signed-in unverified buyer only. Verified users are unchanged. Does not accept a recipient in the request.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '204': { description: Verification queued or already verified }
+        '401': { description: No authenticated session }
+        '419': { description: Missing or invalid CSRF token }
+        '429': { description: Too many requests }
+        '503': { description: Queue unavailable; retry later }
+  /api/v1/account/profile:
+    get:
+      operationId: getAccountProfile
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/UserEnvelope' }
+        '401': { description: No authenticated session }
+    patch:
+      operationId: updateAccountName
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              not:
+                anyOf:
+                  - { required: [email] }
+                  - { required: [password] }
+                  - { required: [password_confirmation] }
+                  - { required: [role] }
+                  - { required: [user_id] }
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120, pattern: '\S' }
+      responses:
+        '200': { $ref: '#/components/responses/UserEnvelope' }
+        '401': { description: No authenticated session }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid name or attempt to change a protected field }
+  /api/v1/account/password:
+    patch:
+      operationId: changeBuyerPassword
+      description: Changes the signed-in buyer's password without ending the current session. Requires the current password and the regular CSRF token.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, password, password_confirmation]
+              properties:
+                current_password: { type: string, format: password, writeOnly: true }
+                password: { type: string, format: password, minLength: 12, writeOnly: true, description: Maximum 72 UTF-8 bytes; no NUL bytes. }
+                password_confirmation: { type: string, format: password, writeOnly: true }
+      responses:
+        '204': { description: Password updated; the current session remains authenticated }
+        '401': { description: No authenticated session }
+        '403': { description: Account does not have the buyer role }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Wrong current password or field validation failed }
+        '429': { description: Too many attempts }
+  /api/v1/geography/departments:
+    get:
+      operationId: listGeographicDepartments
+      responses:
+        '200': { $ref: '#/components/responses/GeographyOptions' }
+  /api/v1/geography/departments/{department}/localities:
+    get:
+      operationId: listDepartmentLocalities
+      parameters:
+        - { name: department, in: path, required: true, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200': { $ref: '#/components/responses/GeographyOptions' }
+        '404': { description: Unknown department }
+  /api/v1/account/addresses:
+    get:
+      operationId: listAddresses
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Only the current account's saved addresses
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Address' }
+        '401': { description: No authenticated session }
+    post:
+      operationId: saveAddress
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - { $ref: '#/components/schemas/AddressInput' }
+                - { required: [recipient, department_id, locality_id, street, number] }
+      responses:
+        '201': { $ref: '#/components/responses/AddressEnvelope' }
+        '401': { description: No authenticated session }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid address fields or mismatched department and locality IDs }
+  /api/v1/account/addresses/{address}:
+    parameters:
+      - { name: address, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getAddress
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/AddressEnvelope' }
+        '401': { description: No authenticated session }
+        '404': { description: Address not found for the current account }
+    patch:
+      operationId: updateAddress
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddressInput' }
+      responses:
+        '200': { $ref: '#/components/responses/AddressEnvelope' }
+        '401': { description: No authenticated session }
+        '404': { description: Address not found for the current account }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid address fields or a missing or mismatched geographic pair }
+    delete:
+      operationId: deleteAddress
+      security: [{ sessionCookie: [] }]
+      responses:
+        '204': { description: Address removed }
+        '401': { description: No authenticated session }
+        '404': { description: Address not found for the current account }
+        '419': { description: Missing or invalid CSRF token }
+  /api/v1/cart:
+    get:
+      operationId: getCart
+      description: Returns only the signed-in buyer's cart. Inventory is not reserved.
+      security: [{ sessionCookie: [] }]
+      externalDocs: { url: docs/cart.md }
+      responses:
+        '200': { $ref: '#/components/responses/CartEnvelope' }
+        '400': { description: First-party session required }
+        '401': { description: Buyer session missing }
+        '403': { description: Signed-in account is not a buyer }
+  /api/v1/cart/checkout/{reference}/resume:
+    post:
+      operationId: resumeCartCheckout
+      description: Rechecks ownership, cart quantities and reservation before returning the original Checkout Pro URL. Never creates a preference or reserves stock.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: reference, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Current checkout state; only ready includes the original URL.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/CartCheckout'
+                      - type: object
+                        properties:
+                          checkout_url: { type: [string, 'null'], format: uri }
+        '400': { description: First-party session required }
+        '401': { description: Buyer session missing }
+        '403': { description: Signed-in account is not a buyer }
+        '404': { description: Checkout does not belong to the active cart and owner }
+        '409': { description: Cart contents changed or the checkout is no longer resumable }
+        '419': { description: Missing or invalid CSRF token }
+  /api/v1/cart/items/{product}:
+    parameters:
+      - { name: product, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: addCartUnit
+      description: Atomically adds one unit using current server stock. No request body is used. If the result is unknown, read the cart before sending another POST.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/CartEnvelope' }
+        '400': { description: First-party session required }
+        '401': { description: Buyer session missing }
+        '403': { description: Signed-in account is not a buyer }
+        '404': { description: Product does not exist or is not published }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Insufficient stock for another unit }
+    put:
+      operationId: setCartQuantity
+      description: Sets the exact quantity rather than incrementing it.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantity]
+              properties:
+                quantity: { type: integer, minimum: 1, maximum: 2147483647 }
+      responses:
+        '200': { $ref: '#/components/responses/CartEnvelope' }
+        '400': { description: First-party session required }
+        '401': { description: Buyer session missing }
+        '403': { description: Signed-in account is not a buyer }
+        '404': { description: Product does not exist or is not published }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid quantity or insufficient stock }
+    delete:
+      operationId: removeCartItem
+      security: [{ sessionCookie: [] }]
+      responses:
+        '204': { description: Item removed or already absent from the current cart }
+        '400': { description: First-party session required }
+        '401': { description: Buyer session missing }
+        '403': { description: Signed-in account is not a buyer }
+        '419': { description: Missing or invalid CSRF token }
+  /api/v1/checkout/quote:
+    post:
+      operationId: quoteCheckout
+      description: Prices catalog items and configured pickup or delivery options without reserving stock. If the product subtotal reaches the enabled free-delivery minimum, the delivery option has free_delivery_pending_coverage true with no address, or zero shipping and free_delivery_applied true after address validation. First-party guest and buyer sessions are supported.
+      externalDocs: { url: docs/orders.md }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items: { $ref: '#/components/schemas/CheckoutItems' }
+                address: { $ref: '#/components/schemas/GeographyPair' }
+      responses:
+        '200': { description: Current UYU prices and options with server-authenticated quote tokens }
+        '400': { description: First-party session required }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid or unavailable items or mismatched department and locality IDs }
+  /api/v1/orders:
+    get:
+      operationId: listOwnOrders
+      externalDocs: { url: docs/orders.md }
+      responses:
+        '200': { description: Newest-first private page of this buyer or guest session's orders }
+        '400': { description: First-party session required }
+    post:
+      operationId: placeOrder
+      description: Requires a signed-in buyer. Snapshots the exact server-calculated total and reserves inventory once for this owner and idempotency key.
+      security: [{ sessionCookie: [] }]
+      externalDocs: { url: docs/orders.md }
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items, shipping_method, quote_token, contact]
+              properties:
+                items: { $ref: '#/components/schemas/CheckoutItems' }
+                shipping_method: { type: string, enum: [pickup, delivery] }
+                quote_token: { type: string }
+                contact:
+                  type: object
+                  required: [name, email]
+                  properties:
+                    name: { type: string }
+                    email: { type: string, format: email }
+                    phone: { type: string }
+                address:
+                  description: Required for delivery and omitted for pickup. The server resolves the order snapshot names.
+                  allOf:
+                    - { $ref: '#/components/schemas/AddressInput' }
+                    - { required: [recipient, department_id, locality_id, street, number], not: { required: [phone] } }
+      responses:
+        '200': { description: Existing same-owner order for a valid same-payload replay }
+        '201': { description: Order snapshot and inventory reservation created; payment is still pending }
+        '400': { description: First-party session required }
+        '401': { description: Buyer session missing }
+        '403': { description: Signed-in account is not a buyer }
+        '409': { description: 'Quote changed, idempotency conflict, or stale session' }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid input or unavailable products/shipping }
+  /api/v1/orders/{reference}:
+    parameters:
+      - { name: reference, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getOwnOrder
+      description: A reference is not proof of ownership. Only the buyer account or unexpired original guest session may read it.
+      externalDocs: { url: docs/orders.md }
+      responses:
+        '200':
+          description: >
+            This session's private order snapshot. The nullable data.payment_state field
+            summarizes verified provider evidence for an unpaid order as pending or rejected,
+            without exposing provider IDs. The optional data.payment_rejection fingerprint
+            changes when a new payment is recorded. The optional data.checkout_retryable
+            flag allows a fresh attempt for a released Checkout Pro reservation on this order.
+            Only data.status paid confirms an order ready for preparation.
+        '400': { description: First-party session required }
+        '404': { description: 'Missing, foreign, or expired order' }
+  /api/v1/orders/{reference}/payments:
+    parameters:
+      - { name: reference, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: startOrderPayment
+      description: Begins or resumes a signed-in buyer's own Checkout Pro attempt. New checkouts can use Orders; existing preferences keep their original protocol. No browser amounts or payment result are accepted.
+      security: [{ sessionCookie: [] }]
+      externalDocs: { url: docs/payment-lifecycle.md }
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Existing eligible attempt with private checkout URL }
+        '201': { description: Newly created checkout with private checkout URL }
+        '202': { description: Checkout creation in progress }
+        '400': { description: First-party session required }
+        '401': { description: Buyer session missing }
+        '403': { description: Signed-in account is not a buyer }
+        '404': { description: Order not found for the current session }
+        '409': { description: Order not eligible or provider creation uncertain }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid idempotency key }
+  /api/v1/orders/{reference}/payments/refresh:
+    parameters:
+      - { name: reference, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: requestOwnPaymentRefresh
+      responses:
+        '202': { description: A server-side lookup is scheduled or already pending }
+        '400': { description: First-party session required }
+        '404': { description: Order not found for the current session }
+        '419': { description: Missing or invalid CSRF token }
+  /api/v1/orders/{reference}/payments/cancel:
+    parameters:
+      - { name: reference, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: cancelOwnPaymentAttempt
+      description: Requests cancellation for the owned Orders attempt and rechecks the provider before releasing stock. Returns the order status; a pending response does not release the reservation.
+      responses:
+        '200': { description: Order has a verified final state or was already finalized }
+        '202': { description: Cancellation is not confirmed; reservation is unchanged }
+        '400': { description: First-party session required }
+        '404': { description: Order not found for the current session }
+        '409': { description: No cancellable Orders attempt or provider identity did not match }
+        '419': { description: Missing or invalid CSRF token }
+  /api/v1/admin/dashboard:
+    get:
+      operationId: getAdminDashboard
+      description: Private operational priorities, five recent order summaries, and confirmed sales in the configured store timezone.
+      security: [{ adminSessionCookie: [] }]
+      externalDocs: { url: docs/dashboard.md }
+      responses:
+        '200':
+          description: Dashboard summary without contact or address data
+          headers:
+            Cache-Control: { schema: { type: string }, example: 'no-store, private' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AdminDashboard' }
+        '401': { description: No authenticated session }
+  /api/v1/admin/users:
+    get:
+      operationId: listAdminCustomers
+      description: Verified administrator only. Buyer accounts, newest registration first, without saved addresses.
+      security: [{ adminSessionCookie: [] }]
+      parameters:
+        - { name: q, in: query, description: Case-insensitive literal substring of name or email., schema: { type: string, maxLength: 120 } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Up to 25 buyer accounts and aggregates of orders linked by account ID. Private and not cacheable.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/AdminCustomerRow' } }
+                  meta: { $ref: '#/components/schemas/AdminCustomerPage' }
+        '401': { description: No authenticated session }
+        '422': { description: Invalid search }
+  /api/v1/admin/users/{customer}:
+    parameters:
+      - { name: customer, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      operationId: getAdminCustomer
+      security: [{ adminSessionCookie: [] }]
+      responses:
+        '200':
+          description: Buyer account and its current saved addresses, not checkout snapshots. Private and not cacheable.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AdminCustomerDetail' }
+        '401': { description: No authenticated session }
+        '404': { description: No such buyer account }
+  /api/v1/admin/users/{customer}/orders:
+    parameters:
+      - { name: customer, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      operationId: listAdminCustomerOrders
+      description: Orders linked by the recorded buyer account ID; contact email is not consulted.
+      security: [{ adminSessionCookie: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Up to 25 orders, newest first, without contact or shipping-address snapshots. Private and not cacheable.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/AdminCustomerOrder' } }
+                  meta: { $ref: '#/components/schemas/AdminCustomerPage' }
+        '401': { description: No authenticated session }
+        '404': { description: No such buyer account }
+  /api/v1/admin/orders:
+    get:
+      operationId: listAdminOrders
+      security: [{ adminSessionCookie: [] }]
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending_payment, paid, payment_expired, payment_review, refunded, charged_back] } }
+        - { name: fulfilment_status, in: query, description: '`needs_preparation` matches unstarted and preparing without changing payment status.', schema: { type: string, enum: [unstarted, preparing, ready_for_pickup, shipped, completed, needs_preparation] } }
+        - { name: q, in: query, description: Case-insensitive match on the order reference or the buyer name or email recorded at checkout. An eight-digit hexadecimal UUID prefix or full UUID searches by reference., schema: { type: string, maxLength: 120 } }
+        - { name: shipping_method, in: query, schema: { type: string, enum: [delivery, pickup] } }
+        - { name: date_from, in: query, description: Inclusive order date in the configured store timezone., schema: { type: string, format: date } }
+        - { name: date_to, in: query, description: Inclusive order date in the configured store timezone. Must not precede date_from., schema: { type: string, format: date } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+      responses:
+        '200': { description: Latest matching order summaries (25 per page) and the total after applying all filters }
+        '401': { description: No authenticated session }
+        '422': { description: Invalid filter values }
+  /api/v1/admin/orders/{reference}:
+    parameters:
+      - { name: reference, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getAdminOrder
+      security: [{ adminSessionCookie: [] }]
+      externalDocs: { url: docs/orders.md }
+      responses:
+        '200':
+          description: Private admin order snapshot, fulfilment history and payment evidence
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, description: Order snapshot }
+                  events: { type: array, items: { type: object }, description: Fulfilment history }
+                  payment:
+                    type: object
+                    properties:
+                      can_request_refresh: { type: boolean, description: Mercado Pago is configured and the order has a checkout attempt or a recorded provider payment }
+                      paid_at: { type: string, format: date-time, nullable: true }
+                      last_checked_at: { type: string, format: date-time, nullable: true, description: The local reconciliation timestamp }
+                      next_check_at: { type: string, format: date-time, nullable: true, description: Null if reconciliation is unavailable or no check is scheduled }
+                      last_result: { type: string, nullable: true, enum: [verified, conflicting_evidence, provider_incomplete, provider_candidate_limit, null] }
+                      issues: { type: array, items: { type: string }, description: Allowlisted operational issue codes }
+                      attempt:
+                        type: object
+                        nullable: true
+                        properties:
+                          status: { type: string, enum: [initiating, ready, uncertain] }
+                          expires_at: { type: string, format: date-time }
+                      observations:
+                        type: array
+                        description: Latest locally verified state per payment, without provider identifiers
+                        items:
+                          type: object
+                          properties:
+                            id: { type: integer, description: Local payment record ID }
+                            status: { type: string, enum: [approved, authorized, pending, in_process, in_mediation, rejected, cancelled, refunded, charged_back] }
+                            amount_cents: { type: integer }
+                            updated_at: { type: string, format: date-time, description: The provider timestamp for the observed payment state }
+        '401': { description: No authenticated session }
+        '404': { description: Order not found }
+  /api/v1/admin/orders/{reference}/fulfilment:
+    parameters:
+      - { name: reference, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      operationId: fulfilOrder
+      security: [{ adminSessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [preparing, ready_for_pickup, shipped, completed] }
+                tracking: { type: string, maxLength: 100 }
+                note: { type: string, maxLength: 800 }
+      responses:
+        '200': { description: Updated order and persisted fulfilment transition }
+        '401': { description: No authenticated session }
+        '404': { description: Order not found }
+        '409': { description: Unavailable transition or order is not currently paid }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid fulfilment input }
+  /api/v1/admin/orders/{reference}/payments/refresh:
+    parameters:
+      - { name: reference, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: requestAdminPaymentRefresh
+      security: [{ adminSessionCookie: [] }]
+      responses:
+        '202': { description: A server-side lookup is scheduled or already pending }
+        '401': { description: No authenticated session }
+        '404': { description: Order not found }
+        '409': { description: Mercado Pago is not configured or the order has no provider evidence }
+        '419': { description: Missing or invalid CSRF token }
+  /api/v1/webhooks/mercadopago:
+    post:
+      operationId: receiveMercadoPagoWebhook
+      description: Stores verified inbox evidence before returning; it does not approve an order or contact the provider inline.
+      externalDocs: { url: docs/payment-lifecycle.md }
+      parameters:
+        - { name: data.id, in: query, required: true, schema: { type: string, pattern: '^[1-9][0-9]{0,19}$' } }
+        - { name: x-request-id, in: header, required: true, schema: { type: string } }
+        - { name: x-signature, in: header, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Verified receipt accepted durably }
+        '401': { description: Invalid signed payment identifier }
+        '503': { description: Signing or receipt persistence unavailable }
+  /api/v1/account/reminder-preferences:
+    get:
+      operationId: getReminderPreferences
+      security: [{ sessionCookie: [] }]
+      externalDocs: { url: docs/notices.md }
+      responses:
+        '200': { description: Current verified buyer opt-ins }
+        '401': { description: No authenticated session }
+        '403': { description: Verified buyer required }
+    patch:
+      operationId: updateReminderPreferences
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payment_reminders: { type: boolean }
+                cart_reminders: { type: boolean }
+      responses:
+        '200': { description: Saved opt-ins for this verified buyer }
+        '401': { description: No authenticated session }
+        '403': { description: Verified buyer required }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid preference }
+  /api/v1/admin/notices:
+    get:
+      operationId: listAdminNotices
+      security: [{ adminSessionCookie: [] }]
+      externalDocs: { url: docs/notices.md }
+      parameters:
+        - { name: state, in: query, schema: { type: string, enum: [active, resolved, failed, uncertain] } }
+        - { name: kind, in: query, description: Notice kind key from the response's kinds dictionary, schema: { type: string } }
+        - { name: q, in: query, description: Notice title or displayed order reference (full or short); product and import IDs also accepted, schema: { type: string, maxLength: 120 } }
+        - { name: date_from, in: query, description: Inclusive lower day for updated_at in the store timezone, schema: { type: string, format: date } }
+        - { name: date_to, in: query, description: Inclusive upper day for updated_at in the store timezone, schema: { type: string, format: date } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+      responses:
+        '200':
+          description: Filtered, paginated operational notices ordered by updated_at and ID descending, with no buyer contact data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        order_reference: { type: string, format: uuid, nullable: true, description: Reference for an existing order subject only }
+                  meta: { type: object }
+                  kinds: { type: object, additionalProperties: { type: string }, description: Public labels keyed by operational notice kind }
+                  links: { type: object }
+        '401': { description: No authenticated session }
+  /api/v1/homepage:
+    get:
+      operationId: getPublishedHomepage
+      description: Reads only the last published homepage, plus current public catalog destinations and the assets referenced by that version.
+      responses:
+        '200': { $ref: '#/components/responses/HomepagePublication' }
+  /api/v1/homepage/media/{key}/{variant}:
+    get:
+      operationId: getPublishedHomepageImage
+      parameters:
+        - $ref: '#/components/parameters/HomepageImageKey'
+        - $ref: '#/components/parameters/HomepageImageVariant'
+      responses:
+        '200': { $ref: '#/components/responses/HomepageImage' }
+        '404': { description: Unknown image or image has never been published }
+  /api/v1/admin/homepage:
+    get:
+      operationId: getHomepageEditor
+      security: [{ adminSessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/HomepageEditor' }
+        '401': { description: No authenticated session }
+    put:
+      operationId: saveHomepageDraft
+      description: Replaces the draft, never the published document. Send the latest editor revision with the full document.
+      security: [{ adminSessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [revision, document]
+              properties:
+                revision: { type: integer, minimum: 1 }
+                document: { $ref: '#/components/schemas/HomepageDocument' }
+      responses:
+        '200': { $ref: '#/components/responses/HomepageEditor' }
+        '401': { description: No authenticated session }
+        '409': { description: The editor revision is stale; fetch the current state }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid homepage configuration }
+  /api/v1/admin/homepage/preview:
+    get:
+      operationId: previewHomepageDraft
+      description: Returns the saved draft, or the published document when there is no draft. This response must not be cached or transferred into public SSR.
+      security: [{ adminSessionCookie: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/HomepagePublication' }
+        '401': { description: No authenticated session }
+  /api/v1/admin/homepage/publish:
+    post:
+      operationId: publishHomepageDraft
+      description: Atomically publishes the saved draft and makes its referenced image URLs public. Existing public renditions are kept.
+      security: [{ adminSessionCookie: [] }]
+      requestBody: { $ref: '#/components/requestBodies/HomepageRevision' }
+      responses:
+        '200': { $ref: '#/components/responses/HomepageEditor' }
+        '401': { description: No authenticated session }
+        '409': { description: The editor revision is stale }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid revision or no draft to publish }
+  /api/v1/admin/homepage/discard:
+    post:
+      operationId: discardHomepageDraft
+      description: Removes the draft without modifying the live publication or the image library.
+      security: [{ adminSessionCookie: [] }]
+      requestBody: { $ref: '#/components/requestBodies/HomepageRevision' }
+      responses:
+        '200': { $ref: '#/components/responses/HomepageEditor' }
+        '401': { description: No authenticated session }
+        '409': { description: The editor revision is stale }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid revision }
+  /api/v1/admin/homepage/media:
+    post:
+      operationId: uploadHomepageImage
+      description: Normalize JPEG, PNG or WebP into WebP display and thumbnail renditions. Maximum 10 MiB and 4096 pixels per side. Uploaded media is private until referenced by a successful publication.
+      security: [{ adminSessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [photo]
+              properties:
+                photo: { type: string, format: binary }
+      responses:
+        '201':
+          description: Image added to the library
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    required: [key, asset]
+                    properties:
+                      key: { type: string, format: uuid }
+                      asset: { $ref: '#/components/schemas/HomepageAsset' }
+        '401': { description: No authenticated session }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: 'Invalid file type, size, dimensions, or image data' }
+  /api/v1/admin/homepage/media/{key}/{variant}:
+    get:
+      operationId: getHomepageLibraryImage
+      security: [{ adminSessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/HomepageImageKey'
+        - $ref: '#/components/parameters/HomepageImageVariant'
+      responses:
+        '200': { $ref: '#/components/responses/HomepageImage' }
+        '401': { description: No authenticated session }
+        '404': { description: Unknown image }
+  /api/v1/store-info:
+    get:
+      operationId: getStoreInfo
+      description: The public email, phone and nullable fiscalName come from Laravel runtime configuration. The internal contact form recipient is not exposed.
+      externalDocs: { url: docs/settings.md }
+      responses:
+        '200':
+          description: >
+            Public business contact and shipping information. data.checkout_pro_available
+            is a configuration boolean, not a Mercado Pago connectivity check.
+            data.free_delivery_minimum_cents is the configured minimum in integer cents, or null if
+            free delivery or delivery itself is disabled; checkout still verifies coverage. No provider
+            credentials, seller IDs or private controls are returned.
+  /api/v1/withdrawals/{reference}/confirmation:
+    post:
+      operationId: confirmWithdrawalAsOrderOwner
+      description: Consumes an unexpired owner-confirmation token and links the existing withdrawal. No login or refund operation.
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string, pattern: '^[0-9a-f]{64}$' }
+      responses:
+        '200': { description: The original public receipt number and receipt date }
+        '410': { description: Link unavailable, expired, altered or already used }
+        '419': { description: Missing or invalid CSRF token on first-party browser requests }
+        '422': { description: Invalid request format }
+        '429': { description: Too many requests }
+  /api/v1/admin/settings:
+    get:
+      operationId: getStoreSettings
+      security: [{ adminSessionCookie: [] }]
+      externalDocs: { url: docs/settings.md }
+      responses:
+        '200': { description: Effective operational settings }
+        '401': { description: No authenticated session }
+    patch:
+      operationId: updateStoreSettings
+      security: [{ adminSessionCookie: [] }]
+      externalDocs: { url: docs/settings.md }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                business_name: { type: string, maxLength: 120 }
+                support_email: { type: [string, 'null'], format: email, description: Internal contact form recipient }
+                support_phone: { type: [string, 'null'], maxLength: 40, description: Stored administrative value not published by the storefront }
+                pickup_address: { type: [string, 'null'], maxLength: 255 }
+                delivery_cents: { type: [integer, 'null'], minimum: 0, maximum: 2147483647 }
+                free_delivery_enabled: { type: boolean, default: false }
+                free_delivery_minimum_cents: { type: [integer, 'null'], minimum: 1, maximum: 2147483647, default: null, description: Required in the effective settings when free delivery is enabled. }
+                remind_payment: { type: boolean }
+                payment_lead_minutes: { type: integer, minimum: 1, maximum: 25 }
+                remind_cart: { type: boolean }
+                cart_delay_hours: { type: integer, minimum: 1, maximum: 168 }
+                low_stock_threshold: { type: integer, minimum: 0, maximum: 1000 }
+                pending_fulfilment_hours: { type: integer, minimum: 1, maximum: 168 }
+      responses:
+        '200': { description: Effective settings after the committed update }
+        '401': { description: No authenticated session }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid or unsupported setting }
+  /api/v1/admin/settings/history:
+    get:
+      operationId: getStoreSettingsHistory
+      security: [{ adminSessionCookie: [] }]
+      responses:
+        '200': { description: Latest changes with before/after values and administrator ID }
+        '401': { description: No authenticated session }
+  /api/v1/products:
+    get:
+      operationId: browseProducts
+      description: Lists published products including sold-out items. See the local catalog guide for response fields.
+      externalDocs: { url: docs/catalog.md }
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: category, in: query, schema: { type: string } }
+        - { name: brand, in: query, schema: { type: string } }
+        - { name: sort, in: query, schema: { type: string, enum: [newest, name, price_asc, price_desc] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 24 } }
+      responses:
+        '200': { description: Page of products with data and pagination information }
+        '422': { description: Invalid filter or sort }
+  /api/v1/products/{slug}:
+    parameters:
+      - { name: slug, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getPublishedProduct
+      externalDocs: { url: docs/catalog.md }
+      responses:
+        '200': { description: Published product }
+        '404': { description: Product does not exist or is not published }
+  /api/v1/categories:
+    get:
+      operationId: listActiveCategories
+      responses:
+        '200': { description: Active flat categories }
+  /api/v1/brands:
+    get:
+      operationId: listActiveBrands
+      responses:
+        '200': { description: Active brands }
+  /api/v1/admin/products:
+    get:
+      operationId: listAdminProducts
+      security: [{ adminSessionCookie: [] }]
+      externalDocs: { url: docs/catalog.md }
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [draft, published, archived] } }
+        - { name: availability, in: query, description: 'Matches products without available stock; combine with status=published for the dashboard list.', schema: { type: string, enum: [out_of_stock] } }
+      responses:
+        '200': { description: Product page with lifecycle state }
+        '401': { description: No authenticated session }
+    post:
+      operationId: createProductDraft
+      security: [{ adminSessionCookie: [] }]
+      externalDocs: { url: docs/catalog.md }
+      requestBody: { $ref: '#/components/requestBodies/ProductWrite' }
+      responses:
+        '201': { description: Draft with stable SKU and slug }
+        '401': { description: No authenticated session }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid product fields }
+  /api/v1/admin/products/{product}:
+    parameters:
+      - { name: product, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getAdminProduct
+      security: [{ adminSessionCookie: [] }]
+      responses:
+        '200': { description: 'Product detail with lifecycle state and the configured storefront URL in store_url' }
+        '404': { description: Product not found }
+    patch:
+      operationId: updateProduct
+      security: [{ adminSessionCookie: [] }]
+      requestBody: { $ref: '#/components/requestBodies/ProductWrite' }
+      responses:
+        '200': { description: Product updated without changing SKU or slug }
+        '404': { description: Product not found }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid fields or published product prerequisites not met }
+  /api/v1/admin/products/{product}/history:
+    parameters:
+      - { name: product, in: path, required: true, schema: { type: integer } }
+    get:
+      operationId: getProductAdjustments
+      description: Newest-first page of committed price and stock edits with previous/current values and actor.
+      security: [{ adminSessionCookie: [] }]
+      responses:
+        '200': { description: 'Paginated adjustment history, not shared-cacheable' }
+        '401': { description: No authenticated session }
+        '404': { description: Product not found }
+  /api/v1/admin/products/{product}/publish:
+    parameters:
+      - { name: product, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: publishProduct
+      security: [{ adminSessionCookie: [] }]
+      responses:
+        '200': { description: Product published }
+        '404': { description: Product not found }
+        '409': { description: Product already published }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Missing publication prerequisite }
+  /api/v1/admin/products/{product}/archive:
+    parameters:
+      - { name: product, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: archiveProduct
+      security: [{ adminSessionCookie: [] }]
+      responses:
+        '200': { description: Product archived and removed from public browse }
+        '404': { description: Product not found }
+        '409': { description: Product already archived }
+        '419': { description: Missing or invalid CSRF token }
+  /api/v1/admin/products/{product}/images:
+    parameters:
+      - { name: product, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: uploadProductImages
+      security: [{ adminSessionCookie: [] }]
+      description: Append photos in multipart order, up to five total including the cover. To recover an uncertain response, resend the same ordered files with the same key; the current gallery is returned without appending again.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          description: UUID scoped to this product. Use a fresh key for an intentional new batch. Without a key, each successful request appends a batch.
+          schema: { type: string, format: uuid }
+      requestBody: { $ref: '#/components/requestBodies/ProductPhotos' }
+      responses:
+        '201': { description: Admin product with the current gallery in display order on both initial upload and replay; first image is the cover }
+        '401': { description: No authenticated session }
+        '404': { description: Product not found }
+        '409': { description: This key already completed with different file bytes or a different file order }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: 'Invalid file, gallery input, or Idempotency-Key' }
+        '503': { description: Image processing or storage is unavailable }
+  /api/v1/admin/products/{product}/images/uploads:
+    parameters:
+      - { name: product, in: path, required: true, schema: { type: integer } }
+    post:
+      operationId: recoverableProductImageUpload
+      security: [{ adminSessionCookie: [] }]
+      description: Append up to five photos total including the cover. Do not fall back to the unkeyed route.
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: UUID scoped to the product; replay the exact ordered files with the same key after an uncertain response.
+          schema: { type: string, format: uuid }
+      requestBody: { $ref: '#/components/requestBodies/ProductPhotos' }
+      responses:
+        '201': { description: Admin product with the current gallery in display order on both initial upload and replay; first image is the cover }
+        '401': { description: No authenticated session }
+        '404': { description: Product not found }
+        '409': { description: The key was closed or already completed with different ordered file bytes }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: 'Invalid file, gallery input, or Idempotency-Key' }
+        '503': { description: Image processing or storage is unavailable }
+  /api/v1/admin/products/{product}/images/uploads/replace:
+    post:
+      operationId: replaceProductImage
+      security: [{ adminSessionCookie: [] }]
+      description: Replace one saved photo without changing its slot or ID. Replay the exact file and replacement ID with the same key after an uncertain response. Never fall back to an append route.
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, format: uuid } }
+      requestBody: { $ref: '#/components/requestBodies/ReplaceProductPhoto' }
+      responses:
+        '201': { description: Admin product with the current gallery in display order on initial upload and replay }
+        '401': { description: No authenticated session }
+        '404': { description: Product not found }
+        '409': { description: The key was closed or already used with different bytes or target }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid image, target, or key }
+        '503': { description: Image processing or storage is unavailable }
+  /api/v1/admin/products/{product}/images/uploads/close:
+    post:
+      operationId: closeProductImageUpload
+      security: [{ adminSessionCookie: [] }]
+      description: Close an uncertain upload. Keeps any committed changes and prevents a late upload with that key from appending or replacing.
+      parameters:
+        - { name: product, in: path, required: true, schema: { type: integer } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Current product and gallery; repeated closes are safe }
+        '401': { description: No authenticated session }
+        '404': { description: Product not found }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Missing or invalid Idempotency-Key }
+  /api/v1/admin/products/{product}/images/order:
+    parameters:
+      - { name: product, in: path, required: true, schema: { type: integer } }
+    put:
+      operationId: orderProductImages
+      security: [{ adminSessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items: { type: integer, minimum: 1 }
+      responses:
+        '200': { description: Admin product with first image as the cover }
+        '401': { description: No authenticated session }
+        '404': { description: Product not found }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Stale gallery list or invalid image IDs }
+  /api/v1/admin/catalog-imports/template:
+    get:
+      operationId: downloadCatalogImportTemplate
+      security: [{ adminSessionCookie: [] }]
+      externalDocs: { url: docs/imports.md }
+      responses:
+        '200':
+          description: UTF-8 CSV template
+          content:
+            text/csv: { schema: { type: string } }
+        '401': { description: No authenticated session }
+  /api/v1/admin/catalog-imports:
+    post:
+      operationId: previewCatalogImport
+      security: [{ adminSessionCookie: [] }]
+      externalDocs: { url: docs/imports.md }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary, description: 'CSV or single-sheet XLSX up to 2 MiB' }
+      responses:
+        '200': { description: Existing ledger for identical file bytes }
+        '201': { description: New preview and per-row validation ledger }
+        '401': { description: No authenticated session }
+        '419': { description: Missing or invalid CSRF token }
+        '422': { description: Invalid import file }
+  /api/v1/admin/catalog-imports/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      operationId: getCatalogImport
+      security: [{ adminSessionCookie: [] }]
+      responses:
+        '200': { description: Ledger preview or durable row status and results }
+        '401': { description: No authenticated session }
+        '404': { description: Import not found }
+  /api/v1/admin/catalog-imports/{id}/confirm:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    post:
+      operationId: confirmCatalogImport
+      security: [{ adminSessionCookie: [] }]
+      responses:
+        '202': { description: Valid pending rows queued or already processed }
+        '401': { description: No authenticated session }
+        '404': { description: Import not found }
+        '409': { description: No valid pending rows to confirm }
+        '419': { description: Missing or invalid CSRF token }
+        '503': { description: Queue unavailable; the durable confirmation may be retried }
+  /api/v1/admin/categories:
+    $ref: '#/components/pathItems/AdminClassifications'
+  /api/v1/admin/brands:
+    $ref: '#/components/pathItems/AdminClassifications'
+  /api/v1/admin/categories/page:
+    $ref: '#/components/pathItems/AdminClassificationPage'
+  /api/v1/admin/brands/page:
+    $ref: '#/components/pathItems/AdminClassificationPage'
+  /api/v1/admin/categories/{id}:
+    $ref: '#/components/pathItems/AdminClassification'
+  /api/v1/admin/brands/{id}:
+    $ref: '#/components/pathItems/AdminClassification'
+  /email/verify/{id}/{hash}:
+    get:
+      operationId: verifyEmail
+      description: Use the temporary signed URL in the verification notification. No logged-in session is required.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { name: hash, in: path, required: true, schema: { type: string } }
+        - { name: expires, in: query, required: true, schema: { type: integer } }
+        - { name: signature, in: query, required: true, schema: { type: string } }
+      responses:
+        '204': { description: Email verified }
+        '403': { description: 'Invalid, expired or mismatched signed URL' }
+        '404': { description: The user no longer exists }
+        '429': { description: Too many requests }
+components:
+  schemas:
+    ProductPhotoBatch:
+      type: object
+      required: ['photos[]']
+      properties:
+        'photos[]':
+          type: array
+          description: JPEG, PNG, or WebP only, at most 10 MiB and 4096 × 4096 pixels per file. New appends are limited to five photos in the gallery. Older keys may replay a batch originally allowed by the API.
+          minItems: 1
+          maxItems: 12
+          items: { type: string, format: binary }
+    CartCheckout:
+      type: object
+      required: [reference, state]
+      properties:
+        reference: { type: string, format: uuid }
+        state: { type: string, enum: [ready, checking, paid] }
+    AdminCustomerPage:
+      type: object
+      required: [total, current_page, last_page]
+      properties:
+        total: { type: integer, minimum: 0 }
+        current_page: { type: integer, minimum: 1 }
+        last_page: { type: integer, minimum: 1 }
+    AdminCustomerAccount:
+      type: object
+      required: [name, email, email_verified, created_at]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        email_verified: { type: boolean }
+        created_at: { type: [string, 'null'], format: date-time }
+    AdminCustomerRow:
+      allOf:
+        - $ref: '#/components/schemas/AdminCustomerAccount'
+        - type: object
+          required: [id, orders_count, last_order_at]
+          properties:
+            id: { type: integer }
+            orders_count: { type: integer, minimum: 0 }
+            last_order_at: { type: [string, 'null'], format: date-time }
+    AdminCustomerDetail:
+      allOf:
+        - $ref: '#/components/schemas/AdminCustomerAccount'
+        - type: object
+          required: [addresses]
+          properties:
+            addresses:
+              type: array
+              items:
+                type: object
+                required: [id, recipient, department, locality, street, number, details, postal_code]
+                properties:
+                  id: { type: integer }
+                  recipient: { type: string }
+                  department: { type: string }
+                  locality: { type: string }
+                  street: { type: string }
+                  number: { type: string }
+                  details: { type: [string, 'null'] }
+                  postal_code: { type: [string, 'null'] }
+    AdminCustomerOrder:
+      type: object
+      required: [reference, created_at, total_cents, status, shipping_method]
+      properties:
+        reference: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        total_cents: { type: integer, minimum: 0, description: UYU cents }
+        status: { type: string, enum: [pending_payment, paid, payment_expired, payment_review, refunded, charged_back] }
+        shipping_method: { type: string, enum: [pickup, delivery] }
+    AdminDashboard:
+      type: object
+      required: [priorities, recent_orders, sales]
+      properties:
+        priorities:
+          type: object
+          required: [pending_payment, needs_preparation, ready_for_pickup, out_of_stock]
+          properties:
+            pending_payment: { type: integer, minimum: 0 }
+            needs_preparation: { type: integer, minimum: 0 }
+            ready_for_pickup: { type: integer, minimum: 0 }
+            out_of_stock: { type: integer, minimum: 0 }
+            received_withdrawals: { type: integer, minimum: 0, description: Total withdrawal requests in the received state before pagination. }
+            registered_buyers: { type: integer, minimum: 0, description: Total buyer accounts including those awaiting email verification. }
+        recent_orders:
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            required: [reference, status, currency, subtotal_cents, shipping_cents, total_cents, shipping_method, fulfilment_status, reservation_expires_at, created_at]
+            properties:
+              reference: { type: string, format: uuid }
+              status: { type: string, enum: [pending_payment, paid, payment_expired, payment_review, refunded, charged_back] }
+              currency: { type: string, const: UYU }
+              subtotal_cents: { type: integer }
+              shipping_cents: { type: integer }
+              total_cents: { type: integer }
+              shipping_method: { type: string, enum: [delivery, pickup] }
+              fulfilment_status: { type: string, enum: [unstarted, preparing, ready_for_pickup, shipped, completed] }
+              reservation_expires_at: { type: string, format: date-time }
+              created_at: { type: string, format: date-time }
+        sales:
+          type: object
+          required: [timezone, from, through, order_count, total_cents, months]
+          properties:
+            timezone: { type: string, example: America/Montevideo }
+            from: { type: string, format: date, description: First included local date }
+            through: { type: string, format: date, description: Last included local date }
+            order_count: { type: integer, minimum: 0 }
+            total_cents: { type: integer, minimum: 0 }
+            months:
+              type: array
+              minItems: 6
+              maxItems: 6
+              items:
+                type: object
+                required: [month, order_count, total_cents]
+                properties:
+                  month: { type: string, pattern: '^\d{4}-\d{2}$' }
+                  order_count: { type: integer, minimum: 0 }
+                  total_cents: { type: integer, minimum: 0 }
+    HomepageBlock:
+      type: string
+      enum: [hero, categories, selection, look, story, mosaic]
+    HomepageImagePlacement:
+      type: [object, 'null']
+      required: [key, alt]
+      properties:
+        key: { type: string, description: An existing key from the image library }
+        alt: { type: string, description: Empty for a decorative image }
+        x: { type: [number, 'null'], minimum: 0, maximum: 100 }
+        y: { type: [number, 'null'], minimum: 0, maximum: 100 }
+    HomepageLink:
+      type: [object, 'null']
+      description: Catalog destination, current product/category by ID, or a homepage section. Arbitrary URLs are not accepted.
+      required: [type, label]
+      properties:
+        type: { type: string, enum: [catalog, category, product, section] }
+        label: { type: string }
+        id: { type: integer, minimum: 1, description: Required for category or product }
+        section: { $ref: '#/components/schemas/HomepageBlock', description: Required for section }
+    HomepageDocument:
+      type: object
+      required: [order, hidden, hero, categories, selection, look, story, mosaic]
+      properties:
+        order:
+          type: array
+          minItems: 6
+          maxItems: 6
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/HomepageBlock' }
+        hidden:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/HomepageBlock' }
+        hero:
+          type: object
+          required: [desktop, mobile, title, text, primary, secondary]
+          properties:
+            desktop: { $ref: '#/components/schemas/HomepageImagePlacement' }
+            mobile: { $ref: '#/components/schemas/HomepageImagePlacement' }
+            title: { type: string }
+            text: { type: string }
+            primary: { $ref: '#/components/schemas/HomepageLink' }
+            secondary: { $ref: '#/components/schemas/HomepageLink' }
+        categories:
+          type: object
+          required: [mode, cards]
+          properties:
+            mode: { type: string, enum: [automatic, manual] }
+            cards:
+              type: array
+              items:
+                type: object
+                required: [categoryId, image, label]
+                properties:
+                  categoryId: { type: integer, minimum: 1 }
+                  image: { $ref: '#/components/schemas/HomepageImagePlacement' }
+                  label: { type: string, description: Empty uses the current category name }
+        selection:
+          type: object
+          required: [title, action, mode, categoryId, productIds]
+          properties:
+            title: { type: string }
+            action: { $ref: '#/components/schemas/HomepageLink' }
+            mode: { type: string, enum: [automatic, manual] }
+            categoryId: { type: [integer, 'null'], minimum: 1, description: Null keeps the current automatic catalog sample }
+            productIds: { type: array, items: { type: integer, minimum: 1 }, uniqueItems: true }
+        look:
+          type: object
+          required: [title, text, image, mode, productIds]
+          properties:
+            title: { type: string }
+            text: { type: string }
+            image: { $ref: '#/components/schemas/HomepageImagePlacement' }
+            mode: { type: string, enum: [automatic, manual] }
+            productIds: { type: array, items: { type: integer, minimum: 1 }, uniqueItems: true }
+        story:
+          type: object
+          required: [title, text, image, details, action]
+          properties:
+            title: { type: string }
+            text: { type: string }
+            image: { $ref: '#/components/schemas/HomepageImagePlacement' }
+            details: { type: array, maxItems: 2, items: { $ref: '#/components/schemas/HomepageImagePlacement' } }
+            action: { $ref: '#/components/schemas/HomepageLink' }
+        mosaic:
+          type: object
+          required: [image, action, tiles]
+          properties:
+            image: { $ref: '#/components/schemas/HomepageImagePlacement' }
+            action: { $ref: '#/components/schemas/HomepageLink' }
+            tiles:
+              type: array
+              maxItems: 6
+              items:
+                type: object
+                required: [image, action]
+                properties:
+                  image: { $ref: '#/components/schemas/HomepageImagePlacement' }
+                  action: { $ref: '#/components/schemas/HomepageLink' }
+    HomepageAsset:
+      type: object
+      required: [url, thumbnail_url, width, height]
+      properties:
+        url: { type: string }
+        thumbnail_url: { type: string }
+        width: { type: integer, minimum: 1 }
+        height: { type: integer, minimum: 1 }
+        small_width: { type: integer, minimum: 1 }
+    CheckoutItems:
+      type: array
+      minItems: 1
+      maxItems: 50
+      description: Each product ID appears only once. Quantities never reserve stock until order creation.
+      items:
+        type: object
+        required: [product_id, quantity]
+        properties:
+          product_id: { type: integer, minimum: 1 }
+          quantity: { type: integer, minimum: 1, maximum: 1000 }
+    GeographyPair:
+      type: object
+      additionalProperties: false
+      required: [department_id, locality_id]
+      properties:
+        department_id: { type: integer, minimum: 1 }
+        locality_id: { type: integer, minimum: 1, description: Directory locality ID scoped to the submitted department }
+    AddressFields:
+      type: object
+      not: { required: [user_id] }
+      properties:
+        recipient: { type: string, minLength: 1, maxLength: 120, pattern: '\S' }
+        street: { type: string, minLength: 1, maxLength: 160, pattern: '\S' }
+        number: { type: string, minLength: 1, maxLength: 20, pattern: '\S' }
+        details: { type: [string, 'null'], maxLength: 255 }
+        phone: { type: [string, 'null'], maxLength: 30 }
+        postal_code: { type: [string, 'null'], maxLength: 12 }
+    AddressInput:
+      allOf:
+        - { $ref: '#/components/schemas/AddressFields' }
+        - type: object
+          properties:
+            department_id: { type: integer, minimum: 1 }
+            locality_id: { type: integer, minimum: 1 }
+            department: false
+            locality: false
+          dependentRequired:
+            department_id: [locality_id]
+            locality_id: [department_id]
+    Address:
+      allOf:
+        - { $ref: '#/components/schemas/AddressFields' }
+        - type: object
+          required: [id, recipient, department_id, locality_id, department, locality, street, number, details, phone, postal_code]
+          properties:
+            id: { type: integer, minimum: 1 }
+            department_id: { type: [integer, 'null'], minimum: 1, description: Null for an unlinked historic address }
+            locality_id: { type: [integer, 'null'], minimum: 1, description: Null requires choosing a locality before new delivery }
+            department: { type: string, description: Current directory name or original text }
+            locality: { type: string, description: Current directory name or original text }
+  pathItems:
+    AdminClassificationPage:
+      get:
+        summary: Page of active and inactive classifications, ordered by name and ID
+        security: [{ sessionCookie: [] }]
+        parameters:
+          - { name: q, in: query, description: 'Case-insensitive literal substring of name or slug; percent, underscore and exclamation mark are literal.', schema: { type: string, maxLength: 120 } }
+          - { name: status, in: query, description: 'Omit or send empty for all states. Filters combine before pagination.', schema: { type: string, enum: [active, inactive, ''] } }
+          - { name: page, in: query, schema: { type: integer, minimum: 1, maximum: 2147483647, default: 1 } }
+          - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 12 } }
+        responses:
+          '200':
+            description: One classification page with Laravel pagination links and metadata
+            content:
+              application/json:
+                schema:
+                  type: object
+                  required: [data, links, meta]
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        type: object
+                        required: [id, name, slug, active]
+                        properties:
+                          id: { type: integer }
+                          name: { type: string }
+                          slug: { type: string }
+                          active: { type: boolean }
+                    links: { type: object }
+                    meta:
+                      type: object
+                      required: [current_page, last_page, per_page, total]
+                      properties:
+                        current_page: { type: integer }
+                        last_page: { type: integer }
+                        per_page: { type: integer }
+                        total: { type: integer }
+          '401': { description: No authenticated session }
+          '403': { description: Verified administrator required }
+          '422': { description: 'Invalid search, status or pagination' }
+    AdminClassifications:
+      get:
+        security: [{ sessionCookie: [] }]
+        responses:
+          '200': { description: Active and inactive classifications }
+          '403': { description: Verified administrator required }
+      post:
+        security: [{ sessionCookie: [] }]
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name]
+                properties:
+                  name: { type: string }
+                  active: { type: boolean, default: true }
+        responses:
+          '201': { description: Classification created }
+          '403': { description: Verified administrator required }
+          '419': { description: Missing or invalid CSRF token }
+          '422': { description: Invalid fields or duplicate name }
+    AdminClassification:
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      patch:
+        security: [{ sessionCookie: [] }]
+        requestBody:
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name: { type: string }
+                  active: { type: boolean }
+        responses:
+          '200': { description: Classification updated with slug unchanged }
+          '403': { description: Verified administrator required }
+          '404': { description: Classification not found }
+          '409': { description: Can not deactivate a classification used by published products }
+          '419': { description: Missing or invalid CSRF token }
+          '422': { description: Invalid fields or duplicate name }
+  requestBodies:
+    HomepageRevision:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [revision]
+            properties:
+              revision: { type: integer, minimum: 1 }
+    ProductPhotos:
+      required: true
+      content:
+        multipart/form-data:
+          schema: { $ref: '#/components/schemas/ProductPhotoBatch' }
+          encoding:
+            'photos[]': { contentType: 'image/*', explode: true }
+    ReplaceProductPhoto:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ProductPhotoBatch'
+              - type: object
+                required: [replace_image_id]
+                properties:
+                  'photos[]': { type: array, maxItems: 1 }
+                  replace_image_id:
+                    type: integer
+                    minimum: 1
+                    description: Replace this saved image of the same product. Send exactly one file. The image ID and position are preserved.
+          encoding:
+            'photos[]': { contentType: 'image/*', explode: true }
+    ProductWrite:
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              name: { type: [string, 'null'] }
+              description: { type: [string, 'null'] }
+              price_cents: { type: [integer, 'null'], minimum: 1, maximum: 2147483647 }
+              stock: { type: integer, minimum: 0, maximum: 2147483647 }
+              category_id: { type: [integer, 'null'] }
+              brand_id: { type: [integer, 'null'] }
+  parameters:
+    HomepageImageKey:
+      name: key
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    HomepageImageVariant:
+      name: variant
+      in: path
+      required: true
+      schema: { type: string, enum: [display, thumbnail] }
+  securitySchemes:
+    sessionCookie: { type: apiKey, in: cookie, name: camba_session }
+    adminSessionCookie: { type: apiKey, in: cookie, name: camba_admin_session }
+  responses:
+    GeographyOptions:
+      description: Directory options as stable numeric IDs and display names
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                type: array
+                items:
+                  type: object
+                  required: [id, name]
+                  properties:
+                    id: { type: integer, minimum: 1 }
+                    name: { type: string }
+    HomepagePublication:
+      description: Rendering data; catalog rows use the existing public product and category shapes, and unavailable references are omitted from these rows.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                type: object
+                required: [document, version, assets, categories, products]
+                properties:
+                  document: { $ref: '#/components/schemas/HomepageDocument' }
+                  version: { type: integer, minimum: 1 }
+                  assets: { type: object, additionalProperties: { $ref: '#/components/schemas/HomepageAsset' } }
+                  categories: { type: array, items: { type: object } }
+                  products: { type: array, items: { type: object } }
+    HomepageEditor:
+      description: Editor state including the latest revision and only Admin-visible draft.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                type: object
+                required: [revision, published_version, published, draft, assets, store_url]
+                properties:
+                  revision: { type: integer, minimum: 1 }
+                  published_version: { type: integer, minimum: 1 }
+                  published: { $ref: '#/components/schemas/HomepageDocument' }
+                  draft:
+                    anyOf:
+                      - $ref: '#/components/schemas/HomepageDocument'
+                      - { type: 'null' }
+                  assets: { type: object, additionalProperties: { $ref: '#/components/schemas/HomepageAsset' } }
+                  store_url: { type: string, format: uri }
+    HomepageImage:
+      description: The normalized WebP rendition
+      content:
+        image/webp:
+          schema: { type: string, format: binary }
+    AddressEnvelope:
+      description: Saved address owned by the current account
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data: { $ref: '#/components/schemas/Address' }
+    CartEnvelope:
+      description: The current cart, with live price and availability
+      headers:
+        Cache-Control: { schema: { type: string, const: 'private, no-store' } }
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                type: object
+                required: [currency, items]
+                properties:
+                  currency: { const: UYU }
+                  checkout:
+                    anyOf:
+                      - $ref: '#/components/schemas/CartCheckout'
+                      - type: 'null'
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [product_id, quantity, available, product]
+                      properties:
+                        product_id: { type: integer, minimum: 1 }
+                        quantity: { type: integer, minimum: 1 }
+                        available: { type: boolean }
+                        reserved: { type: boolean }
+                        product:
+                          type: [object, 'null']
+                          required: [name, slug, price_cents, stock]
+                          properties:
+                            name: { type: string }
+                            slug: { type: string }
+                            price_cents: { type: integer, minimum: 1 }
+                            stock: { type: integer, minimum: 0 }
+    UserEnvelope:
+      description: Buyer or authenticated user, with no credentials in the response
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                type: object
+                required: [id, name, email, role, email_verified]
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+                  email: { type: string, format: email }
+                  role: { type: string, enum: [buyer, admin] }
+                  email_verified: { type: boolean }
+              meta:
+                type: object
+                description: Present on registration only.
+                required: [verification_queued]
+                properties:
+                  verification_queued: { type: boolean }

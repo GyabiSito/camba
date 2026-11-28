@@ -1,0 +1,28 @@
+<main class="login-frame" id="contenido">
+  <section class="login-box surface" aria-labelledby="login-title">
+    <img class="login-mark" src="/brand/camba.svg" width="112" height="52" alt="Camba" />
+    <h1 id="login-title">Ingresar a administración</h1>
+    <p class="muted">Usá una cuenta administrativa con el correo verificado.</p>
+    @if (error()) { <p class="callout" role="alert">{{ error() }}</p> }
+    <form (ngSubmit)="submit()" #form="ngForm" [attr.aria-busy]="busy()">
+      <div class="field">
+        <label for="login-email">Correo electrónico</label>
+        <input id="login-email" [(ngModel)]="email" #emailControl="ngModel" name="email" type="email"
+          required email autocomplete="username" autocapitalize="none" spellcheck="false"
+          [attr.aria-invalid]="emailControl.touched && emailControl.invalid ? 'true' : null"
+          [attr.aria-describedby]="emailControl.touched && emailControl.invalid ? 'login-email-error' : null" />
+        @if (emailControl.touched && emailControl.invalid) {
+          <small class="field-error" id="login-email-error">Ingresá un correo electrónico válido.</small>
+        }
+      </div>
+      <div class="field">
+        <label for="login-password">Contraseña</label>
+        <input id="login-password" [(ngModel)]="password" name="password" type="password"
+          required autocomplete="current-password" />
+      </div>
+      <button class="button" type="submit" [disabled]="busy() || form.invalid">
+        {{ busy() ? 'Ingresando…' : 'Ingresar' }}
+      </button>
+    </form>
+  </section>
+</main>

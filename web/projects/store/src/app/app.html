@@ -1,0 +1,7 @@
+<a class="skip" [href]="anchorBase() + '#contenido'">Saltar al contenido</a>
+<store-header />
+<main id="contenido" tabindex="-1" class="store-body">
+  @if (openingHome()) { <p class="home-pending" role="status">Cargando la portada…</p> }
+  <router-outlet />
+</main>
+<store-footer [topHref]="anchorBase() + '#arriba'" />

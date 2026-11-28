@@ -1,0 +1,88 @@
+:host { display: contents; }
+.closing-footer-bow { display: inline-block; }
+.home-footer {
+  padding-inline: var(--home-inset);
+  background: var(--paper) linear-gradient(180deg, transparent 20%, #f8eceb);
+  color: var(--ink);
+}
+.home-footer-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, .72fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 1.65rem clamp(1.35rem, 4vw, 3.75rem);
+  padding-block: clamp(1.8rem, 4vw, 3.65rem) clamp(1.45rem, 3vw, 2.5rem);
+}
+.home-footer-main > * { min-inline-size: 0; overflow-wrap: anywhere; scroll-margin-top: 1rem; }
+.home-footer h2 {
+  margin: 0 0 .55rem;
+  color: var(--home-action);
+  font-size: .95rem;
+  font-weight: 800;
+}
+.home-footer-group h2 { letter-spacing: .055em; text-transform: uppercase; }
+.closing-footer-intro h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .25rem .75rem;
+  font-size: clamp(1.45rem, 2.05vw, 1.8rem);
+}
+.closing-footer-bow {
+  inline-size: 4.35rem;
+  block-size: 2.8rem;
+  flex-shrink: 0;
+  background: var(--home-action);
+  mask: url('/brand/camba.svg') center top / 270% auto no-repeat;
+}
+.closing-footer-intro p {
+  max-inline-size: 23ch;
+  margin: .85rem 0 0;
+  font: 400 clamp(1.75rem, 2.25vw, 2rem)/1.15 Georgia, serif;
+  text-wrap: balance;
+}
+.home-footer ul { list-style: none; margin: 0; padding: 0; }
+.home-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 2.75rem;
+  max-inline-size: 100%;
+  color: var(--home-action);
+  font-size: 1rem;
+  font-weight: 700;
+  text-decoration: none;
+  text-underline-offset: .24em;
+}
+.home-footer a:hover { text-decoration: underline; }
+.home-footer :focus-visible { outline-color: var(--home-action); }
+.home-footer-base {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .2rem clamp(1rem, 3vw, 2rem);
+  border-block-start: 1px solid color-mix(in srgb, var(--home-action) 38%, transparent);
+  padding-block: .65rem .55rem;
+  font-size: .95rem;
+}
+.home-footer-base nav { margin-inline-start: auto; }
+.home-footer-base ul { display: flex; flex-wrap: wrap; gap: 0 clamp(.75rem, 3vw, 1.5rem); }
+.home-footer-base a { font-size: .9rem; }
+.home-footer-base .home-footer-top { gap: .5rem; font-size: .82rem; }
+.home-footer-top-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: 1.9rem;
+  aspect-ratio: 1;
+  border: 1px solid var(--home-action);
+  border-radius: 50%;
+}
+
+@media (max-width: 46rem) {
+  .home-footer-main { grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr); }
+  .closing-footer-intro { grid-column: 1 / -1; }
+  .home-footer-base nav { margin-inline-start: 0; }
+}
+@media (max-width: 22rem) {
+  .home-footer-main { grid-template-columns: minmax(0, 1fr); }
+  .home-footer-base { align-items: start; flex-direction: column; }
+}

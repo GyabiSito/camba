@@ -1,0 +1,255 @@
+name: Checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-24.04
+    outputs:
+      api: ${{ steps.scope.outputs.api }}
+      web: ${{ steps.scope.outputs.web }}
+      store: ${{ steps.scope.outputs.store }}
+      admin: ${{ steps.scope.outputs.admin }}
+      infra: ${{ steps.scope.outputs.infra }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: scope
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'unknown' }}
+        run: bash infra/ci/changes.sh "$BASE" HEAD >> "$GITHUB_OUTPUT"
+
+  api:
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: api
+    services:
+      postgres:
+        image: postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
+        env:
+          POSTGRES_DB: camba_demo_test
+          POSTGRES_USER: camba
+          POSTGRES_PASSWORD: camba-ci-only
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd="pg_isready -h 127.0.0.1 -U camba -d camba_demo_test"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_DATABASE: camba_demo_test
+      DB_USERNAME: camba
+      DB_PASSWORD: camba-ci-only
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, pdo_sqlite, gd, exif, zip
+          coverage: none
+      - run: composer validate --strict --no-check-publish
+      - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: php vendor/bin/pint --test
+      - name: Prepare isolated PostgreSQL test databases
+        env:
+          PG_SERVICE: ${{ job.services.postgres.id }}
+        run: |
+          echo '127.0.0.1 postgres' | sudo tee -a /etc/hosts >/dev/null
+          docker exec "$PG_SERVICE" psql -U camba -d postgres -v ON_ERROR_STOP=1 -c 'CREATE DATABASE camba_demo_seed_test'
+      - name: Run the PostgreSQL integration suite
+        env:
+          DB_PORT: ${{ job.services.postgres.ports['5432'] }}
+        run: |
+          export APP_KEY="$(php artisan key:generate --show)"
+          php vendor/bin/phpunit --filter '~^(?!Tests\\Feature\\Demo\\)~'
+          DB_DATABASE=camba_demo_seed_test php vendor/bin/phpunit tests/Feature/Demo
+
+  web:
+    needs: changes
+    if: needs.changes.outputs.web == 'true' || needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.20.0'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --ignore-scripts
+      - name: Build storefront SSR
+        if: needs.changes.outputs.store == 'true'
+        run: npm exec -- ng build store
+      - name: Build administration CSR
+        if: needs.changes.outputs.admin == 'true'
+        run: npm exec -- ng build admin
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          extensions: pdo_sqlite, gd, exif, zip
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist --no-progress
+        working-directory: api
+      - run: npm run test:e2e:install -- --with-deps
+      - run: npm run test:e2e
+
+  infra:
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - run: docker compose -f infra/compose.dev.yml config --quiet
+      - name: Validate full development and production Compose
+        env:
+          CAMBA_DEV_APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+          CAMBA_APP_KEY: 'base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='
+          CAMBA_APP_URL: https://store.example.test
+          CAMBA_SANCTUM_DOMAINS: 'store.example.test,admin.example.test'
+          CAMBA_TRUSTED_PROXY_IPS: '192.0.2.5'
+          CAMBA_DB_PASSWORD: ci-only
+          CAMBA_DB_ADMIN_PASSWORD: ci-admin-only
+          CAMBA_API_IMAGE: camba-api:ci
+          CAMBA_STORE_IMAGE: camba-store:ci
+          CAMBA_ADMIN_IMAGE: camba-admin:ci
+          CAMBA_COMPOSE_PROJECT: camba-ci
+          CAMBA_EDGE_NETWORK: camba-ci-edge
+          CAMBA_EDGE_ALIAS_PREFIX: camba-ci-upstream
+        run: |
+          docker compose -f infra/compose.dev.yml -f infra/compose.dev.apps.yml config --quiet
+          prod=(-f infra/compose.prod.yml -f infra/compose.edge.yml)
+          docker compose -p "$CAMBA_COMPOSE_PROJECT" "${prod[@]}" config --quiet
+          docker compose -p "$CAMBA_COMPOSE_PROJECT" "${prod[@]}" config --format json |
+            jq -e --arg project "$CAMBA_COMPOSE_PROJECT" --arg prefix "$CAMBA_EDGE_ALIAS_PREFIX" '
+              .name == $project and .volumes.postgres.name == ($project + "_postgres") and
+              (.services | .api.networks.edge.aliases == [($prefix + "-api")] and
+               .store.networks.edge.aliases == [($prefix + "-store")] and
+               .admin.networks.edge.aliases == [($prefix + "-admin")])
+            '
+          if CAMBA_COMPOSE_PROJECT='' docker compose -f infra/compose.prod.yml config --quiet; then
+            echo 'Production Compose must reject a missing project name' >&2
+            exit 1
+          fi
+          if CAMBA_EDGE_ALIAS_PREFIX='' docker compose -p "$CAMBA_COMPOSE_PROJECT" "${prod[@]}" config --quiet; then
+            echo 'Edge Compose must reject a missing alias prefix' >&2
+            exit 1
+          fi
+          if CAMBA_TRUSTED_PROXY_IPS='' docker compose -p "$CAMBA_COMPOSE_PROJECT" "${prod[@]}" config --quiet; then
+            echo 'Production Compose must reject a missing ingress allowlist' >&2
+            exit 1
+          fi
+      - run: bash infra/ci/checks.test.sh
+      - run: bash infra/release/apply.test.sh
+
+  required:
+    name: Required checks
+    if: ${{ always() }}
+    needs: [changes, api, web, infra]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - env:
+          CHANGE_RESULT: ${{ needs.changes.result }}
+          API_NEEDED: ${{ needs.changes.outputs.api }}
+          API_RESULT: ${{ needs.api.result }}
+          WEB_NEEDED: ${{ needs.changes.outputs.web == 'true' || needs.changes.outputs.api == 'true' }}
+          WEB_RESULT: ${{ needs.web.result }}
+          INFRA_NEEDED: ${{ needs.changes.outputs.infra }}
+          INFRA_RESULT: ${{ needs.infra.result }}
+        run: bash infra/ci/required.sh
+
+  publish:
+    needs: [changes, required]
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.CAMBA_RELEASE_ENABLED == 'true' && (needs.changes.outputs.api == 'true' || needs.changes.outputs.store == 'true' || needs.changes.outputs.admin == 'true') }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      api: ${{ steps.images.outputs.api }}
+      store: ${{ steps.images.outputs.store }}
+      admin: ${{ steps.images.outputs.admin }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - id: images
+        name: Verify and publish only changed images
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          API_NEEDED: ${{ needs.changes.outputs.api }}
+          STORE_NEEDED: ${{ needs.changes.outputs.store }}
+          ADMIN_NEEDED: ${{ needs.changes.outputs.admin }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          for component in api store admin; do
+            flag="${component^^}_NEEDED"
+            [ "${!flag}" = true ] || continue
+            repository="ghcr.io/${GITHUB_REPOSITORY,,}-$component"
+            tag="$repository:$GITHUB_SHA"
+            bash infra/ci/build-image.sh "$component" "$tag"
+            docker push "$tag"
+            ref=$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$tag" | grep -F "$repository@sha256:")
+            [[ $ref =~ ^ghcr\.io/[a-z0-9_.-]+/[a-z0-9_.-]+@sha256:[0-9a-f]{64}$ ]]
+            printf '%s=%s\n' "$component" "$ref" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: publish
+    runs-on: ubuntu-24.04
+    permissions: {}
+    environment: camba-production
+    steps:
+      - name: Apply immutable digests through the protected release account
+        env:
+          DEPLOY_TARGET: ${{ secrets.CAMBA_DEPLOY_TARGET }}
+          DEPLOY_KEY: ${{ secrets.CAMBA_DEPLOY_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.CAMBA_DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_PORT: ${{ vars.CAMBA_DEPLOY_PORT || '22' }}
+          API_IMAGE: ${{ needs.publish.outputs.api }}
+          STORE_IMAGE: ${{ needs.publish.outputs.store }}
+          ADMIN_IMAGE: ${{ needs.publish.outputs.admin }}
+        run: |
+          set -euo pipefail
+          [[ $DEPLOY_TARGET =~ ^[a-zA-Z_][a-zA-Z0-9_-]*@[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]]
+          [[ $DEPLOY_PORT =~ ^[0-9]{1,5}$ && -n $DEPLOY_KEY && -n $DEPLOY_KNOWN_HOSTS ]]
+          args=()
+          for component in api store admin; do
+            name="${component^^}_IMAGE"
+            ref="${!name}"
+            [[ -n $ref ]] || continue
+            [[ $ref =~ ^ghcr\.io/[a-z0-9_.-]+/[a-z0-9_.-]+@sha256:[0-9a-f]{64}$ ]]
+            args+=("$component=$ref")
+          done
+          (( ${#args[@]} > 0 ))
+          umask 077
+          private=$(mktemp -d)
+          trap 'rm -f -- "$private/key" "$private/known_hosts"; rmdir -- "$private"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$private/key"
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$private/known_hosts"
+          ssh -p "$DEPLOY_PORT" -i "$private/key" -o IdentitiesOnly=yes -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$private/known_hosts" \
+            "$DEPLOY_TARGET" /usr/local/bin/camba-ci-release "$GITHUB_RUN_NUMBER" "${args[@]}"

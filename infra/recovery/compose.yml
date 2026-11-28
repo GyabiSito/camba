@@ -1,0 +1,78 @@
+x-app: &app
+  image: ${CAMBA_REHEARSAL_IMAGE:?Use a local Camba API runtime image}
+  networks: [recovery]
+  environment:
+    APP_ENV: local
+    APP_URL: http://api:8080
+    APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+    DB_CONNECTION: pgsql
+    DB_URL: ''
+    DB_HOST: postgres
+    DB_PORT: '5432'
+    DB_DATABASE: ${CAMBA_REHEARSAL_DB:?Use a new synthetic schema}
+    DB_USERNAME: drill
+    DB_PASSWORD: synthetic-db
+    REDIS_HOST: redis
+    CACHE_STORE: redis
+    SESSION_DRIVER: redis
+    QUEUE_CONNECTION: redis
+    MAIL_MAILER: smtp
+    MAIL_HOST: mailpit
+    MAIL_PORT: '1025'
+    MAIL_FROM_ADDRESS: shop@example.test
+    CAMBA_MP_WEBHOOK_SECRET: synthetic-recovery-signature
+  volumes:
+    - public-media:/var/www/html/storage/app/public
+    - private-files:/var/www/html/storage/app/private
+
+services:
+  api-fpm:
+    <<: *app
+  api:
+    image: ${CAMBA_REHEARSAL_IMAGE:?Use a local Camba API runtime image}
+    command: [nginx, -e, stderr, -c, /etc/nginx/camba.conf, -g, 'daemon off;']
+    networks: [recovery]
+    volumes:
+      - public-media:/var/www/html/storage/app/public:ro
+    healthcheck:
+      test: [CMD, curl, -fsS, --max-time, '6', 'http://127.0.0.1:8080/ready']
+      interval: 2s
+      timeout: 7s
+      retries: 20
+  postgres:
+    image: postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
+    environment:
+      POSTGRES_DB: ${CAMBA_REHEARSAL_DB:?Use a new synthetic schema}
+      POSTGRES_USER: drill
+      POSTGRES_PASSWORD: synthetic-db
+    networks: [recovery]
+    volumes:
+      - postgres:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, 'PGPASSWORD="$$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -Atqc "SELECT 1" >/dev/null']
+      interval: 2s
+      timeout: 4s
+      retries: 25
+  redis:
+    image: redis:7.2.16-alpine3.21@sha256:ee061d86c25773048211e99f00d63b47b9ecfe28560113e16cce2c962d5bec1c
+    networks: [recovery]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+  mailpit:
+    image: axllent/mailpit:v1.31.5
+    networks: [recovery]
+
+networks:
+  recovery:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${CAMBA_REHEARSAL_SUBNET:?Use a new private subnet}
+
+volumes:
+  postgres:
+  public-media:
+  private-files:

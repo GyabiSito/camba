@@ -1,0 +1,178 @@
+name: ${CAMBA_COMPOSE_PROJECT:?Set the approved production Compose project}
+
+x-backend: &backend
+  image: ${CAMBA_API_IMAGE:?Set the immutable API image reference}
+  init: true
+  env_file:
+    - path: ${CAMBA_API_ENV_FILE:-/etc/camba/api.env}
+      required: false
+  environment:
+    APP_NAME: Camba
+    APP_ENV: production
+    APP_DEBUG: 'false'
+    APP_KEY: ${CAMBA_APP_KEY:?Set the shared Laravel key}
+    APP_URL: ${CAMBA_APP_URL:?Set the public HTTPS origin}
+    ADMIN_URL: ${CAMBA_ADMIN_URL:-}
+    APP_LOCALE: es
+    SANCTUM_STATEFUL_DOMAINS: ${CAMBA_SANCTUM_DOMAINS:?Set the first-party domains}
+    CAMBA_TRUSTED_PROXY_IPS: ${CAMBA_TRUSTED_PROXY_IPS:?Set the exact ingress IP addresses}
+    CAMBA_CHECKOUT_REQUIRE_ONLINE_PAYMENT: ${CAMBA_CHECKOUT_REQUIRE_ONLINE_PAYMENT:-true}
+    LOG_CHANNEL: stderr
+    LOG_LEVEL: warning
+    DB_CONNECTION: pgsql
+    DB_URL: ''
+    DB_HOST: postgres
+    DB_PORT: '5432'
+    DB_DATABASE: camba
+    DB_USERNAME: camba
+    DB_PASSWORD: ${CAMBA_DB_PASSWORD:?Set the PostgreSQL application password}
+    REDIS_CLIENT: phpredis
+    REDIS_URL: ''
+    REDIS_HOST: redis
+    REDIS_PASSWORD: 'null'
+    REDIS_PORT: '6379'
+    CACHE_STORE: redis
+    QUEUE_CONNECTION: redis
+    REDIS_QUEUE_RETRY_AFTER: '120'
+    SESSION_DRIVER: redis
+    SESSION_ENCRYPT: 'true'
+    SESSION_SECURE_COOKIE: 'true'
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  networks: [data, egress]
+  volumes:
+    - public-media:/var/www/html/storage/app/public
+    - private-files:/var/www/html/storage/app/private
+    - payment-logs:/var/www/html/storage/logs/pagos
+    - refund-logs:/var/www/html/storage/logs/refunds
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  restart: unless-stopped
+
+services:
+  store:
+    image: ${CAMBA_STORE_IMAGE:?Set the immutable store image reference}
+    init: true
+    restart: unless-stopped
+    read_only: true
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    networks: [backend]
+    environment:
+      CAMBA_SSR_API_ORIGIN: http://api:8080
+      CAMBA_PUBLIC_STORE_ORIGIN: ${CAMBA_APP_URL:?Set the public HTTPS origin}
+      NG_ALLOWED_HOSTS: ${CAMBA_STORE_ALLOWED_HOSTS:-127.0.0.1,localhost}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 4s
+      retries: 6
+      start_period: 5s
+
+  admin:
+    image: ${CAMBA_ADMIN_IMAGE:?Set the immutable admin image reference}
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    networks: [backend]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1:8080/healthz']
+      interval: 10s
+      timeout: 4s
+      retries: 6
+      start_period: 5s
+
+  api:
+    image: ${CAMBA_API_IMAGE:?Set the immutable API image reference}
+    command: [nginx, -e, stderr, -c, /etc/nginx/camba.conf, -g, 'daemon off;']
+    init: true
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    depends_on: [api-fpm]
+    networks: [backend]
+    volumes:
+      - public-media:/var/www/html/storage/app/public:ro
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, --max-time, '6', 'http://127.0.0.1:8080/ready']
+      interval: 10s
+      timeout: 7s
+      retries: 6
+      start_period: 10s
+
+  api-fpm:
+    <<: *backend
+    networks: [backend, data, egress]
+
+  worker:
+    <<: *backend
+    command: [php, artisan, 'queue:work', redis, '--tries=3', '--timeout=90', '--sleep=3']
+    stop_signal: SIGTERM
+    stop_grace_period: 100s
+
+  scheduler:
+    <<: *backend
+    command: [php, artisan, 'schedule:work']
+    stop_signal: SIGTERM
+
+  migrate:
+    <<: *backend
+    profiles: [release]
+    command: [php, artisan, migrate, --force, --no-interaction, '--isolated=75']
+    networks: [data]
+    restart: 'no'
+
+  postgres:
+    # Match the pinned PostgreSQL 18.7 development image and data-directory mount.
+    image: postgres:18-alpine@sha256:ff64c9e3bdf8e2120107d3559de8db314e8305f7e38c5105903c6295876738ff
+    environment:
+      POSTGRES_DB: camba
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${CAMBA_DB_ADMIN_PASSWORD:?Set the PostgreSQL administrator password}
+    networks: [data]
+    volumes:
+      - postgres:/var/lib/postgresql
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'PGPASSWORD="$$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB" -Atqc "SELECT 1" >/dev/null'
+      interval: 5s
+      timeout: 4s
+      retries: 20
+
+  redis:
+    image: redis:7.2.16-alpine3.21@sha256:ee061d86c25773048211e99f00d63b47b9ecfe28560113e16cce2c962d5bec1c
+    command: [redis-server, --appendonly, 'yes', --maxmemory-policy, noeviction]
+    networks: [data]
+    volumes:
+      - redis:/data
+    restart: unless-stopped
+    healthcheck:
+      test: [CMD-SHELL, 'test "$$(redis-cli ping)" = PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+networks:
+  backend:
+    internal: true
+  data:
+    internal: true
+  egress: {}
+
+volumes:
+  postgres:
+  redis:
+  public-media:
+  private-files:
+  payment-logs:
+  refund-logs:

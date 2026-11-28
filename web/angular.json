@@ -1,0 +1,290 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "cli": {
+    "packageManager": "npm"
+  },
+  "newProjectRoot": "projects",
+  "projects": {
+    "admin": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:class": {
+          "skipTests": true
+        },
+        "@schematics/angular:component": {
+          "skipTests": true
+        },
+        "@schematics/angular:directive": {
+          "skipTests": true
+        },
+        "@schematics/angular:guard": {
+          "skipTests": true
+        },
+        "@schematics/angular:interceptor": {
+          "skipTests": true
+        },
+        "@schematics/angular:pipe": {
+          "skipTests": true
+        },
+        "@schematics/angular:resolver": {
+          "skipTests": true
+        },
+        "@schematics/angular:service": {
+          "skipTests": true
+        }
+      },
+      "root": "projects/admin",
+      "sourceRoot": "projects/admin/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/admin/src/main.ts",
+            "tsConfig": "projects/admin/tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/admin/public"
+              }
+            ],
+            "styles": ["projects/admin/src/styles.css"]
+          },
+          "configurations": {
+            "production": {
+              "fileReplacements": [
+                {
+                  "replace": "projects/admin/src/environments/environment.ts",
+                  "with": "projects/admin/src/environments/environment.production.ts"
+                }
+              ],
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "1MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "fileReplacements": [
+                {
+                  "replace": "projects/admin/src/environments/environment.ts",
+                  "with": "projects/admin/src/environments/environment.development.ts"
+                }
+              ],
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            },
+            "demo": {
+              "fileReplacements": [
+                {
+                  "replace": "projects/admin/src/environments/environment.ts",
+                  "with": "projects/admin/src/environments/environment.development.ts"
+                },
+                {
+                  "replace": "projects/shared/src/demo-config.ts",
+                  "with": "projects/shared/src/demo-config.enabled.ts"
+                }
+              ]
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "admin:build:production"
+            },
+            "development": {
+              "buildTarget": "admin:build:development"
+            },
+            "demo": {
+              "buildTarget": "admin:build:development,demo"
+            }
+          },
+          "defaultConfiguration": "development"
+        }
+      }
+    },
+    "store": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:class": {
+          "skipTests": true
+        },
+        "@schematics/angular:component": {
+          "skipTests": true
+        },
+        "@schematics/angular:directive": {
+          "skipTests": true
+        },
+        "@schematics/angular:guard": {
+          "skipTests": true
+        },
+        "@schematics/angular:interceptor": {
+          "skipTests": true
+        },
+        "@schematics/angular:pipe": {
+          "skipTests": true
+        },
+        "@schematics/angular:resolver": {
+          "skipTests": true
+        },
+        "@schematics/angular:service": {
+          "skipTests": true
+        }
+      },
+      "root": "projects/store",
+      "sourceRoot": "projects/store/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/store/src/main.ts",
+            "tsConfig": "projects/store/tsconfig.app.json",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/store/public"
+              },
+              {
+                "glob": "atelier-cierre-tela{,-small}.webp",
+                "input": "projects/store/demo-assets",
+                "output": "/demo-home"
+              }
+            ],
+            "styles": ["projects/store/src/styles.css"],
+            "server": "projects/store/src/main.server.ts",
+            "define": { "CAMBA_PAYMENTS_ENABLED": "true" },
+            "outputMode": "server",
+            "security": {
+              "allowedHosts": []
+            },
+            "ssr": {
+              "entry": "projects/store/src/server.ts"
+            }
+          },
+          "configurations": {
+            "production": {
+              "fileReplacements": [
+                {
+                  "replace": "projects/store/src/environments/environment.ts",
+                  "with": "projects/store/src/environments/environment.production.ts"
+                }
+              ],
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "1MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "fileReplacements": [
+                {
+                  "replace": "projects/store/src/environments/environment.ts",
+                  "with": "projects/store/src/environments/environment.development.ts"
+                }
+              ],
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            },
+            "no-payment": {
+              "define": { "CAMBA_PAYMENTS_ENABLED": "false" }
+            },
+            "demo": {
+              "define": { "CAMBA_PAYMENTS_ENABLED": "false" },
+              "fileReplacements": [
+                {
+                  "replace": "projects/store/src/environments/environment.ts",
+                  "with": "projects/store/src/environments/environment.development.ts"
+                },
+                {
+                  "replace": "projects/shared/src/demo-config.ts",
+                  "with": "projects/shared/src/demo-config.enabled.ts"
+                },
+                {
+                  "replace": "projects/store/src/attach-demo.ts",
+                  "with": "projects/store/src/attach-demo.enabled.ts"
+                },
+                {
+                  "replace": "projects/store/src/app/features/home/editorial-config.ts",
+                  "with": "projects/store/src/app/features/home/editorial-config.enabled.ts"
+                }
+              ],
+              "security": { "allowedHosts": ["127.0.0.1", "localhost"] },
+              "assets": [
+                { "glob": "**/*", "input": "projects/store/public" },
+                { "glob": "*.webp", "input": "projects/admin/public/demo", "output": "/demo" },
+                {
+                  "glob": "atelier-*.webp",
+                  "input": "projects/store/demo-assets",
+                  "output": "/demo-home"
+                }
+              ]
+            },
+            "editorial": {
+              "fileReplacements": [
+                {
+                  "replace": "projects/store/src/environments/environment.ts",
+                  "with": "projects/store/src/environments/environment.development.ts"
+                },
+                {
+                  "replace": "projects/store/src/app/features/home/editorial-config.ts",
+                  "with": "projects/store/src/app/features/home/editorial-config.enabled.ts"
+                }
+              ],
+              "security": { "allowedHosts": ["127.0.0.1", "localhost"] },
+              "assets": [
+                { "glob": "**/*", "input": "projects/store/public" },
+                {
+                  "glob": "atelier-*.webp",
+                  "input": "projects/store/demo-assets",
+                  "output": "/demo-home"
+                }
+              ]
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "store:build:production"
+            },
+            "development": {
+              "buildTarget": "store:build:development"
+            },
+            "demo": {
+              "buildTarget": "store:build:development,demo"
+            },
+            "no-payment": {
+              "buildTarget": "store:build:development,no-payment"
+            }
+          },
+          "defaultConfiguration": "development"
+        }
+      }
+    }
+  }
+}

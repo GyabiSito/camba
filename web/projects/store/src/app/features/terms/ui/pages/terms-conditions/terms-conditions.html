@@ -1,0 +1,29 @@
+<store-help-article [title]="title" [description]="description">
+  @if (!fiscalName()) {
+    <p help-draft role="status">Borrador: falta completar la denominación fiscal de Camba antes de publicar este documento.</p>
+  }
+  <div class="help-content">
+    <section>
+      <h2>Quién vende</h2>
+      <p>{{ business.name }}@if (fiscalName(); as name) { ({{ name }}) } · RUT {{ business.rut }} · {{ business.address }}.</p>
+      <p><a [href]="'mailto:' + business.email">{{ business.email }}</a>
+        @for (phone of business.phones; track phone.href) { · <a [href]="phone.href">{{ phone.label }}</a> }
+      </p>
+    </section>
+    @if (terms(); as document) {
+      <p>Versión: <time [attr.datetime]="document.version.split('-v')[0]">{{ document.version }}</time>.</p>
+      @for (section of document.sections; track section.title) {
+        <section><h2>{{ section.title }}</h2><p>{{ section.text }}</p></section>
+      }
+      <section>
+        <h2>Derecho de retracto en compras a distancia</h2>
+        <p>{{ document.withdrawal }}</p>
+        <p>Podés iniciar la solicitud desde el botón de arrepentimiento de <a routerLink="/">Inicio</a>. · <a href="https://www.impo.com.uy/bases/leyes/17250-2000/16">Ley 17.250, art. 16</a> · <a href="https://www.impo.com.uy/bases/leyes/20531-2026/108">Ley 20.531, art. 108</a>.</p>
+      </section>
+      <p><button class="button button--quiet" type="button" (click)="print()">Imprimir o guardar como PDF</button></p>
+    } @else {
+      <p role="status">No pudimos cargar esta versión. Volvé a intentar o pedinos una copia desde Contactanos.</p>
+    }
+    <p class="support-close"><a routerLink="/envios">Ver envíos</a> · <a routerLink="/contacto">Contactanos</a></p>
+  </div>
+</store-help-article>

@@ -1,0 +1,188 @@
+<section class="shop-workspace purchase-page">
+  <header class="page-header purchase-heading">
+    <h1>Tu carrito</h1>
+    <p class="muted">Revisá tus productos antes de confirmar.</p>
+  </header>
+  @if (loading()) {
+    <div role="status" class="shop-skeleton" aria-label="Cargando carrito">
+      <i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i>
+    </div>
+  } @else {
+    <div class="shop-columns purchase-layout">
+      <div class="stack purchase-items">
+        @if (error()) {
+          <p class="notice problem" role="alert">{{ error() }}</p>
+        }
+        @if (updated()) {
+          <p class="notice" role="status" aria-label="Carrito actualizado">Carrito actualizado.</p>
+        }
+        @if (items().length) {
+          <ul class="line-list purchase-lines" aria-label="Productos">
+            @for (item of items(); track item.product_id) {
+              <li class="purchase-line cart-line">
+                <store-product-photo
+                  class="cart-cover"
+                  [photo]="covers.photo(item.product?.slug ?? '')"
+                  [name]="item.product?.name ?? ''"
+                  [decorative]="true"
+                  variant="thumb"
+                />
+                <div class="stack cart-line-body">
+                  <div class="line-head purchase-line-heading">
+                    @if (item.product; as product) {
+                      <h2>
+                        <a [routerLink]="['/producto', product.slug]">{{ product.name }}</a>
+                      </h2>
+                      <p class="purchase-line-price">
+                        <span>Subtotal</span>
+                        <strong class="money">{{
+                          money(product.price_cents * item.quantity)
+                        }}</strong>
+                      </p>
+                    } @else {
+                      <h2>Producto no disponible</h2>
+                    }
+                  </div>
+                  @if (item.reserved) {
+                    <p class="muted">
+                      {{ checkout()?.state === 'ready' ? 'Reservado para tu pago.' : 'Reservado temporalmente. Volvé a consultar la disponibilidad en un momento.' }}
+                    </p>
+                  } @else if (!item.available || item.quantity > maxQuantity(item)) {
+                    <p class="muted">
+                      {{
+                        maxQuantity(item)
+                          ? 'Reducí la cantidad para continuar. Disponible: ' +
+                            maxQuantity(item) +
+                            '.'
+                          : 'Quitá este producto para continuar.'
+                      }}
+                    </p>
+                  }
+                  <form
+                    (ngSubmit)="save(item, false)"
+                    ngNativeValidate
+                    class="actions purchase-line-actions"
+                  >
+                    @if (maxQuantity(item); as max) {
+                      <label class="field quantity"
+                        >Cantidad
+                        <input
+                          type="number"
+                          inputmode="numeric"
+                          min="1"
+                          [max]="max"
+                          step="1"
+                          required
+                          [attr.aria-label]="'Cantidad de ' + item.product?.name"
+                          [name]="'quantity-' + item.product_id"
+                          [ngModel]="quantities()[item.product_id]"
+                          (ngModelChange)="setQuantity(item.product_id, $event)"
+                          [disabled]="action() !== null || paymentBusy()"
+                        />
+                      </label>
+                      <button
+                        type="submit"
+                        class="button button--quiet"
+                        [disabled]="
+                          action() !== null || paymentBusy() || quantities()[item.product_id] === item.quantity
+                        "
+                      >
+                        Actualizar
+                      </button>
+                    }
+                    <button
+                      type="button"
+                      class="button button--quiet"
+                      [disabled]="action() !== null || paymentBusy()"
+                      [attr.aria-label]="
+                        'Quitar ' + (item.product?.name ?? 'producto no disponible')
+                      "
+                      (click)="save(item, true)"
+                    >
+                      Quitar
+                    </button>
+                    @if (action() === item.product_id) {
+                      <span role="status">Actualizando…</span>
+                    }
+                  </form>
+                </div>
+              </li>
+            }
+          </ul>
+        } @else if (error()) {
+          <div class="actions">
+            <button type="button" class="button" (click)="refresh()">Reintentar</button>
+          </div>
+        } @else {
+          <section class="shop-panel">
+            <h2>Tu carrito está vacío</h2>
+            <p class="muted">Encontrá algo que te guste en la tienda.</p>
+            <div class="actions"><a class="button" routerLink="/tienda">Ir a la tienda</a></div>
+          </section>
+        }
+      </div>
+      <aside class="shop-panel purchase-summary" aria-labelledby="cart-summary-title">
+        @if (items().length) {
+          <h2 id="cart-summary-title">Resumen del carrito</h2>
+          <dl class="totals">
+            <div>
+              <dt>Subtotal estimado</dt>
+              <dd>{{ money(total()) }}</dd>
+            </div>
+          </dl>
+          @if (!checkout() && freeDeliveryMinimum(); as minimum) {
+            <section class="cart-free-delivery" aria-labelledby="cart-free-delivery-title">
+              <h3 id="cart-free-delivery-title">Envío gratis a partir de {{ money(minimum) }}</h3>
+              <p role="status">
+                @if (total() < minimum) {
+                  Te faltan {{ money(minimum - total()) }} para alcanzar el mínimo
+                } @else {
+                  Tu compra ya alcanza el mínimo. Aplica en zonas con cobertura
+                }
+              </p>
+            </section>
+          }
+          @if (checkout(); as payment) {
+            @if (payment.state === 'ready') {
+              <p class="muted small">Tu reserva está vigente. Podés volver al mismo pago.</p>
+              <div class="actions">
+                <button class="button" type="button" [disabled]="paymentBusy() || action() !== null || unsaved()" (click)="resumePayment(payment)">
+                  Continuar pago
+                </button>
+              </div>
+            } @else {
+              <p class="muted small">Estamos verificando el pago. Esperá la confirmación antes de volver a pagar.</p>
+              <div class="actions">
+                <button class="button" type="button" [disabled]="paymentBusy() || action() !== null" (click)="checkPayment(payment)">
+                  Consultar estado
+                </button>
+              </div>
+            }
+          } @else if (!hasUnavailable() && !unsaved() && action() === null) {
+            @if (!freeDeliveryMinimum()) {
+              <p class="muted small">Vas a ver el costo de entrega antes de confirmar.</p>
+            }
+            <div class="actions">
+              <a class="button" routerLink="/checkout">Continuar la compra</a>
+            </div>
+          } @else {
+            <p class="muted small">
+              {{
+                action() !== null
+                  ? 'Esperá a que se guarde el cambio.'
+                  : unsaved()
+                    ? 'Guardá los cambios de cantidad antes de continuar.'
+                    : 'Ajustá el carrito antes de continuar.'
+              }}
+            </p>
+          }
+          @if (paymentBusy()) { <p class="muted small" role="status">Consultando el pago…</p> }
+          @if (paymentNote()) { <p class="muted small" role="status">{{ paymentNote() }}</p> }
+        } @else {
+          <h2 id="cart-summary-title">¿Ya hiciste un pedido?</h2>
+        }
+        <div class="actions"><a routerLink="/pedidos">Ver compras</a></div>
+      </aside>
+    </div>
+  }
+</section>

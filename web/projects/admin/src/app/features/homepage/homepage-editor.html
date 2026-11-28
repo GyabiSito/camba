@@ -1,0 +1,133 @@
+<header class="page-heading"><div><h1>{{ block ? 'Editar ' + names[block] : 'Portada' }}</h1><p class="muted">{{ block ? 'Guardá el borrador sin cambiar la tienda publicada.' : 'Prepará los cambios, revisalos y publicá cuando estén listos.' }}</p></div>
+  @if (state(); as current) { <span class="version">Publicada · versión {{ current.published_version }}</span> }
+</header>
+@if (loading()) {
+  <div class="loading-skeleton" role="status" aria-label="Cargando portada">@for (row of [1,2,3,4,5,6]; track row) { <div></div> }</div>
+}
+@if (error()) { <p class="callout" role="alert">{{ error() }}</p> }
+@if (!loading() && !state()) { <button type="button" class="button" (click)="load()">Reintentar</button> }
+@if (message()) { <p class="callout success" role="status">{{ message() }}</p> }
+@if (document(); as doc) { @if (state(); as current) {
+  @if (!block) {
+  <section class="publication-tools" aria-label="Borrador y publicación">
+    <p class="draft-status">{{ dirty() ? 'Cambios sin guardar' : current.draft ? 'Borrador guardado · sin publicar' : 'Sin cambios pendientes' }}</p>
+    <div class="actions">
+      <button class="button" type="button" (click)="save()" [disabled]="busy() || stale() || !dirty()">{{ busy() ? 'Procesando…' : 'Guardar borrador' }}</button>
+      @if (!dirty() && !stale()) { <a class="button button--quiet" routerLink="/portada/vista-previa">Vista previa</a> }
+      @else { <span class="disabled-preview">Vista previa</span> }
+      <button class="button button--quiet" type="button" (click)="publish()" [disabled]="busy() || stale() || dirty() || !current.draft">Publicar</button>
+    </div>
+    @if (dirty()) { <p class="muted">Guardá el borrador para abrir la vista previa.</p> }
+    <p class="muted">Guardar no cambia la tienda. Revisá el borrador en la vista previa antes de publicar.</p>
+    @if (current.draft || dirty()) {
+      @if (!confirmDiscard()) { <button class="text-button" type="button" (click)="confirmDiscard.set(true)" [disabled]="busy() || stale()">Descartar borrador</button> }
+      @else { <div class="discard-confirm"><p>¿Descartás todos los cambios y volvés a la portada publicada?</p><button class="button button--quiet" type="button" (click)="discard()" [disabled]="busy() || stale()">Confirmar descarte</button><button class="text-button" type="button" (click)="confirmDiscard.set(false)">Conservar borrador</button></div> }
+    }
+  </section>
+  @if (catalogError()) { <p class="callout" role="alert">{{ catalogError() }} <button type="button" class="text-button" (click)="searchPage(1)">Reintentar catálogo</button></p> }
+  <fieldset class="blocks" [disabled]="busy()"><legend class="sr-only">Secciones de la portada</legend>
+  <ol class="block-list" role="list">
+  @for (block of doc.order; track block; let index = $index) {
+    <li class="block" [attr.aria-label]="names[block]">
+      <div class="block-heading">
+        @if (thumbnail(block); as src) { <img class="block-thumb" [src]="src" alt=""> } @else { <span class="block-thumb no-photo">Sin foto</span> }
+        <div class="block-name"><h2>{{ names[block] }}</h2><span class="muted">Posición {{ index + 1 }} · {{ doc.hidden.includes(block) ? 'Oculta en la tienda' : 'Visible en la tienda' }}</span></div>
+        <a class="button button--quiet edit" [routerLink]="['/portada/secciones', block]">Editar<span class="sr-only"> {{ names[block] }}</span></a>
+        <div class="block-controls">
+          <label class="visibility"><input type="checkbox" [checked]="!doc.hidden.includes(block)" (change)="toggle(block)">Visible<span class="sr-only"> {{ names[block] }}</span></label>
+          <button class="button button--quiet" type="button" [attr.aria-label]="'Subir bloque ' + names[block]" [disabled]="index === 0" (click)="move(doc.order,index,-1)">Subir</button>
+          <button class="button button--quiet" type="button" [attr.aria-label]="'Bajar bloque ' + names[block]" [disabled]="index === doc.order.length - 1" (click)="move(doc.order,index,1)">Bajar</button>
+        </div>
+      </div>
+    </li>
+  }
+  </ol>
+  </fieldset>
+  } @else {
+    <div class="section-tools actions">
+      <button class="button" type="button" (click)="save()" [disabled]="busy() || stale() || !dirty()">{{ busy() ? 'Procesando…' : 'Guardar borrador' }}</button>
+      <a class="button button--quiet" routerLink="/portada">Volver a Portada</a>
+      <span class="draft-status" role="status">{{ dirty() ? 'Cambios sin guardar' : current.draft ? 'Borrador guardado · sin publicar' : 'Sin cambios pendientes' }}</span>
+    </div>
+    @if (catalogError()) { <p class="callout" role="alert">{{ catalogError() }} <button type="button" class="text-button" (click)="searchPage(1)">Reintentar catálogo</button></p> }
+    <fieldset class="blocks" [disabled]="busy()"><legend class="sr-only">Contenido de {{ names[block] }}</legend>
+      <div class="block-editor">
+        @switch (block) {
+          @case ('hero') {
+            <h2>Textos</h2>
+            <div class="fields"><label class="field">Título del hero<input [(ngModel)]="doc.hero.title" (ngModelChange)="changed()" maxlength="180" required></label><label class="field">Descripción del hero<textarea [(ngModel)]="doc.hero.text" (ngModelChange)="changed()" maxlength="2000" rows="3"></textarea></label></div>
+            <div class="editor-columns"><camba-home-image-editor label="Imagen de escritorio" [image]="doc.hero.desktop" (imageChange)="doc.hero.desktop=$event; changed()" [assets]="current.assets" [storeUrl]="current.store_url" (uploaded)="uploaded($event)"/>
+            <camba-home-image-editor label="Variante móvil" [optional]="true" [portrait]="true" [image]="doc.hero.mobile" (imageChange)="doc.hero.mobile=$event; changed()" [assets]="current.assets" [storeUrl]="current.store_url" (uploaded)="uploaded($event)"/></div>
+            <div class="editor-columns"><camba-home-link-editor label="Botón principal" [link]="doc.hero.primary" (linkChange)="doc.hero.primary=$event; changed()" [categories]="categories()" [products]="catalog()" [query]="q" (search)="search($event)"/><camba-home-link-editor label="Botón secundario" [link]="doc.hero.secondary" (linkChange)="doc.hero.secondary=$event; changed()" [categories]="categories()" [products]="catalog()" [query]="q" (search)="search($event)"/></div>
+          }
+          @case ('categories') {
+            <h2>Tarjetas de categorías</h2>
+            <label class="field">Selección de categorías<select [(ngModel)]="doc.categories.mode" (ngModelChange)="changed()"><option value="automatic">Automática · primeras categorías disponibles</option><option value="manual">Elegir tarjetas</option></select></label>
+            @if (doc.categories.mode === 'manual') {
+              @for (card of doc.categories.cards; track card; let i = $index) {
+                <fieldset class="item-editor"><legend>{{ categoryName(card.categoryId) }}</legend>
+                  <label class="field">Etiqueta opcional<input [(ngModel)]="card.label" (ngModelChange)="changed()" maxlength="100" placeholder="Se usa el nombre de la categoría"></label>
+                  <camba-home-image-editor [label]="'Foto de ' + categoryName(card.categoryId)" [image]="card.image" (imageChange)="card.image=$event; changed()" [assets]="current.assets" [storeUrl]="current.store_url" (uploaded)="uploaded($event)"/>
+                  <div class="actions"><button class="button button--quiet" type="button" [attr.aria-label]="'Subir categoría ' + categoryName(card.categoryId)" [disabled]="i === 0" (click)="move(doc.categories.cards,i,-1)">Subir</button><button class="button button--quiet" type="button" [attr.aria-label]="'Bajar categoría ' + categoryName(card.categoryId)" [disabled]="i === doc.categories.cards.length-1" (click)="move(doc.categories.cards,i,1)">Bajar</button><button class="text-button" type="button" (click)="doc.categories.cards.splice(i,1); changed()">Quitar {{ categoryName(card.categoryId) }}</button></div>
+                </fieldset>
+              }
+              <h3>Agregar categoría</h3><div class="choice-list">@for (category of categories(); track category.id) { <button class="choice" type="button" [disabled]="hasCategory(category.id)" [attr.aria-label]="'Agregar categoría ' + category.name" (click)="addCategory(category.id)">@if (categoryPhoto(category.id); as src) { <img [src]="src" alt=""> } @else { <span class="no-photo">Sin foto</span> }<span>{{ category.name }}@if (hasCategory(category.id)) { <small>Ya agregada</small> }</span></button> }</div>
+            }
+          }
+          @case ('selection') {
+            <h2>Contenido y productos</h2>
+            <label class="field">Título de la selección<input [(ngModel)]="doc.selection.title" (ngModelChange)="changed()" maxlength="180" required></label>
+            <label class="field">Selección de productos<select [(ngModel)]="doc.selection.mode" (ngModelChange)="changed()"><option value="manual">Elegir y ordenar productos</option><option value="automatic">Automática por categoría</option></select></label>
+            @if (doc.selection.mode === 'automatic') {
+              <fieldset class="item-editor"><legend>Categoría de selección</legend><button class="button button--quiet" type="button" [attr.aria-pressed]="doc.selection.categoryId === null" (click)="doc.selection.categoryId=null; changed()">Todas las categorías</button><div class="choice-list">@for (category of categories(); track category.id) { <button class="choice" type="button" [attr.aria-pressed]="doc.selection.categoryId === category.id" (click)="doc.selection.categoryId=category.id; changed()">@if (categoryPhoto(category.id); as src) { <img [src]="src" alt=""> } @else { <span class="no-photo">Sin foto</span> }<span>{{ category.name }}</span></button> }</div></fieldset>
+            }
+            @else { <ng-container *ngTemplateOutlet="productPicker; context: {ids: doc.selection.productIds, group: 'selección'}"/> }
+            <camba-home-link-editor label="Enlace de la selección" [link]="doc.selection.action" (linkChange)="doc.selection.action=$event; changed()" [categories]="categories()" [products]="catalog()" [query]="q" (search)="search($event)"/>
+          }
+          @case ('look') {
+            <h2>Contenido del look</h2>
+            <label class="field">Título del look<input [(ngModel)]="doc.look.title" (ngModelChange)="changed()" maxlength="180" required></label><label class="field">Texto del look<textarea [(ngModel)]="doc.look.text" (ngModelChange)="changed()" maxlength="2000" rows="3"></textarea></label>
+            <camba-home-image-editor label="Foto del look" [image]="doc.look.image" (imageChange)="doc.look.image=$event; changed()" [assets]="current.assets" [storeUrl]="current.store_url" (uploaded)="uploaded($event)"/>
+            <label class="field">Prendas del look<select [(ngModel)]="doc.look.mode" (ngModelChange)="changed()"><option value="automatic">Selección automática</option><option value="manual">Elegir prendas</option></select></label>
+            @if (doc.look.mode === 'manual') { <ng-container *ngTemplateOutlet="productPicker; context: {ids: doc.look.productIds, group: 'look'}"/> }
+          }
+          @case ('story') {
+            <h2>Contenido editorial</h2>
+            <label class="field">Título editorial<input [(ngModel)]="doc.story.title" (ngModelChange)="changed()" maxlength="180" required></label><label class="field">Texto editorial<textarea [(ngModel)]="doc.story.text" (ngModelChange)="changed()" maxlength="2000" rows="4"></textarea></label>
+            <camba-home-image-editor label="Foto principal editorial" [image]="doc.story.image" (imageChange)="doc.story.image=$event; changed()" [assets]="current.assets" [storeUrl]="current.store_url" (uploaded)="uploaded($event)"/>
+            <div class="editor-columns">@for (detail of doc.story.details; track $index; let i = $index) { <camba-home-image-editor [label]="'Recorte editorial ' + (i+1)" [image]="detail" (imageChange)="doc.story.details[i]=$event; changed()" [assets]="current.assets" [storeUrl]="current.store_url" (uploaded)="uploaded($event)"/> }</div>
+            <camba-home-link-editor label="Acción editorial" [link]="doc.story.action" (linkChange)="doc.story.action=$event; changed()" [categories]="categories()" [products]="catalog()" [query]="q" (search)="search($event)"/>
+          }
+          @case ('mosaic') {
+            <h2>Marca y fondo</h2>
+            <camba-home-image-editor label="Foto de fondo del mosaico" [image]="doc.mosaic.image" (imageChange)="doc.mosaic.image=$event; changed()" [assets]="current.assets" [storeUrl]="current.store_url" (uploaded)="uploaded($event)"/>
+            <camba-home-link-editor label="Botón de marca" [link]="doc.mosaic.action" (linkChange)="doc.mosaic.action=$event; changed()" [categories]="categories()" [products]="catalog()" [query]="q" (search)="search($event)"/>
+            <h2>Casillas del mosaico</h2>
+            @for (tile of doc.mosaic.tiles; track tile; let i = $index) {
+              <details class="mosaic-tile"><summary>Casilla {{ i+1 }}</summary>
+                <camba-home-image-editor [label]="'Foto de casilla ' + (i+1)" [image]="tile.image" (imageChange)="setTilePhoto(i, $event)" [assets]="current.assets" [storeUrl]="current.store_url" (uploaded)="uploaded($event)"/>
+                <camba-home-link-editor [label]="'Enlace de casilla ' + (i+1)" [link]="tile.action" (linkChange)="tile.action=$event; changed()" [categories]="categories()" [products]="catalog()" [query]="q" (search)="search($event)"/>
+                <div class="actions"><button class="button button--quiet" type="button" [attr.aria-label]="'Subir casilla ' + (i+1)" [disabled]="i === 0" (click)="move(doc.mosaic.tiles,i,-1)">Subir</button><button class="button button--quiet" type="button" [attr.aria-label]="'Bajar casilla ' + (i+1)" [disabled]="i === doc.mosaic.tiles.length-1" (click)="move(doc.mosaic.tiles,i,1)">Bajar</button></div>
+              </details>
+            }
+          }
+        }
+      </div>
+    </fieldset>
+  }
+} }
+
+<ng-template #productPicker let-ids="ids" let-group="group">
+  <p class="muted">Precio, disponibilidad y enlace se mantienen actualizados desde el catálogo.</p>
+  <ol class="selected-products" [attr.aria-label]="'Productos del ' + group">
+    @for (id of ids; track id; let i = $index) { <li>
+      @if (product(id); as item) { @if (item.images[0]; as photo) { <img [src]="photo.thumbnail_url" alt=""> } @else { <span class="no-photo">Sin foto</span> }<span class="product-name">{{ item.name || item.sku }}<small>{{ money(item.price_cents) }} · {{ item.stock > 0 ? 'Disponible' : 'Sin stock' }}</small></span> }
+      @else { <span class="product-name">Producto {{ id }} no disponible<small>No se muestra si dejó de estar publicado.</small></span> }
+      <div class="actions"><button class="button button--quiet" type="button" [attr.aria-label]="'Subir ' + (product(id)?.name || id) + ' en ' + group" [disabled]="i === 0" (click)="move(ids,i,-1)">Subir</button><button class="button button--quiet" type="button" [attr.aria-label]="'Bajar ' + (product(id)?.name || id) + ' en ' + group" [disabled]="i === ids.length-1" (click)="move(ids,i,1)">Bajar</button><button class="text-button" type="button" [attr.aria-label]="'Quitar ' + (product(id)?.name || id)" (click)="toggleProduct(ids,id)">Quitar</button></div>
+    </li> }
+  </ol>
+  <label class="field">Buscar productos publicados<input type="search" [ngModel]="q" (ngModelChange)="search($event)" placeholder="Nombre o SKU"></label>
+  @if (searching()) { <p role="status">Buscando productos…</p> }
+  <div class="choice-list">@for (item of result()?.data; track item.id) { <button class="choice" type="button" [attr.aria-label]="(ids.includes(item.id) ? 'Quitar ' : 'Agregar ') + (item.name || item.sku)" [attr.aria-pressed]="ids.includes(item.id)" (click)="toggleProduct(ids,item.id)">@if (item.images[0]; as photo) { <img [src]="photo.thumbnail_url" alt=""> } @else { <span class="no-photo">Sin foto</span> }<span>{{ item.name || item.sku }}<small>{{ money(item.price_cents) }} · {{ item.stock > 0 ? 'Disponible' : 'Sin stock' }}</small></span></button> }</div>
+  @if (result(); as page) { <nav class="actions" aria-label="Páginas de productos"><button class="button button--quiet" type="button" [disabled]="searching() || page.meta.current_page <= 1" (click)="searchPage(page.meta.current_page-1)">Anterior</button><span>Página {{ page.meta.current_page }} de {{ page.meta.last_page }}</span><button class="button button--quiet" type="button" [disabled]="searching() || page.meta.current_page >= page.meta.last_page" (click)="searchPage(page.meta.current_page+1)">Siguiente</button></nav> }
+</ng-template>

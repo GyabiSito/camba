@@ -1,0 +1,29 @@
+.store-body { flex: 1; min-inline-size: 0; inline-size: calc(100% - 2 * var(--home-inset)); margin-inline: auto; padding-block-end: clamp(2rem, 5vw, 4rem); }
+:host {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100vh;
+  --paper: #fcfaf6;
+  --surface: #fff;
+  --ink: #24201e;
+  --muted: #635956;
+  --line: #e8deda;
+  --home-brick: #911d1d;
+  --home-action: #821f40;
+  --home-brand: #720f12;
+  --home-cream: #f5f5dc;
+  --home-shelf: #f8f3eb;
+  --home-gutter: clamp(1rem, 3.2vw, 2.9rem);
+  --home-inset: max(var(--home-gutter), calc((100% - 82rem) / 2));
+  --display: Georgia, serif;
+  --forest: var(--home-action);
+  --accent: color-mix(in srgb, var(--home-action) 9%, var(--paper));
+  background: var(--paper);
+  color: var(--ink);
+}
+
+:host ::selection { color: var(--surface); background: var(--home-action); }
+:host(.home-store) .store-body,
+:host(.contact-store) .store-body { inline-size: 100%; padding: 0; }
+
+.home-pending { color: var(--muted); margin: 1rem var(--home-gutter); }
