@@ -6,7 +6,6 @@ use App\Models\Address;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -84,9 +83,7 @@ class AdminCustomerTest extends TestCase
         $lowercaseBuyer = User::factory()->create([
             'role' => 'buyer', 'name' => 'álvaro', 'email' => 'other@example.test',
         ]);
-        $postgresC = config('database.default') === 'pgsql'
-            && DB::scalar('SELECT datctype FROM pg_database WHERE datname = current_database()') === 'C';
-        $expectedIds = $postgresC ? [$lowercaseBuyer->id] : [$buyer->id, $lowercaseBuyer->id];
+        $expectedIds = [$buyer->id, $lowercaseBuyer->id];
 
         foreach (['Álvaro', 'álvaro', 'ÁLVARO', 'álv'] as $term) {
             $results = $this->getJson(self::URL.'?q='.rawurlencode($term))->assertOk()

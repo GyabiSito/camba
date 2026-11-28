@@ -20,17 +20,22 @@ class CustomerController
         $query = User::query()->buyers();
         $search = trim($filters['q'] ?? '');
         if ($search !== '') {
-            $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($search)).'%';
+            $escape = fn (string $value): string => '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value).'%';
+            $foldedPattern = $escape(mb_strtolower($search));
+            $namePattern = $foldedPattern;
             $namePredicate = "LOWER(name) LIKE ? ESCAPE '!'";
             $connection = $query->getConnection();
             if ($connection->getDriverName() === 'sqlite') {
                 $connection->getReadPdo()->sqliteCreateFunction('camba_unicode_lower', mb_strtolower(...), 1, \PDO::SQLITE_DETERMINISTIC);
                 $namePredicate = "camba_unicode_lower(name) LIKE ? ESCAPE '!'";
+            } elseif ($connection->getDriverName() === 'pgsql') {
+                $namePredicate = "LOWER(name COLLATE pg_catalog.pg_unicode_fast) LIKE LOWER(? COLLATE pg_catalog.pg_unicode_fast) ESCAPE '!'";
+                $namePattern = $escape($search);
             }
 
             $query->where(fn ($fields) => $fields
-                ->whereRaw($namePredicate, [$pattern])
-                ->orWhereRaw("LOWER(email) LIKE ? ESCAPE '!'", [$pattern]));
+                ->whereRaw($namePredicate, [$namePattern])
+                ->orWhereRaw("LOWER(email) LIKE ? ESCAPE '!'", [$foldedPattern]));
         }
 
         return $this->page($query->select(['id', 'name', 'email', 'email_verified_at', 'created_at'])
