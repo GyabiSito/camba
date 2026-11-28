@@ -45,6 +45,55 @@ async function uploadWithKey(page: Page, id: string, key: string, name: string) 
   });
 }
 
+test('a full crop cache does not block a keyed upload or duplicate a replay', async ({ page }) => {
+  test.setTimeout(85_000);
+  await page.addInitScript(() => {
+    const put = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (...args: Parameters<IDBObjectStore['put']>) {
+      if (this.transaction.db.name === 'camba-product-photo-crops') {
+        throw new DOMException('Fixture crop quota exhausted', 'QuotaExceededError');
+      }
+      return put.apply(this, args);
+    };
+  });
+  await signIn(page);
+  await page.getByRole('link', { name: 'Nuevo producto' }).click();
+  await page.getByLabel('Nombre', { exact: true }).fill('Remera con recorte sin caché');
+  await page.getByLabel('Precio (UYU)').fill('990');
+  await page.getByLabel('Stock', { exact: true }).fill('2');
+  await page.getByRole('combobox', { name: 'Categoría', exact: true }).selectOption({ label: 'Remeras' });
+  await page.getByRole('button', { name: 'Crear borrador' }).click();
+  const gallery = page.getByRole('region', { name: 'Galería' });
+  const writes: Array<{ key: string | undefined; status: number }> = [];
+  await page.route(uploadPath, async route => {
+    const received = await route.fetch();
+    writes.push({ key: route.request().headers()['idempotency-key'], status: received.status() });
+    await route.fulfill({ status: 504, json: {} });
+  }, { times: 1 });
+  await gallery.getByLabel('Agregar fotos').setInputFiles(photo('image-pocket'));
+  await usePhotoCrops(page);
+  await gallery.getByRole('button', { name: 'Subir fotos' }).click();
+  await expect(gallery.getByRole('alert')).toContainText('No pudimos confirmar la carga');
+  const id = new URL(page.url()).pathname.split('/').at(-1)!;
+  const key = await persistedKey(page, id);
+  expect(key).toMatch(/^[a-f0-9-]{36}$/);
+  expect(writes).toEqual([{ key, status: 201 }]);
+
+  await page.reload();
+  await expect(gallery.getByText('1 de 5 fotos', { exact: true })).toBeVisible();
+  await gallery.getByLabel('Volver a elegir las fotos').setInputFiles(photo('image-pocket'));
+  await usePhotoCrops(page);
+  const replay = page.waitForResponse(response => uploadPath.test(response.url()) && response.request().method() === 'POST');
+  await gallery.getByRole('button', { name: 'Reintentar carga' }).click();
+  const response = await replay;
+  expect(response.status()).toBe(201);
+  expect(response.request().headers()['idempotency-key']).toBe(key);
+  expect((await response.json()).data.images).toHaveLength(1);
+  await expect.poll(() => persistedKey(page, id)).toBeNull();
+  await page.getByRole('button', { name: 'Publicar', exact: true }).click();
+  await expect(page.getByText('Producto publicado.', { exact: true })).toBeVisible();
+});
+
 test('TV-001 distinguishes a real close 200 from failed browser cleanup', async ({ page, context }, info) => {
   test.setTimeout(85_000);
   const writes: (string | undefined)[] = [];

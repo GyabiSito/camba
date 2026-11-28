@@ -293,11 +293,7 @@ export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product:
   };
   try {
     if (crop) {
-      try {
-        await keepCroppedPhotos(attempt.key, photos.map(({ file }) => file));
-      } catch {
-        throw new PhotoUploadInputError('No pudimos guardar el recorte para recuperarlo si falla la conexión. Revisá el almacenamiento del navegador.');
-      }
+      await keepCroppedPhotos(attempt.key, photos.map(({ file }) => file));
       if (wasClosed(slot, attempt.key)) {
         await forgetCroppedPhotos(attempt.key);
         state.closedKey = attempt.key;
@@ -316,8 +312,7 @@ export async function uploadPhotos(api: ApiClient, destroy: DestroyRef, product:
     return result.data;
   } catch (error) {
     // A definitive first rejection is editable; rejection of a replay cannot settle the earlier request.
-    if (fresh && (error instanceof PhotoUploadInputError && !state.closedKey ||
-      error instanceof HttpErrorResponse && [400, 401, 403, 404, 413, 415, 419, 422, 429].includes(error.status))) {
+    if (fresh && error instanceof HttpErrorResponse && [400, 401, 403, 404, 413, 415, 419, 422, 429].includes(error.status)) {
       await finish(false);
     }
     throw error;

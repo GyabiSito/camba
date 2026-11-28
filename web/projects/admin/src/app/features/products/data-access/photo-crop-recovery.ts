@@ -25,7 +25,8 @@ export function readCroppedPhotos(key: string): Promise<File[] | undefined> {
 }
 
 export function keepCroppedPhotos(key: string, files: File[]) {
-  return withCrops('readwrite', store => store.put(files, key));
+  // Caching the bytes is optional; the upload key still protects retries if storage is full.
+  return withCrops('readwrite', store => store.put(files, key)).catch(() => undefined);
 }
 
 export function forgetCroppedPhotos(key: string) {
