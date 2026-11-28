@@ -53,10 +53,14 @@ class QuoteCheckout
         }
         if ($settings['delivery_cents'] !== null) {
             $minimum = $settings['free_delivery_minimum_cents'];
-            $free = $deliveryAddressValidated && $settings['free_delivery_enabled'] === true
+            $eligible = $settings['free_delivery_enabled'] === true
                 && is_int($minimum) && $minimum > 0 && $subtotal >= $minimum;
+            $free = $eligible && $deliveryAddressValidated;
             $delivery = $this->option('delivery', $free ? 0 : $settings['delivery_cents'], null, $subtotal, $lines);
-            $shipping[] = $free ? [...$delivery, 'free_delivery_applied' => true] : $delivery;
+            if ($eligible) {
+                $delivery[$free ? 'free_delivery_applied' : 'free_delivery_pending_coverage'] = true;
+            }
+            $shipping[] = $delivery;
         }
 
         return [[

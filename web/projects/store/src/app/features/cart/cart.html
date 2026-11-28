@@ -130,6 +130,18 @@
               <dd>{{ money(total()) }}</dd>
             </div>
           </dl>
+          @if (!checkout() && freeDeliveryMinimum(); as minimum) {
+            <section class="cart-free-delivery" aria-labelledby="cart-free-delivery-title">
+              <h3 id="cart-free-delivery-title">Envío gratis a partir de {{ money(minimum) }}</h3>
+              <p role="status">
+                @if (total() < minimum) {
+                  Te faltan {{ money(minimum - total()) }} para alcanzar el mínimo
+                } @else {
+                  Tu compra ya alcanza el mínimo. Aplica en zonas con cobertura
+                }
+              </p>
+            </section>
+          }
           @if (checkout(); as payment) {
             @if (payment.state === 'ready') {
               <p class="muted small">Tu reserva está vigente. Podés volver al mismo pago.</p>
@@ -147,7 +159,9 @@
               </div>
             }
           } @else if (!hasUnavailable() && !unsaved() && action() === null) {
-            <p class="muted small">Vas a ver el costo de entrega antes de confirmar.</p>
+            @if (!freeDeliveryMinimum()) {
+              <p class="muted small">Vas a ver el costo de entrega antes de confirmar.</p>
+            }
             <div class="actions">
               <a class="button" routerLink="/checkout">Continuar la compra</a>
             </div>

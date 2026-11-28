@@ -35,7 +35,7 @@ $account = fn (string $name, string $email, string $role) => User::query()->forc
 ]);
 Admin::query()->create(['name' => 'Camba Mesa', 'email' => 'a11y-admin@camba.test', 'password' => 'Camba-test-only-2026']);
 $buyer = $account('Cliente Camba', 'buyer@camba.test', 'buyer');
-foreach (['cart', 'tabs', 'stock', 'profile', 'sync', 'delivery', 'payment-retry', 'payment-expired', 'payment-approved', 'payment-abandoned', 'admin-denied'] as $scenario) {
+foreach (['cart', 'tabs', 'stock', 'profile', 'sync', 'delivery', 'free-delivery-cart', 'payment-retry', 'payment-expired', 'payment-approved', 'payment-abandoned', 'admin-denied'] as $scenario) {
     $account('Comprador de prueba', "buyer-$scenario@camba.test", 'buyer');
 }
 $brand = Brand::create(['name' => 'Taller', 'slug' => 'taller', 'active' => true]);

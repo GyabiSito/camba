@@ -220,6 +220,39 @@ class OrderCheckoutTest extends TestCase
             ->assertJsonCount(1, 'data.shipping_options')->assertJsonPath('data.shipping_options.0.method', 'pickup');
     }
 
+    public function test_quote_advertises_free_delivery_at_one_peso_but_requires_address_coverage(): void
+    {
+        config(['checkout.delivery_cents' => 12000]);
+        StoreSettings::query()->findOrFail(1)->forceFill(['values' => [
+            'free_delivery_enabled' => true,
+            'free_delivery_minimum_cents' => 100,
+        ]])->save();
+        $product = $this->product(cents: 100);
+        $items = [['product_id' => $product->id, 'quantity' => 1]];
+        $address = array_intersect_key($this->payload([], 'delivery', '')['address'], array_flip(['department_id', 'locality_id']));
+
+        $this->postJson(self::QUOTE, compact('items'))->assertOk()
+            ->assertJsonPath('data.subtotal_cents', 100)
+            ->assertJsonPath('data.shipping_options.1.free_delivery_pending_coverage', true)
+            ->assertJsonPath('data.shipping_options.1.shipping_cents', 12000)
+            ->assertJsonMissingPath('data.shipping_options.1.free_delivery_applied')
+            ->assertJsonMissingPath('data.shipping_options.0.free_delivery_pending_coverage');
+        $this->postJson(self::QUOTE, compact('items', 'address'))->assertOk()
+            ->assertJsonPath('data.shipping_options.1.free_delivery_applied', true)
+            ->assertJsonMissingPath('data.shipping_options.1.free_delivery_pending_coverage')
+            ->assertJsonPath('data.shipping_options.1.shipping_cents', 0)
+            ->assertJsonPath('data.shipping_options.1.total_cents', 100);
+
+        $product->forceFill(['price_cents' => 99])->save();
+        $this->postJson(self::QUOTE, compact('items'))->assertOk()
+            ->assertJsonMissingPath('data.shipping_options.1.free_delivery_pending_coverage')
+            ->assertJsonPath('data.shipping_options.1.shipping_cents', 12000);
+        $this->postJson(self::QUOTE, compact('items', 'address'))->assertOk()
+            ->assertJsonMissingPath('data.shipping_options.1.free_delivery_applied')
+            ->assertJsonPath('data.shipping_options.1.shipping_cents', 12000)
+            ->assertJsonPath('data.shipping_options.1.total_cents', 12099);
+    }
+
     public function test_free_delivery_requotes_before_placing_an_order_and_only_charges_the_stored_total(): void
     {
         config([

@@ -397,7 +397,7 @@ paths:
   /api/v1/checkout/quote:
     post:
       operationId: quoteCheckout
-      description: Prices catalog items and configured pickup or delivery options without reserving stock. When an eligible delivery address is supplied and the product subtotal reaches the enabled minimum, the delivery option has zero shipping and free_delivery_applied true. First-party guest and buyer sessions are supported.
+      description: Prices catalog items and configured pickup or delivery options without reserving stock. If the product subtotal reaches the enabled free-delivery minimum, the delivery option has free_delivery_pending_coverage true with no address, or zero shipping and free_delivery_applied true after address validation. First-party guest and buyer sessions are supported.
       externalDocs: { url: docs/orders.md }
       requestBody:
         required: true
@@ -896,7 +896,9 @@ paths:
         '200':
           description: >
             Public business contact and shipping information. data.checkout_pro_available
-            is a configuration boolean, not a Mercado Pago connectivity check. No provider
+            is a configuration boolean, not a Mercado Pago connectivity check.
+            data.free_delivery_minimum_cents is the configured minimum in integer cents, or null if
+            free delivery or delivery itself is disabled; checkout still verifies coverage. No provider
             credentials, seller IDs or private controls are returned.
   /api/v1/withdrawals/{reference}/confirmation:
     post:

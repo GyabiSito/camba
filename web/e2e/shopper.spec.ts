@@ -365,6 +365,7 @@ test('two buyer tabs persist valid quantities at current server prices', async (
 test('a buyer sees the API delivery rate and confirms a persisted delivery order at 320 px', async ({
   page,
 }, info) => {
+  info.setTimeout(75_000);
   await page.setViewportSize({ width: 320, height: 800 });
   await signInBuyer(page, 'delivery');
   await addToCart(page, 'remera-lisa');
@@ -410,13 +411,34 @@ test('a buyer sees the API delivery rate and confirms a persisted delivery order
   const totals = page.getByRole('complementary', { name: 'Resumen de la compra' });
   const amount = (summary: typeof totals, label: string) =>
     summary.getByText(label, { exact: true }).locator('..').getByRole('definition');
+  const information = page.getByRole('region', { name: 'Información de la compra' });
+  const confirmation = page.getByRole('region', { name: 'Confirmación del pedido' });
+  const confirm = confirmation.getByRole('button', { name: 'Confirmar pedido' });
+  await expect(totals).toContainText(/1 × Remera lisa/);
+  await expect(amount(totals, 'Subtotal')).toHaveText('UYU 890');
   await expect(amount(totals, 'Entrega')).toHaveText('UYU 185');
   await expect(amount(totals, 'Total en UYU')).toHaveText('UYU 1.075');
-  await expect(totals.getByRole('link', { name: /condiciones de compra/ }))
-    .toHaveAttribute('href', '/terminos-y-condiciones?version=2026-11-27-v2');
-  await expect(totals.locator('p').filter({ hasText: 'Retracto:' })).toContainText('10 días corridos');
+  await expect(totals).not.toContainText(/Vendido por|Retracto:|Mercado Pago/);
+  await expect(information).toContainText(/Vendido por Camba · RUT/);
+  const terms = information.getByRole('link', { name: /condiciones de compra/ });
+  await expect(terms).toHaveAttribute('href', '/terminos-y-condiciones?version=2026-11-27-v2');
+  await expect(terms).toHaveAttribute('target', '_blank');
+  await expect(information).toContainText(/Retracto:.*10 días corridos/);
+  await expect(information.getByRole('alert')).toHaveCount(0);
+  await expect(confirm).toHaveAccessibleDescription(/Mercado Pago/);
+  const [deliveryBox, informationBox, summaryBox, confirmationBox] = await Promise.all(
+    [fields, information, totals, confirmation].map(section => section.boundingBox()),
+  );
+  expect(deliveryBox!.y + deliveryBox!.height).toBeLessThan(informationBox!.y);
+  expect(informationBox!.y + informationBox!.height).toBeLessThan(summaryBox!.y);
+  expect(summaryBox!.y + summaryBox!.height).toBeLessThan(confirmationBox!.y);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(320);
   await page.screenshot({ path: info.outputPath('checkout-delivery-320.png'), fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  expect((await information.boundingBox())!.x).toBeLessThan((await totals.boundingBox())!.x);
+  await page.screenshot({ path: info.outputPath('checkout-delivery-1440.png'), fullPage: true });
+  await page.setViewportSize({ width: 320, height: 800 });
 
   const ordering = page.waitForResponse(
     (response) =>
@@ -426,7 +448,7 @@ test('a buyer sees the API delivery rate and confirms a persisted delivery order
     submitted: response.request().postDataJSON(),
     data: (await response.json()).data,
   }));
-  await page.getByRole('button', { name: 'Confirmar pedido' }).click();
+  await confirm.click();
   const order = await ordering;
   expect(order.status).toBe(201);
   expect(order.submitted).toMatchObject({

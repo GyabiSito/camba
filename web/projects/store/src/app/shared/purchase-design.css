@@ -103,7 +103,8 @@
   font-size: 1.12rem;
 }
 
-.purchase-summary .actions .button {
+.purchase-summary .actions .button,
+.checkout-confirmation .actions .button {
   width: 100%;
   justify-content: center;
   background: var(--purchase-action);
@@ -126,6 +127,34 @@
   letter-spacing: -0.015em;
 }
 
+.checkout-sidebar {
+  position: sticky;
+  inset-block-start: 1rem;
+}
+
+.checkout-sidebar .purchase-summary {
+  position: static;
+}
+
+.checkout-information {
+  gap: 0.45rem;
+  padding-block-start: 0.9rem;
+  border-block-start: 1px solid var(--purchase-line);
+}
+
+.checkout-information h2 {
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.checkout-information p {
+  color: var(--purchase-muted);
+}
+
+.checkout-confirmation {
+  gap: 0.75rem;
+}
+
 .purchase-summary :is(a, button):focus-visible,
 .purchase-page :is(a, button, input, select):focus-visible {
   outline: 3px solid var(--purchase-action);
@@ -141,6 +170,10 @@
   .purchase-summary {
     position: static;
     order: -1;
+  }
+
+  .checkout-sidebar {
+    position: static;
   }
 }
 

@@ -10,6 +10,7 @@ export interface PublicStoreInfo {
   support_phone: string | null;
   pickup_address: string | null;
   delivery_cents: number | null;
+  free_delivery_minimum_cents?: number | null;
   checkout_pro_available?: boolean;
 }
 

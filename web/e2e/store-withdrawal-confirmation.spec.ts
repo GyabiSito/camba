@@ -1,6 +1,25 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 
+test('the withdrawal link appears only after terms in the legal footer', async ({ page }) => {
+  for (const width of [1440, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/');
+    await expect(page.locator('.withdrawal-banner')).toHaveCount(0);
+    await expect(page.locator('a[href="/arrepentimiento"]')).toHaveCount(1);
+    const legal = page.getByRole('navigation', { name: 'Legal', exact: true });
+    await expect(legal.getByRole('link')).toHaveText([
+      'Política de privacidad', 'Términos y condiciones', 'Botón de arrepentimiento',
+    ]);
+    const withdrawal = legal.getByRole('link', { name: 'Botón de arrepentimiento', exact: true });
+    await expect(withdrawal).toHaveAttribute('href', '/arrepentimiento');
+    await withdrawal.click();
+    await expect(page).toHaveURL(/\/arrepentimiento$/);
+    await expect(page.getByRole('heading', { name: 'Botón de arrepentimiento', exact: true })).toBeVisible();
+    await expect(page.getByLabel('Referencia del pedido')).toBeVisible();
+  }
+});
+
 test('opening the owner link does not confirm; a deliberate click displays the original receipt', async ({ page }) => {
   const reference = randomUUID();
   const token = 'a'.repeat(64);
@@ -14,8 +33,6 @@ test('opening the owner link does not confirm; a deliberate click displays the o
     return route.fulfill(requests === 1 ? { json: { data: { reference, received_at: '2026-11-27T15:00:00Z' } } } : { status: 410 });
   });
 
-  await page.goto('/');
-  await expect(page.getByRole('link', { name: 'Botón de arrepentimiento', exact: true })).toHaveCount(1);
   await page.goto(landing + '#' + token);
   const confirm = page.getByRole('button', { name: 'Sí, hice esta solicitud', exact: true });
   await expect(confirm).toBeEnabled();

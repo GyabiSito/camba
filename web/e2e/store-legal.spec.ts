@@ -67,7 +67,8 @@ test('withdrawal waits for one response and keeps the form after a server error'
 test('public withdrawal provides a neutral receipt and reaches Admin from the orders screen', async ({ page, browser }) => {
   await page.setViewportSize({ width: 320, height: 812 });
   await page.goto('/');
-  await page.locator('main').getByRole('link', { name: 'Botón de arrepentimiento', exact: true }).click();
+  const legal = page.getByRole('navigation', { name: 'Legal', exact: true });
+  await legal.getByRole('link', { name: 'Botón de arrepentimiento', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Botón de arrepentimiento' })).toBeVisible();
   await page.getByText('Plazos y condiciones del retracto', { exact: true }).click();
   const rule = page.getByText(/Hasta el 31\/12\/2026, el plazo es de 5 días hábiles/);

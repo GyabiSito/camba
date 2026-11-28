@@ -1,10 +1,12 @@
 import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { Component, computed, DestroyRef, inject, PLATFORM_ID, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { apiMessage, CART_CHANGED, formatMoney } from '@camba/shared';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, map } from 'rxjs';
 import { CatalogCovers } from '../../shared/catalog-covers';
+import { readPublicStoreInfo } from '../../shared/data-access/public-store-info';
 import { ProductPhoto } from '../../shared/product-photo';
 import { OrdersApi } from '../orders/data-access/orders.api';
 import { CartApi } from './data-access/cart.api';
@@ -32,6 +34,10 @@ export class CartPage {
   protected readonly paymentBusy = signal(false);
   protected readonly paymentNote = signal('');
   protected readonly quantities = signal<Record<number, number | null>>({});
+  protected readonly freeDeliveryMinimum = toSignal(
+    readPublicStoreInfo().pipe(map((info) => info?.free_delivery_minimum_cents ?? null)),
+    { initialValue: null },
+  );
   protected readonly total = computed(() =>
     this.items().reduce((sum, item) => sum + (item.product?.price_cents ?? 0) * item.quantity, 0),
   );

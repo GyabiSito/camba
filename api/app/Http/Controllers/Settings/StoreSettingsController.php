@@ -20,9 +20,12 @@ class StoreSettingsController
         $email = trim((string) config('store.public_contact.email'));
         $phone = trim((string) config('store.public_contact.phone'));
         $dial = str_replace([' ', '.', '(', ')', '-'], '', $phone);
+        $settings = StoreSettings::loadValues();
 
         return response()->json(['data' => [
-            ...Arr::only(StoreSettings::loadValues(), ['business_name', 'pickup_address', 'delivery_cents']),
+            ...Arr::only($settings, ['business_name', 'pickup_address', 'delivery_cents']),
+            'free_delivery_minimum_cents' => $settings['free_delivery_enabled'] === true && $settings['delivery_cents'] !== null
+                ? $settings['free_delivery_minimum_cents'] : null,
             'fiscalName' => $validFiscalName ? trim($fiscalName) : null,
             'support_email' => filter_var($email, FILTER_VALIDATE_EMAIL) ?: null,
             'support_phone' => strlen($phone) <= 40 && preg_match('/\A\+?[0-9]{3,15}\z/', $dial) ? $phone : null,

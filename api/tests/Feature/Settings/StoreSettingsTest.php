@@ -50,8 +50,10 @@ class StoreSettingsTest extends TestCase
 
     public function test_free_delivery_settings_are_optional_and_require_positive_integer_cents_when_enabled(): void
     {
+        config(['checkout.delivery_cents' => 18500]);
         $url = '/api/v1/admin/settings';
         $enabled = ['free_delivery_enabled' => true];
+        $this->getJson('/api/v1/store-info')->assertOk()->assertJsonPath('data.free_delivery_minimum_cents', null);
         $this->withHeader('Origin', 'http://localhost')->actingAs(User::factory()->create(), 'web')
             ->patchJson($url, $enabled + ['free_delivery_minimum_cents' => 250000])->assertUnauthorized();
         $this->app['auth']->forgetGuards();
@@ -72,8 +74,14 @@ class StoreSettingsTest extends TestCase
         $this->patchJson($url, ['free_delivery_minimum_cents' => 250001])->assertOk();
         $this->getJson($url)->assertOk()
             ->assertJsonPath('data.free_delivery_enabled', true)->assertJsonPath('data.free_delivery_minimum_cents', 250001);
+        $this->getJson('/api/v1/store-info')->assertOk()
+            ->assertJsonPath('data.free_delivery_minimum_cents', 250001)->assertJsonMissingPath('data.free_delivery_enabled');
+        config(['checkout.delivery_cents' => null]);
+        $this->getJson('/api/v1/store-info')->assertOk()->assertJsonPath('data.free_delivery_minimum_cents', null);
+        config(['checkout.delivery_cents' => 18500]);
         $this->patchJson($url, ['free_delivery_enabled' => false])->assertOk()
             ->assertJsonPath('data.free_delivery_enabled', false)->assertJsonPath('data.free_delivery_minimum_cents', 250001);
+        $this->getJson('/api/v1/store-info')->assertOk()->assertJsonPath('data.free_delivery_minimum_cents', null);
         $this->getJson("$url/history")->assertOk()->assertJsonPath('data.0.before.free_delivery_enabled', true)
             ->assertJsonPath('data.0.after.free_delivery_enabled', false);
         $this->assertDatabaseCount('store_setting_changes', 3);
@@ -99,6 +107,7 @@ class StoreSettingsTest extends TestCase
             'fiscalName' => null,
             'pickup_address' => null,
             'delivery_cents' => null,
+            'free_delivery_minimum_cents' => null,
             'support_email' => 'hello@example.test',
             'support_phone' => '+598 (99) 123-456',
             'checkout_pro_available' => false,

@@ -65,7 +65,7 @@
           </section>
           @if (method() === 'delivery') {
             <section class="shop-panel purchase-panel">
-                <fieldset [disabled]="busy() || uncertain() || savingAddress()" class="stack">
+              <fieldset [disabled]="busy() || uncertain() || savingAddress()" class="stack">
                 <legend>Dirección de entrega</legend>
                 @if (addresses().length) {
                   <label class="field"
@@ -100,92 +100,113 @@
               </fieldset>
             </section>
           }
+          <section class="stack checkout-information" aria-labelledby="checkout-information-title">
+            <h2 id="checkout-information-title">Información de la compra</h2>
+            <p>
+              Vendido por {{ business.name }} · RUT {{ business.rut }}. Antes de confirmar, revisá tus
+              datos y las
+              <a
+                routerLink="/terminos-y-condiciones"
+                [queryParams]="{ version: currentQuote.terms_version }"
+                target="_blank"
+                rel="noopener"
+                >condiciones de compra (otra pestaña)</a
+              >.
+            </p>
+            @if (currentQuote.withdrawal_period; as period) {
+              <p><strong>Retracto:</strong> {{ period }}</p>
+            }
+          </section>
         </div>
-        <aside class="shop-panel purchase-summary" aria-labelledby="quote-title">
-          <h2 id="quote-title">Resumen de la compra</h2>
-          <ul class="line-list">
-            @for (item of currentQuote.items; track item.product_id) {
-              <li>
-                <div class="line-head">
-                  <span>{{ item.quantity }} × {{ item.name }}</span
-                  ><span class="money">{{ money(item.line_total_cents) }}</span>
-                </div>
-              </li>
-            }
-          </ul>
-          <dl class="totals">
-            <div>
-              <dt>Subtotal</dt>
-              <dd>{{ money(currentQuote.subtotal_cents) }}</dd>
-            </div>
-            @if (selected(); as option) {
+        <div class="stack checkout-sidebar">
+          <aside class="shop-panel purchase-summary" aria-labelledby="quote-title">
+            <h2 id="quote-title">Resumen de la compra</h2>
+            <ul class="line-list">
+              @for (item of currentQuote.items; track item.product_id) {
+                <li>
+                  <div class="line-head">
+                    <span>{{ item.quantity }} × {{ item.name }}</span
+                    ><span class="money">{{ money(item.line_total_cents) }}</span>
+                  </div>
+                </li>
+              }
+            </ul>
+            <dl class="totals">
               <div>
-                <dt>{{ option.method === 'pickup' ? 'Retiro' : 'Entrega' }}</dt>
-                <dd>{{ shippingCost(option) }}</dd>
+                <dt>Subtotal</dt>
+                <dd>{{ money(currentQuote.subtotal_cents) }}</dd>
               </div>
-              <div class="total">
-                <dt>Total en UYU</dt>
-                <dd>{{ money(option.total_cents) }}</dd>
+              @if (selected(); as option) {
+                <div>
+                  <dt>{{ option.method === 'pickup' ? 'Retiro' : 'Entrega' }}</dt>
+                  <dd>{{ shippingCost(option) }}</dd>
+                </div>
+                @if (!option.free_delivery_pending_coverage) {
+                  <div class="total">
+                    <dt>Total en UYU</dt>
+                    <dd>{{ money(option.total_cents) }}</dd>
+                  </div>
+                }
+              }
+            </dl>
+          </aside>
+          <section class="stack checkout-confirmation" aria-label="Confirmación del pedido">
+            @if (deliveryLoading()) {
+              <div role="status" class="shop-skeleton" aria-label="Cotizando el envío">
+                <i aria-hidden="true"></i>
+              </div>
+            } @else if (deliveryState()?.error; as error) {
+              <p class="notice problem" role="alert">{{ error }}</p>
+              <div class="actions">
+                <button class="button button--quiet" type="button" (click)="refreshDeliveryQuote()">
+                  Volver a cotizar el envío
+                </button>
               </div>
             }
-          </dl>
-          @if (deliveryLoading()) {
-            <div role="status" class="shop-skeleton" aria-label="Cotizando el envío">
-              <i aria-hidden="true"></i>
-            </div>
-          } @else if (deliveryState()?.error; as error) {
-            <p class="notice problem" role="alert">{{ error }}</p>
+            @if (orderError()) {
+              <p class="notice problem" role="alert">{{ orderError() }}</p>
+            }
+            @if (uncertain()) {
+              <p><a routerLink="/pedidos">Ver compras</a></p>
+            }
+            <p
+              id="checkout-payment-note"
+              class="muted small"
+              [attr.role]="checkoutAvailable() === true ? null : 'status'"
+            >
+              @if (checkoutAvailable() === undefined) {
+                Estamos consultando si Mercado Pago está disponible.
+              } @else if (checkoutAvailable()) {
+                Al confirmar vas a continuar en Mercado Pago para completar el pago.
+              } @else if (checkoutAvailable() === null) {
+                Al confirmar vamos a comprobar si podemos abrir Mercado Pago.
+              } @else {
+                Mercado Pago no está disponible en este momento.
+              }
+            </p>
             <div class="actions">
-              <button class="button button--quiet" type="button" (click)="refreshDeliveryQuote()">
-                Volver a cotizar el envío
+              <button
+                class="button"
+                type="submit"
+                aria-describedby="checkout-payment-note"
+                [disabled]="
+                  busy() ||
+                  savingAddress() ||
+                  checkoutAvailable() === undefined ||
+                  ((!!deliveryState()?.error || deliveryLoading()) && !uncertain())
+                "
+              >
+                {{
+                  busy()
+                    ? (openingPayment() ? 'Abriendo Mercado Pago…' : 'Confirmando…')
+                    : uncertain()
+                      ? 'Reintentar el mismo pedido'
+                      : 'Confirmar pedido'
+                }}
               </button>
             </div>
-          }
-          @if (orderError()) {
-            <p class="notice problem" role="alert">{{ orderError() }}</p>
-          }
-          @if (uncertain()) {
-            <p><a routerLink="/pedidos">Ver compras</a></p>
-          }
-          @if (checkoutAvailable() === undefined) {
-            <p class="muted small" role="status">Estamos consultando si Mercado Pago está disponible.</p>
-          } @else if (checkoutAvailable()) {
-            <p class="muted small">Al confirmar vas a continuar en Mercado Pago para completar el pago.</p>
-          } @else if (checkoutAvailable() === null) {
-            <p class="muted small" role="status">Al confirmar vamos a comprobar si podemos abrir Mercado Pago.</p>
-          } @else {
-            <p class="notice" role="status">
-              Mercado Pago no está disponible en este momento.
-            </p>
-          }
-          <p class="muted small">
-            Vendido por {{ business.name }} · RUT {{ business.rut }}. Antes de confirmar, revisá tus datos y las
-            <a routerLink="/terminos-y-condiciones" [queryParams]="{ version: currentQuote.terms_version }" target="_blank" rel="noopener">condiciones de compra (otra pestaña)</a>.
-          </p>
-          @if (currentQuote.withdrawal_period; as period) {
-            <p class="muted small"><strong>Retracto:</strong> {{ period }}</p>
-          }
-          <div class="actions">
-            <button
-              class="button"
-              type="submit"
-              [disabled]="
-                busy() ||
-                savingAddress() ||
-                checkoutAvailable() === undefined ||
-                ((!!deliveryState()?.error || deliveryLoading()) && !uncertain())
-              "
-            >
-              {{
-                busy()
-                  ? (openingPayment() ? 'Abriendo Mercado Pago…' : 'Confirmando…')
-                  : uncertain()
-                    ? 'Reintentar el mismo pedido'
-                    : 'Confirmar pedido'
-              }}
-            </button>
-          </div>
-        </aside>
+          </section>
+        </div>
       </form>
     } @else {
       <div class="shop-panel purchase-panel">

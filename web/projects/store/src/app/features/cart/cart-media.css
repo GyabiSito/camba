@@ -20,6 +20,30 @@
   overflow-wrap: anywhere;
 }
 
+.cart-free-delivery {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.8rem 0.9rem;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--purchase-action) 9%, var(--purchase-surface));
+  color: var(--purchase-action);
+}
+
+.cart-free-delivery h3,
+.cart-free-delivery p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.cart-free-delivery h3 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.cart-free-delivery p {
+  font-size: 0.9rem;
+}
+
 @media (max-width: 44rem) {
   .cart-cover {
     width: 3.5rem;

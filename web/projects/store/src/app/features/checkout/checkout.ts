@@ -49,6 +49,7 @@ export class CheckoutPage {
   protected readonly money = formatMoney;
   protected shippingCost(option: Shipping): string {
     if (option.free_delivery_applied) return 'Envío gratis';
+    if (option.free_delivery_pending_coverage) return 'Envío gratis en zonas con cobertura';
     return option.shipping_cents ? this.money(option.shipping_cents) : 'Sin costo';
   }
   protected readonly contact = this.fb.nonNullable.group({

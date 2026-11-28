@@ -10,7 +10,7 @@ Checks: isolated Laravel feature tests; existing local Docker Admin/API; Chromiu
 - S5. “Cubrí el rechazo a visitantes y compradores en la API. Verificá Inicio, listado y ficha en escritorio y a 320 px, y ejecutá el build de Admin.” “entregá un resumen con las pruebas ejecutadas y capturas de Inicio, listado y ficha.”
 
 ## Tasks
-- [ ] T1 · S1–S5 · inline, one admin read-only feature with API and UI dependent on the same contract · risk item 2: new customer PII reads, explicitly protected by admin gate · implementation in verification.
+- [x] T1 · S1–S5 · inline, one admin read-only feature with API and UI dependent on the same contract · risk item 2: new customer PII reads, explicitly protected by admin gate · functional checks passed, local commit 6848361; native review awaiting candidate-specific consent.
 
 ## Log
 ### L1 — 2026-11-28
@@ -57,3 +57,6 @@ Implementalo en la rama local y entregá un resumen con las pruebas ejecutadas y
 ### L4 — final evidence
 - The shared-worktree rebuild coincided with unfinished, unrelated product gallery edits. A scoped copy of baseline plus this feature's frontend compiled and passed all 12 Chromium checks. Final captures checked at 1440 and 320 px.
 - Independent verifier confirmed all three routes carry the admin guard and found no code blockers. Its own authenticated runtime setup stopped at a Sanctum fixture error; it did not claim a runtime pass. Parent spot-checked the same route-list command and added the verifier's literal wildcard regression. Final isolated Laravel: 15 tests, 215 assertions, all passing. Real demo HTTP completed role denials and verified-admin reads without changing business records.
+
+### L5 - local commit and native review
+- Local commit 6848361ec9aeff22dc310049f298032191442aaf; staged and unrelated files untouched. Committed-only review assessment: high_risk (item 2); exact native START returned a blocking consent envelope for this commit with untracked files excluded. No reviewer or publication authorized by this result.
