@@ -215,7 +215,7 @@ class StageLegacyCatalogAction
                 $files[] = $this->verifiedPhoto((string) $path, $hash, $root);
             }
             $receipt->update(['photos_applied' => true]);
-            $this->saveImages->execute($product->id, $files);
+            $this->saveImages->preserveHistoricalGallery($product->id, $files);
         });
     }
 }

@@ -14,6 +14,8 @@ class SaveProductImagesAction
 {
     private const CLOSED = 'closed';
 
+    private const MAX_PHOTOS = 5;
+
     public function close(int $id, string $key): Product
     {
         return DB::transaction(function () use ($id, $key): Product {
@@ -33,18 +35,25 @@ class SaveProductImagesAction
     }
 
     /** @param list<UploadedFile> $photos */
-    public function executeIdempotently(int $id, array $photos, string $key): Product
+    public function executeIdempotently(int $id, array $photos, string $key, ?int $replaceImageId = null): Product
     {
-        return $this->save($id, $photos, $key);
+        return $this->save($id, $photos, $key, $replaceImageId);
     }
 
-    private function save(int $id, array $photos, ?string $key = null): Product
+    /** @param list<UploadedFile> $photos */
+    public function preserveHistoricalGallery(int $id, array $photos): Product
+    {
+        return $this->save($id, $photos, historical: true);
+    }
+
+    private function save(int $id, array $photos, ?string $key = null, ?int $replaceImageId = null, bool $historical = false): Product
     {
         $product = Product::query()->findOrFail($id);
         $receipt = $key === null ? null : [
             'product_id' => $id,
             'upload_key' => strtolower($key),
-            'payload_hash' => hash('sha256', implode('', array_map(fn (UploadedFile $photo) => hash('sha256', $photo->getContent()), $photos))),
+            'payload_hash' => hash('sha256', ($replaceImageId === null ? '' : "replace:$replaceImageId:")
+                .implode('', array_map(fn (UploadedFile $photo) => hash('sha256', $photo->getContent()), $photos))),
         ];
         if ($receipt !== null && $this->isReplay($receipt)) {
             return $product->load(['category', 'brand', 'images']);
@@ -71,16 +80,28 @@ class SaveProductImagesAction
                 unset($image);
             }
 
-            return DB::transaction(function () use ($id, $photosToInsert, $receipt, &$mayBeReferenced): Product {
+            return DB::transaction(function () use ($id, $photosToInsert, $receipt, $replaceImageId, $historical, &$mayBeReferenced): Product {
                 $product = Product::query()->lockForUpdate()->findOrFail($id);
                 // Read the receipt after acquiring the product lock, before establishing a consistent snapshot.
                 if ($receipt !== null && $this->isReplay($receipt)) {
                     return $product->load(['category', 'brand', 'images']);
                 }
 
-                $position = ($product->images()->reorder()->max('position') ?? -1) + 1;
-                foreach ($photosToInsert as $path) {
-                    $product->images()->create(['path' => $path, 'position' => $position++]);
+                if ($replaceImageId !== null) {
+                    $image = $product->images()->whereKey($replaceImageId)->first();
+                    if ($image === null) {
+                        throw ValidationException::withMessages(['replace_image_id' => 'La foto a reemplazar no pertenece a este producto.']);
+                    }
+                    // Retain the old immutable media path for any historical links.
+                    $image->update(['path' => $photosToInsert[0]]);
+                } else {
+                    if (! $historical && $product->images()->count() + count($photosToInsert) > self::MAX_PHOTOS) {
+                        throw ValidationException::withMessages(['photos' => 'Podés guardar hasta 5 fotos por producto, incluida la portada.']);
+                    }
+                    $position = ($product->images()->reorder()->max('position') ?? -1) + 1;
+                    foreach ($photosToInsert as $path) {
+                        $product->images()->create(['path' => $path, 'position' => $position++]);
+                    }
                 }
                 if ($receipt !== null) {
                     DB::table('product_image_uploads')->insert($receipt);

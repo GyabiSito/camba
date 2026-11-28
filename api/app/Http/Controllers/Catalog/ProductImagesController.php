@@ -17,7 +17,9 @@ class ProductImagesController
     {
         $key = $request->validated('idempotency_key');
         $photos = $request->file('photos');
-        $updated = $key === null ? $save->execute($product, $photos) : $save->executeIdempotently($product, $photos, $key);
+        $replacement = $request->validated('replace_image_id');
+        $updated = $key === null ? $save->execute($product, $photos)
+            : $save->executeIdempotently($product, $photos, $key, $replacement === null ? null : (int) $replacement);
 
         return ProductResource::make($updated)->response()->setStatusCode(201);
     }

@@ -126,6 +126,82 @@ class ProductImagesTest extends TestCase
         $this->assertDatabaseCount('product_images', 1);
     }
 
+    public function test_photo_limit_keeps_existing_images_and_does_not_block_a_replay(): void
+    {
+        $disk = Storage::fake('public');
+        $this->admin();
+        $product = $this->product();
+        $url = "/api/v1/admin/products/$product->id/images";
+        foreach (range(0, 3) as $position) {
+            $product->images()->create(['position' => $position, 'path' => "older-$position.webp"]);
+        }
+        $key = ['Idempotency-Key' => (string) Str::uuid()];
+        $body = ['photos' => [$this->photo()]];
+        $first = $this->post("$url/uploads", $body, $key)->assertCreated()->json('data.images');
+        $this->assertCount(5, $first);
+        $this->post("$url/uploads", $body, $key)->assertCreated()->assertJsonPath('data.images', $first);
+        $this->post($url, $body)->assertUnprocessable()->assertJsonValidationErrors('photos');
+
+        $product->images()->create(['position' => 5, 'path' => 'already-present.webp']);
+        $ids = $product->images()->pluck('id')->all();
+        $this->post($url, $body)->assertUnprocessable()->assertJsonValidationErrors('photos');
+        $this->assertSame($ids, $product->images()->pluck('id')->all());
+        $this->assertCount(2, $disk->allFiles());
+    }
+
+    public function test_replacement_reuses_the_slot_and_key_and_requires_a_photo_owned_by_the_product(): void
+    {
+        $disk = Storage::fake('public');
+        $this->admin();
+        $product = $this->product();
+        $uploads = "/api/v1/admin/products/$product->id/images/uploads";
+        $url = "$uploads/replace";
+        foreach (range(0, 4) as $position) {
+            $product->images()->create(['position' => $position, 'path' => "prior-$position.webp"]);
+        }
+        $ids = $product->images()->pluck('id')->all();
+        $key = ['Idempotency-Key' => (string) Str::uuid()];
+        $foreign = $this->product()->images()->create(['position' => 0, 'path' => 'other.webp']);
+        $body = ['photos' => [$this->photo()], 'replace_image_id' => $foreign->id];
+        $this->post($uploads, $body, $key)->assertUnprocessable()->assertJsonValidationErrors('replace_image_id');
+        $this->post($url, $body, $key)->assertUnprocessable()->assertJsonValidationErrors('replace_image_id');
+        $body['replace_image_id'] = $ids[0];
+        $images = $this->post($url, $body, $key)->assertCreated()->json('data.images');
+        $this->assertSame($ids, array_column($images, 'id'));
+        $this->assertNotSame('prior-0.webp', $product->images()->firstOrFail()->path);
+        $this->post($url, $body, $key)->assertCreated()->assertJsonPath('data.images', $images);
+        $this->post($url, array_replace($body, ['replace_image_id' => $ids[1]]), $key)->assertConflict();
+        $this->assertCount(2, $disk->allFiles());
+    }
+
+    public function test_failed_or_closed_replacement_preserves_the_original_rows_and_files(): void
+    {
+        $disk = Storage::fake('public');
+        $this->admin();
+        $product = $this->product();
+        $disk->put('original.webp', 'original sentinel bytes');
+        $original = $product->images()->create(['position' => 0, 'path' => 'original.webp']);
+        $endpoint = "/api/v1/admin/products/$product->id/images/uploads";
+        $body = ['photos' => [$this->photo()], 'replace_image_id' => $original->id];
+        $snapshot = fn () => [$product->images()->get()->toJson(), array_map(fn ($path) => [$path, $disk->checksum($path)], $disk->allFiles())];
+        $before = $snapshot();
+
+        $event = 'eloquent.updating: '.ProductImage::class;
+        Event::listen($event, fn () => throw new \RuntimeException('Replacement persistence rejected.'));
+        try {
+            $this->post("$endpoint/replace", $body, ['Idempotency-Key' => (string) Str::uuid()])->assertServerError();
+        } finally {
+            Event::forget($event);
+        }
+        $this->assertSame($before, $snapshot());
+        $this->assertDatabaseCount('product_image_uploads', 0);
+
+        $key = ['Idempotency-Key' => (string) Str::uuid()];
+        $this->post("$endpoint/close", [], $key)->assertOk();
+        $this->post("$endpoint/replace", $body, $key)->assertConflict();
+        $this->assertSame($before, $snapshot());
+    }
+
     public function test_upload_key_replays_only_the_same_ordered_bytes_for_this_product(): void
     {
         $disk = Storage::fake('public');

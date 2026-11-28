@@ -324,13 +324,13 @@ class StageLegacyCatalogTest extends TestCase
 
             public function __construct(private SaveProductImagesAction $real) {}
 
-            public function execute(int $id, array $photos): Product
+            public function preserveHistoricalGallery(int $id, array $photos): Product
             {
                 if (++$this->calls === 2) {
                     throw new RuntimeException('Test storage interruption.');
                 }
 
-                return $this->real->execute($id, $photos);
+                return $this->real->preserveHistoricalGallery($id, $photos);
             }
         });
 

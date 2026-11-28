@@ -116,6 +116,25 @@ class PostgreSqlCatalogContentionTest extends TestCase
         $this->assertEqualsCanonicalizing($expected, $disk->allFiles());
     }
 
+    public function test_concurrent_uploads_can_only_claim_the_last_photo_slot_once(): void
+    {
+        $product = $this->draft();
+        foreach (range(1, 3) as $position) {
+            $product->images()->create(['path' => "fixture-$position.webp", 'position' => $position]);
+        }
+        $before = $product->images()->pluck('id')->all();
+        $url = "/api/v1/admin/products/$product->id/images/uploads";
+        $append = static fn () => ['POST', $url, ['photo' => true], ['Idempotency-Key' => (string) Str::uuid()]];
+        $results = $this->race('products', $product->id, $append(), $append());
+        $this->assertEqualsCanonicalizing([201, 422], array_column($results, 'status'));
+        $images = $product->images()->get();
+        $this->assertCount(5, $images);
+        $this->assertSame($before, $images->pluck('id')->take(4)->all());
+        $this->assertDatabaseCount('product_image_uploads', 1);
+        $last = $images->last()->path;
+        $this->assertEqualsCanonicalizing([$last, str_replace('.webp', '-thumb.webp', $last)], $this->disk()->allFiles());
+    }
+
     public function test_simultaneous_upload_recovery_appends_one_batch_and_preserves_the_cover(): void
     {
         $product = $this->draft();
